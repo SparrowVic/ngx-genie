@@ -2,6 +2,9 @@
 
 > **Note:** This project is licensed under the **Apache License 2.0**.
 
+
+![](https://github.com/user-attachments/assets/078d35b7-80d1-4f34-bed0-47f903d339b5)
+
 **GenieOS** (`ngx-genie`) is an advanced developer tool for the **Angular** framework, designed for visualizing, analyzing, and diagnosing the **Dependency Injection (DI)** system.
 
 It works as an intelligent overlay on top of your application, allowing you to:

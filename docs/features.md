@@ -31,6 +31,8 @@
 
 ## 1. Inspector Panel <a id="inspector-panel"></a>
 
+![](https://github.com/user-attachments/assets/078d35b7-80d1-4f34-bed0-47f903d339b5)
+
 The right-hand panel for **detailed inspection of the selected element** (injector node or provider). This is where clicks from any view lead.
 
 <details open>
@@ -71,6 +73,8 @@ When a specific provider is selected, the following are displayed:
 <summary><strong>⚙️ 2. Options Panel</strong></summary>
 
 ## 2. Options Panel <a id="options-panel"></a>
+
+![](https://github.com/user-attachments/assets/078d35b7-80d1-4f34-bed0-47f903d339b5)
 
 The left-hand panel providing **global control** over filtering and noise reduction. Changes apply reactively and affect all views that support synchronization.
 
@@ -144,6 +148,8 @@ All views use consistent markings – regardless of representation form (node, c
 
 ### 3.2 Tree View <a id="tree-view"></a> 🌳
 
+![](https://github.com/user-attachments/assets/7669a632-4f5b-4d7e-9909-ea1219d352d4)
+
 Classic hierarchical visualization of injectors (aligned with DI hierarchy, not DOM).
 
 - Node: expand icon + type (e.g., EL/ENV) + label + ID + provider count
@@ -158,6 +164,8 @@ Classic hierarchical visualization of injectors (aligned with DI hierarchy, not 
 <summary><strong>📊 3.3 Org Chart View</strong></summary>
 
 ### 3.3 Org Chart View <a id="org-chart-view"></a> 📊
+
+![](https://github.com/user-attachments/assets/8df5540f-d327-4f9f-ad6b-7c923c06b75a)
 
 Organizational view ideal for quickly grasping the structure.
 
@@ -174,6 +182,8 @@ Organizational view ideal for quickly grasping the structure.
 
 ### 3.4 Matrix View <a id="matrix-view"></a> 🔲
 
+![](https://github.com/user-attachments/assets/b281a65a-b4ae-435b-8413-4db7e0541801)
+
 Two-dimensional matrix of consumer–provider relationships.
 
 - **Y-axis**: consumers (injectors/components)
@@ -189,6 +199,8 @@ Two-dimensional matrix of consumer–provider relationships.
 <summary><strong>✨ 3.5 Constellation View</strong></summary>
 
 ### 3.5 Constellation View <a id="constellation-view"></a> ✨
+
+![](https://github.com/user-attachments/assets/078d35b7-80d1-4f34-bed0-47f903d339b5)
 
 Interactive force-directed graph for exploring connections.
 
@@ -208,6 +220,8 @@ Interactive force-directed graph for exploring connections.
 <summary><strong>🩺 4. Diagnostics</strong></summary>
 
 ## 4. Diagnostics <a id="diagnostics"></a>
+
+![](https://github.com/user-attachments/assets/eb8b4fe8-81a9-4016-a4ae-17acf26f7950)
 
 A dedicated, advanced diagnostic view for analyzing the overall health of the Dependency Injection (DI) system. This view aggregates data from the diagnostics engine, interprets it in real time, and presents it as metrics, anomalies, and contextual recommendations. Its goal is not only to highlight issues but also to help understand **why** a given DI structure is risky and **how** to improve it.
 
