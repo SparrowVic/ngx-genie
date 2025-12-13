@@ -1,12 +1,12 @@
 {
   "name": "ngx-genie",
-  "version": "20.0.0-beta.2",
+  "version": "20.0.0-beta.4",
   "description": "GenieOS – Angular DI Inspector",
   "author": "Wiktor",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/SparrowVic/ngx-genie.git"
+    "url": "git+https://github.com/SparrowVic/ngx-genie.git"
   },
   "homepage": "https://github.com/SparrowVic/ngx-genie.git",
   "peerDependencies": {
