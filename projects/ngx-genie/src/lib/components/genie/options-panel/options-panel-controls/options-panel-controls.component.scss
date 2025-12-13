@@ -1,0 +1,129 @@
+@import '../options-panel-vars';
+
+:host {
+  display: block;
+}
+
+.panel-section {
+  @include panel-section;
+}
+
+.section-header {
+  @include section-header;
+}
+
+.control-row {
+  display: flex;
+  gap: 8px;
+
+  &.full-width .action-btn, &.full-width .focus-toggle {
+    width: 100%;
+  }
+}
+
+.action-btn {
+  @include action-btn;
+}
+
+.focus-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid $c-border;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  position: relative;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+
+
+    &::after {
+      content: attr(title);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-bottom: 8px;
+      padding: 6px 10px;
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 12px;
+      border-radius: 4px;
+      white-space: normal;
+      width: 200px;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      z-index: 100;
+      opacity: 0;
+      animation: fadeIn 0.2s forwards;
+      pointer-events: none;
+    }
+  }
+
+  &.active {
+    background: rgba($c-primary, 0.15);
+    border-color: $c-primary;
+    box-shadow: 0 0 12px rgba($c-primary, 0.25);
+
+    .focus-icon {
+      color: $c-primary;
+      text-shadow: 0 0 8px $c-primary;
+    }
+
+    .toggle-indicator {
+      background: $c-primary;
+      box-shadow: 0 0 6px $c-primary;
+    }
+
+    .focus-label .main {
+      color: $c-primary;
+    }
+  }
+
+  .focus-icon {
+    font-size: 16px;
+    color: $c-text-dim;
+    transition: color 0.2s;
+  }
+
+  .focus-label {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+
+    .main {
+      font-weight: bold;
+      font-size: 11px;
+      color: $c-text;
+      transition: color 0.2s;
+    }
+
+    .sub {
+      font-size: 9px;
+      color: $c-text-dim;
+      opacity: 0.8;
+    }
+  }
+
+  .toggle-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #444;
+    transition: all 0.3s;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}

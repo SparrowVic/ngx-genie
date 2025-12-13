@@ -1,0 +1,16 @@
+{
+  "name": "ngx-genie",
+  "version": "0.0.1",
+  "peerDependencies": {
+    "@angular/common": "^20.3.0",
+    "@angular/core": "^20.3.0"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "gen:svg-to-ts": "node src/lib/scripts/svg-to-ts.js",
+    "build:lib": "npm run gen:svg-to-ts && ng build ngx-genie"
+  }
+}

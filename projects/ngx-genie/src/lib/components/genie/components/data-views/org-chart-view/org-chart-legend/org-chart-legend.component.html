@@ -1,0 +1,45 @@
+<div class="legend-bar" [class.expanded]="isOpen()">
+
+  <div class="legend-header" (click)="toggle()">
+    <span class="title">CHART LEGEND</span>
+    <span class="toggle-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 15l-6-6-6 6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+  </div>
+
+  <div class="legend-content">
+    <div class="legend-section">
+      <div class="section-title">Dependency Types</div>
+      <div class="badges-grid">
+        <div class="badge-item"><span class="indicator svc">SVC</span> Service</div>
+        <div class="badge-item"><span class="indicator sys">SYS</span> System (Core)</div>
+        <div class="badge-item"><span class="indicator val">VAL</span> Value / Config</div>
+        <div class="badge-item"><span class="indicator obs">OBS</span> Observable</div>
+        <div class="badge-item"><span class="indicator tok">TOK</span> Injection Token</div>
+        <div class="badge-item"><span class="indicator cmp">CMP</span> Component</div>
+        <div class="badge-item"><span class="indicator dir">DIR</span> Directive</div>
+        <div class="badge-item"><span class="indicator pip">PIP</span> Pipe</div>
+      </div>
+    </div>
+
+    <div class="legend-section">
+      <div class="section-title">Status & Scope</div>
+      <div class="flags-list">
+        <div class="flag-item">
+          <span class="dot root"></span>
+          <span>Root Singleton</span>
+        </div>
+        <div class="flag-item">
+          <span class="dot framework"></span>
+          <span>Angular Internal</span>
+        </div>
+        <div class="flag-item">
+          <span class="example-text unused">Strikethrough</span>
+          <span>Unused Provider</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

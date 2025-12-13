@@ -1,0 +1,109 @@
+<div class="panel-section">
+  <div class="section-header">
+    <span class="icon">🧬</span> DEPENDENCY TYPES
+  </div>
+
+  <div class="tabs-header">
+    <button class="tab-btn"
+            [class.active]="activeTab() === 'user'"
+            (click)="setActiveTab('user')">
+      User Code
+    </button>
+    <button class="tab-btn"
+            [class.active]="activeTab() === 'framework'"
+            (click)="setActiveTab('framework')">
+      Internals
+    </button>
+  </div>
+
+  <div class="checkbox-grid" *ngIf="activeTab() === 'user'">
+    <label class="checkbox-row compact">
+      <input type="checkbox" [ngModel]="showUserServices()" (ngModelChange)="updateUserServices.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Services</span>
+    </label>
+
+    <label class="checkbox-row compact">
+      <input type="checkbox" [ngModel]="showUserTokens()" (ngModelChange)="updateUserTokens.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Tokens</span>
+    </label>
+
+    <label class="checkbox-row compact">
+      <input type="checkbox" [ngModel]="showUserValues()" (ngModelChange)="updateUserValues.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Values (Config...)</span>
+    </label>
+
+    <label class="checkbox-row compact">
+      <input type="checkbox" [ngModel]="showUserObservables()" (ngModelChange)="updateUserObservables.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Observables (Streams)</span>
+    </label>
+
+    <label class="checkbox-row compact">
+      <input type="checkbox" [ngModel]="showUserComponents()" (ngModelChange)="updateUserComponents.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Components</span>
+    </label>
+
+    <label class="checkbox-row compact">
+      <input type="checkbox" [ngModel]="showUserDirectives()" (ngModelChange)="updateUserDirectives.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Directives</span>
+    </label>
+
+    <label class="checkbox-row compact">
+      <input type="checkbox" [ngModel]="showUserPipes()" (ngModelChange)="updateUserPipes.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Pipes</span>
+    </label>
+  </div>
+
+  <div class="checkbox-grid" *ngIf="activeTab() === 'framework'">
+    <label class="checkbox-row compact warning-theme">
+      <input type="checkbox" [ngModel]="showFrameworkServices()" (ngModelChange)="updateFrameworkServices.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Services (Router...)</span>
+    </label>
+
+    <label class="checkbox-row compact warning-theme">
+      <input type="checkbox" [ngModel]="showFrameworkSystem()" (ngModelChange)="updateFrameworkSystem.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">System (ElementRef...)</span>
+    </label>
+
+    <label class="checkbox-row compact warning-theme">
+      <input type="checkbox" [ngModel]="showFrameworkTokens()" (ngModelChange)="updateFrameworkTokens.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Tokens (APP_INIT...)</span>
+    </label>
+
+    <label class="checkbox-row compact warning-theme">
+      <input type="checkbox" [ngModel]="showFrameworkObservables()"
+             (ngModelChange)="updateFrameworkObservables.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Observables</span>
+    </label>
+
+    <label class="checkbox-row compact warning-theme">
+      <input type="checkbox" [ngModel]="showFrameworkComponents()"
+             (ngModelChange)="updateFrameworkComponents.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Components</span>
+    </label>
+
+    <label class="checkbox-row compact warning-theme">
+      <input type="checkbox" [ngModel]="showFrameworkDirectives()"
+             (ngModelChange)="updateFrameworkDirectives.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Directives (NgIf...)</span>
+    </label>
+
+    <label class="checkbox-row compact warning-theme">
+      <input type="checkbox" [ngModel]="showFrameworkPipes()" (ngModelChange)="updateFrameworkPipes.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Pipes (Async...)</span>
+    </label>
+  </div>
+</div>

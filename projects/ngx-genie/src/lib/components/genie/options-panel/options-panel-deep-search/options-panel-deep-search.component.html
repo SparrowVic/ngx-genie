@@ -1,0 +1,85 @@
+<div class="panel-section search-section">
+  <div class="section-header space-between">
+    <span><span class="icon">🔍</span> DEEP SEARCH</span>
+
+
+    <div class="match-mode-static"
+         style="opacity: 0.7; font-size: 10px; color: #888; display: flex; align-items: center; gap: 6px;">
+      <span class="toggle-label">LOGIC:</span>
+      <span
+        style="color: #60a5fa; font-weight: bold; border: 1px solid rgba(96, 165, 250, 0.3); padding: 2px 6px; border-radius: 4px; background: rgba(96, 165, 250, 0.1);">
+        {{ matchMode() }} (Default)
+      </span>
+
+
+    </div>
+  </div>
+
+  <div class="search-tabs">
+    <div
+      class="tab"
+      [class.active]="searchMode() === 'component'"
+      (click)="_onSearchModeChange('component')">
+      COMPONENTS
+    </div>
+    <div
+      class="tab"
+      [class.active]="searchMode() === 'dependency'"
+      (click)="_onSearchModeChange('dependency')">
+      PROVIDERS
+    </div>
+  </div>
+
+  <div class="autocomplete-container">
+    @if (selectedComponentTags().size > 0 || selectedDependencyTags().size > 0) {
+      <div class="tags-area">
+        @for (tag of selectedComponentTags(); track tag) {
+          <span class="tag component">
+            {{ tag }}
+            <button (click)="_removeTag(tag, 'component')">×</button>
+          </span>
+        }
+        @for (tag of selectedDependencyTags(); track tag) {
+          <span class="tag dependency">
+            {{ tag }}
+            <button (click)="_removeTag(tag, 'dependency')">×</button>
+          </span>
+        }
+      </div>
+    }
+
+    <div class="input-wrapper" #searchInput>
+      <input
+        type="text"
+        [placeholder]="searchMode() === 'component' ? 'Type to tag components...' : 'Type to tag tokens...'"
+        [ngModel]="_searchQuery()"
+        (ngModelChange)="_updateSearchQuery($event)"
+        (focus)="_onSearchInputFocus()">
+      <span class="input-indicator" [class.active]="_isDropdownOpen()">▼</span>
+    </div>
+
+    @if (_isDropdownOpen()) {
+      <div class="dropdown-results custom-scrollbar" #dropdownRef>
+
+        <div class="dropdown-header">
+          <span>{{ searchMode() === 'component' ? 'COMPONENTS' : 'PROVIDERS' }}</span>
+        </div>
+
+        @for (opt of _filteredOptions(); track opt) {
+          <div class="dropdown-option" (click)="_toggleTag(opt, $event)">
+            <div class="cb-wrapper">
+              <div class="mini-cb" [class.checked]="_isTagSelected(opt)"></div>
+            </div>
+            <span class="opt-text" [class.highlight]="_isTagSelected(opt)">{{ opt }}</span>
+          </div>
+        }
+
+        @if (_filteredOptions().length === 0) {
+          <div class="dropdown-empty">
+            No matches found.
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

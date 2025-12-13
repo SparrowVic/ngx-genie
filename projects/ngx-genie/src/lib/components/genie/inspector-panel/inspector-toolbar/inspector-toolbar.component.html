@@ -1,0 +1,35 @@
+<div class="inspector-toolbar">
+  <input type="text" placeholder="Filter dependencies..."
+         [ngModel]="search()" (ngModelChange)="searchChange.emit($event)">
+
+  <div class="filters-grid">
+    <div class="filter-dropdown">
+      <select [ngModel]="typeFilter()" (ngModelChange)="typeFilterChange.emit($event)">
+        <option value="All">Source: All</option>
+        <option value="Class">Class</option>
+        <option value="Value">Value</option>
+        <option value="Factory">Factory</option>
+        <option value="Existing">Existing</option>
+      </select>
+    </div>
+    <div class="filter-dropdown">
+      <select [ngModel]="depTypeFilter()" (ngModelChange)="depTypeFilterChange.emit($event)">
+        <option value="All">Type: All</option>
+        <option value="Service">Service</option>
+        <option value="Pipe">Pipe</option>
+        <option value="Directive">Directive</option>
+        <option value="Component">Component</option>
+        <option value="Token">Token</option>
+      </select>
+    </div>
+    <div class="filter-dropdown full-col">
+      <select [ngModel]="modFilter()" (ngModelChange)="modFilterChange.emit($event)">
+        <option value="All">Modifiers: All (&#64;Host, &#64;Optional...)</option>
+        <option value="Optional">&#64;Optional</option>
+        <option value="Host">&#64;Host</option>
+        <option value="Self">&#64;Self</option>
+        <option value="SkipSelf">&#64;SkipSelf</option>
+      </select>
+    </div>
+  </div>
+</div>

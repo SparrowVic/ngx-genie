@@ -1,0 +1,45 @@
+<div class="constellation-viewport" #container>
+
+  <div class="stars-layer"></div>
+
+  <div class="content-layer">
+    <canvas #canvas
+            class="main-canvas"
+            (click)="onCanvasClick($event)"
+            (mousemove)="onCanvasMouseMove($event)"
+            (mouseleave)="onCanvasMouseLeave()">
+    </canvas>
+  </div>
+
+  <lib-constellation-mode-switch
+    [active]="showComponentTree()"
+    (toggle)="toggleComponentTree()"
+  />
+
+  <lib-constellation-controls
+    [isOpen]="showControlsPanel()"
+    [isPaused]="isPaused()"
+    [animationsEnabled]="animationsEnabled()"
+    [focusModeEnabled]="focusModeEnabled()"
+    [repulsionValue]="repulsionValue()"
+    (togglePanel)="toggleControlsPanel()"
+    (togglePause)="togglePause()"
+    (toggleAnimations)="toggleAnimations()"
+    (toggleFocus)="toggleFocusMode()"
+    (resetLayout)="resetLayout()"
+    (repulsionChange)="updateRepulsion($event)"
+  />
+
+  @defer (on idle) {
+    <lib-constellation-legend/>
+  } @placeholder {
+  }
+
+  @defer (on idle) {
+    <lib-constellation-tooltip
+      [node]="hoveredNode()"
+      [x]="tooltipPos().x"
+      [y]="tooltipPos().y"
+    />
+  }
+</div>

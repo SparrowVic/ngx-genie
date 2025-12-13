@@ -1,0 +1,85 @@
+<div class="options-container custom-scrollbar">
+  <lib-options-panel-controls
+    [isDeepFocusMode]="isDeepFocusMode()"
+    (expandAll)="expandAll.emit()"
+    (collapseAll)="collapseAll.emit()"
+    (toggleDeepFocusMode)="toggleDeepFocusMode.emit()"
+  ></lib-options-panel-controls>
+
+  <lib-options-panel-provider-types
+    [showUserServices]="_showUserServices()"
+    [showUserTokens]="_showUserTokens()"
+    [showUserValues]="_showUserValues()"
+    [showUserObservables]="_showUserObservables()"
+    [showUserComponents]="_showUserComponents()"
+    [showUserDirectives]="_showUserDirectives()"
+    [showUserPipes]="_showUserPipes()"
+    (updateUserServices)="_showUserServices.set($event)"
+    (updateUserTokens)="_showUserTokens.set($event)"
+    (updateUserValues)="_showUserValues.set($event)"
+    (updateUserObservables)="_showUserObservables.set($event)"
+    (updateUserComponents)="_showUserComponents.set($event)"
+    (updateUserDirectives)="_showUserDirectives.set($event)"
+    (updateUserPipes)="_showUserPipes.set($event)"
+
+    [showFrameworkServices]="_showFrameworkServices()"
+    [showFrameworkSystem]="_showFrameworkSystem()"
+    [showFrameworkTokens]="_showFrameworkTokens()"
+    [showFrameworkObservables]="_showFrameworkObservables()"
+    [showFrameworkComponents]="_showFrameworkComponents()"
+    [showFrameworkDirectives]="_showFrameworkDirectives()"
+    [showFrameworkPipes]="_showFrameworkPipes()"
+    (updateFrameworkServices)="_showFrameworkServices.set($event)"
+    (updateFrameworkSystem)="_showFrameworkSystem.set($event)"
+    (updateFrameworkTokens)="_showFrameworkTokens.set($event)"
+    (updateFrameworkObservables)="_showFrameworkObservables.set($event)"
+    (updateFrameworkComponents)="_showFrameworkComponents.set($event)"
+    (updateFrameworkDirectives)="_showFrameworkDirectives.set($event)"
+    (updateFrameworkPipes)="_showFrameworkPipes.set($event)"
+  ></lib-options-panel-provider-types>
+
+  <lib-options-panel-noise-reduction
+    [hideInternals]="_hideInternals()"
+    [groupSimilarSiblings]="_groupSimilarSiblings()"
+    [hideUnusedDeps]="_hideUnusedDeps()"
+    [hideIsolatedComponents]="_hideIsolatedComponents()"
+    (updateHideInternals)="_hideInternals.set($event)"
+    (updateGroupSimilarSiblings)="_groupSimilarSiblings.set($event)"
+    (updateHideUnusedDeps)="_hideUnusedDeps.set($event)"
+    (updateHideIsolatedComponents)="_hideIsolatedComponents.set($event)"
+  ></lib-options-panel-noise-reduction>
+
+  <lib-options-panel-scope-lifetime
+    [showRootOnly]="_showRootOnly()"
+    [showLocalOnly]="_showLocalOnly()"
+    (updateShowRootOnly)="_setShowRootOnly($event)"
+    (updateShowLocalOnly)="_setShowLocalOnly($event)"
+  ></lib-options-panel-scope-lifetime>
+
+  <lib-options-panel-complexity-filter
+    [minDeps]="_minDeps()"
+    [maxDeps]="_maxDeps()"
+    [maxDetectedDeps]="maxDetectedDeps()"
+    (updateMinDeps)="_setMinDeps($event)"
+  ></lib-options-panel-complexity-filter>
+
+  <lib-options-panel-deep-search
+    [allNodes]="allNodes()"
+    [allServices]="allServices()"
+    [searchMode]="_searchMode()"
+    [matchMode]="_matchMode()"
+    [selectedComponentTags]="_selectedComponentTags()"
+    [selectedDependencyTags]="_selectedDependencyTags()"
+    [hideInternals]="_hideInternals()"
+    [hideUnused]="_hideUnusedDeps()"
+    [showServices]="_showUserServices()"
+    [showTokens]="_showUserTokens()"
+    [showComponents]="_showUserComponents()"
+    [showDirectives]="_showUserDirectives()"
+    [showPipes]="_showUserPipes()"
+    (updateSearchMode)="_searchMode.set($event)"
+    (updateMatchMode)="_toggleMatchMode()"
+    (updateTags)="_updateTags($event)"
+  ></lib-options-panel-deep-search>
+
+</div>

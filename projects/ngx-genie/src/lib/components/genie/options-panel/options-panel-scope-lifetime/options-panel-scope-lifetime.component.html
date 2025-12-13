@@ -1,0 +1,19 @@
+<div class="panel-section">
+  <div class="section-header">
+    <span class="icon">🌐</span> SCOPE & LIFETIME
+  </div>
+
+  <div class="scope-toggles">
+    <label class="checkbox-row">
+      <input type="checkbox" [ngModel]="showRootOnly()" (ngModelChange)="updateShowRootOnly.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text text-root">Root Providers Only</span>
+    </label>
+
+    <label class="checkbox-row">
+      <input type="checkbox" [ngModel]="showLocalOnly()" (ngModelChange)="updateShowLocalOnly.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text text-local">Local Providers Only</span>
+    </label>
+  </div>
+</div>

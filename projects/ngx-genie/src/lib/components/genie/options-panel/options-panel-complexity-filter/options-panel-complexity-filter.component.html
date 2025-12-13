@@ -1,0 +1,20 @@
+<div class="panel-section">
+  <div class="section-header">
+    <span class="icon">📊</span> COMPLEXITY FILTER
+  </div>
+
+  <div class="range-wrapper">
+    <div class="range-labels">
+      <span>Dependencies: {{ minDeps() }} - {{ maxDeps() }}</span>
+    </div>
+
+    <div class="slider-stack">
+      <input type="range"
+             min="0"
+             [max]="maxDetectedDeps()"
+             [ngModel]="minDeps()"
+             (ngModelChange)="updateMinDeps.emit($event)"
+             class="cyber-slider">
+    </div>
+  </div>
+</div>

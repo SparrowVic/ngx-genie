@@ -1,0 +1,52 @@
+<div class="genie-chart-container">
+
+  <div class="genie-grid-bg"></div>
+
+
+  <div class="zoom-wrapper" [style.transform]="transformStyle()">
+    <div class="genie-chart-tree">
+      <ul>
+        @for (node of filteredTree(); track node.id) {
+          <ng-container
+            [ngTemplateOutlet]="nodeTemplate"
+            [ngTemplateOutletContext]="{ $implicit: node }"
+          ></ng-container>
+        }
+      </ul>
+    </div>
+  </div>
+
+
+  @defer (on idle) {
+    <lib-org-chart-legend/>
+  } @placeholder {
+
+  }
+</div>
+
+
+<ng-template #nodeTemplate let-node>
+  <li>
+
+    <lib-org-chart-node
+      [node]="node"
+      [services]="getProvidersForNode()(node)"
+      [expanded]="isNodeExpanded()(node.id)"
+      (nodeClick)="selectNode()(node)"
+      (serviceClick)="selectService()($event)"
+      (toggleClick)="toggleNode()(node.id)"
+    ></lib-org-chart-node>
+
+
+    @if (node.children?.length && isNodeExpanded()(node.id)) {
+      <ul class="fade-in-up">
+        @for (child of node.children; track child.id) {
+          <ng-container
+            [ngTemplateOutlet]="nodeTemplate"
+            [ngTemplateOutletContext]="{ $implicit: child }"
+          ></ng-container>
+        }
+      </ul>
+    }
+  </li>
+</ng-template>

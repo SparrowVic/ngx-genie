@@ -1,0 +1,58 @@
+<div class="controls-wrapper" [class.collapsed]="!isOpen()" (mousedown)="$event.stopPropagation()">
+
+  <div class="header" (click)="_togglePanel()">
+    <span class="title">SYSTEM CONTROLS</span>
+    <button class="toggle-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 15l-6-6-6 6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="content">
+    <div class="control-row">
+      <span class="label">SIMULATION</span>
+      <button class="action-btn" [class.active]="!isPaused()" (click)="togglePause.emit()">
+        {{ isPaused() ? 'PLAY' : 'PAUSE' }}
+      </button>
+    </div>
+
+    <div class="control-row">
+      <span class="label">VISUALS</span>
+      <div class="btn-group">
+        <button class="toggle-icon-btn" [class.active]="animationsEnabled()" (click)="toggleAnimations.emit()"
+                title="Toggle Animations">
+          <span class="indicator"></span>
+          FX
+        </button>
+        <button class="toggle-icon-btn" [class.active]="focusModeEnabled()" (click)="toggleFocus.emit()"
+                title="Focus Mode">
+          <span class="indicator"></span>
+          FOCUS
+        </button>
+      </div>
+    </div>
+
+    <div class="control-row vertical">
+      <div class="row-top">
+        <span class="label">GRAVITY / REPULSION</span>
+        <span class="val">{{ repulsionValue() }}</span>
+      </div>
+      <input type="range"
+             [ngModel]="repulsionValue()"
+             (ngModelChange)="repulsionChange.emit($event)"
+             min="100" max="5000" step="50">
+    </div>
+
+    <div class="divider"></div>
+
+    <button class="reset-btn" (click)="resetLayout.emit()">
+      RESET VIEW / ENTROPY
+    </button>
+
+    <div class="help-text">
+      If the constellation is messy, try setting <b>Repulsion to MAX</b> and using <b>Reset View</b> to disentangle the
+      nodes.
+    </div>
+  </div>
+</div>

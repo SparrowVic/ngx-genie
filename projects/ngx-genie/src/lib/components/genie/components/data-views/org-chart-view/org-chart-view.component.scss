@@ -1,0 +1,132 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  font-size: calc(1rem * var(--ui-scale, 1));
+}
+
+
+$c-bg-dark: #09090b;
+$c-bg-gradient-start: #1e1b4b;
+$c-line: rgba(100, 116, 139, 0.35);
+
+
+.genie-chart-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: $c-bg-dark;
+  background-image: radial-gradient(circle at 50% 0%, $c-bg-gradient-start 0%, transparent 60%),
+  linear-gradient(180deg, $c-bg-dark 0%, #000000 100%);
+  overflow: hidden;
+}
+
+.genie-grid-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-size: 2.5em 2.5em;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+  linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+}
+
+.zoom-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transform-origin: 0 0;
+  padding: 6em;
+}
+
+
+.genie-chart-tree {
+  ul {
+    padding-top: 2em;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    transition: all 0.3s ease;
+  }
+
+  li {
+    float: left;
+    text-align: center;
+    list-style-type: none;
+    position: relative;
+    padding: 2em 1em 0 1em;
+    transition: all 0.3s ease;
+
+
+    &::before, &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 50%;
+      border-top: 1px solid $c-line;
+      width: 50%;
+      height: 2em;
+    }
+
+    &::after {
+      right: auto;
+      left: 50%;
+      border-left: 1px solid $c-line;
+    }
+
+
+    &:only-child::after, &:only-child::before {
+      display: none;
+    }
+
+    &:only-child {
+      padding-top: 0;
+    }
+
+
+    &:first-child::before, &:last-child::after {
+      border: 0 none;
+    }
+
+    &:last-child::before {
+      border-right: 1px solid $c-line;
+      border-radius: 0 0.5em 0 0;
+    }
+
+    &:first-child::after {
+      border-radius: 0.5em 0 0 0;
+    }
+  }
+
+
+  ul ul::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    border-left: 1px solid $c-line;
+    width: 0;
+    height: 2em;
+  }
+}
+
+
+.fade-in-up {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(1em) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

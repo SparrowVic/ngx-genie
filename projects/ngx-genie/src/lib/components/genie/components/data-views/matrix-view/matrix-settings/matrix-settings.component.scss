@@ -1,0 +1,108 @@
+$c-matrix-primary: #00ff41;
+$c-svc: #ffea00;
+
+.settings-panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  background: rgba(0, 20, 5, 0.95);
+  border: 1px solid $c-matrix-primary;
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+  color: $c-matrix-primary;
+  padding: 10px;
+  min-width: 160px;
+  font-size: 11px;
+  transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+
+  &.collapsed {
+    width: 36px;
+    height: 36px;
+    min-width: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+    border-radius: 8px;
+    background: rgba(0, 40, 10, 0.95);
+    border: 1px solid #2eff7d;
+    box-shadow: 0 0 10px rgba(46, 255, 125, 0.3);
+
+    &:hover {
+      background: #00ff41;
+      color: #000;
+      box-shadow: 0 0 20px #00ff41;
+      transform: scale(1.05);
+
+      .gear-icon {
+        opacity: 1;
+      }
+    }
+
+    .panel-content {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .gear-icon {
+      opacity: 1;
+    }
+  }
+
+  &:not(.collapsed) {
+    border-color: $c-svc;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), 0 0 5px rgba(255, 234, 0, 0.5);
+  }
+
+  .gear-icon {
+    font-size: 20px;
+    opacity: 0;
+    transition: all 0.5s ease;
+    position: absolute;
+  }
+
+  .panel-content {
+    width: 100%;
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #1f7a2b;
+    padding-bottom: 5px;
+    cursor: pointer;
+    font-weight: bold;
+
+    &:hover {
+      color: #fff;
+    }
+  }
+
+  .setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+
+    input[type="checkbox"] {
+      accent-color: $c-matrix-primary;
+      cursor: pointer;
+    }
+  }
+
+  .btn-reset {
+    background: none;
+    border: 1px solid #0f0;
+    color: #0f0;
+    cursor: pointer;
+    font-size: 9px;
+    padding: 2px 5px;
+
+    &:hover {
+      background: rgba(0, 255, 0, 0.1);
+    }
+  }
+}

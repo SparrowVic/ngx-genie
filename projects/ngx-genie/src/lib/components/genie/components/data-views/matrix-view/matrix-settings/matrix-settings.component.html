@@ -1,0 +1,23 @@
+<div class="settings-panel" [class.collapsed]="collapsed()" (click)="toggleCollapsed()">
+  <div class="gear-icon">⚙</div>
+
+  <div class="panel-content" (click)="$event.stopPropagation()">
+    <div class="panel-header" (click)="collapsed.set(true)">
+      <span>SYS.CONFIG</span>
+      <span>[x]</span>
+    </div>
+
+    <div class="setting-row">
+      <span>MATRIX RAIN</span>
+      <input type="checkbox" [checked]="settings().rain" (change)="toggle('rain')">
+    </div>
+    <div class="setting-row">
+      <span>FX</span>
+      <input type="checkbox" [checked]="settings().animation" (change)="toggle('animation')">
+    </div>
+    <div class="setting-row">
+      <span>SYNC GRID</span>
+      <button (click)="resetLayout.emit()" class="btn-reset">RESET</button>
+    </div>
+  </div>
+</div>

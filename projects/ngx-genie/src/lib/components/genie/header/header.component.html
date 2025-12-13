@@ -1,0 +1,46 @@
+<header class="genie-header" (mousedown)="onMouseDown($event)">
+  <div class="header-left">
+    <div class="brand">
+      <span class="brand-icon">◈</span>
+      <span class="brand-text">GENIE<span class="brand-accent">OS</span></span>
+    </div>
+    <div class="sys-stats">
+      <div class="stat-item">
+        <span class="label">NODES:</span>
+        <span class="value">{{ stats().nodes }}</span>
+      </div>
+      <div class="stat-divider">/</div>
+      <div class="stat-item">
+        <span class="label">SVCS:</span>
+        <span class="value">{{ stats().services }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="header-center">
+    <div class="search-bar">
+      <svg class="search-icon" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input
+        type="text"
+        placeholder="INITIALIZE SEARCH SEQUENCE..."
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQueryChange.emit($event)"
+      >
+      @if (searchQuery()) {
+        <button (click)="searchQueryChange.emit('')" class="clear-btn">✖</button>
+      }
+    </div>
+  </div>
+
+  <div class="header-right">
+    <div class="window-controls">
+      <button class="control-btn minimize" (click)="maximize.emit()">
+        {{ isMaximized() ? '❐' : '□' }}
+      </button>
+      <button class="control-btn close" (click)="close.emit()">×</button>
+    </div>
+  </div>
+</header>

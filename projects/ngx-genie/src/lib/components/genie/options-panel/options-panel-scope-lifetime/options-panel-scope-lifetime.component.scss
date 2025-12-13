@@ -1,0 +1,25 @@
+@import '../options-panel-vars';
+
+:host {
+  display: block;
+}
+
+.panel-section {
+  @include panel-section;
+}
+
+.section-header {
+  @include section-header;
+}
+
+.checkbox-row {
+  @include checkbox-row;
+}
+
+.text-root {
+  color: #10b981;
+}
+
+.text-local {
+  color: #3b82f6;
+}

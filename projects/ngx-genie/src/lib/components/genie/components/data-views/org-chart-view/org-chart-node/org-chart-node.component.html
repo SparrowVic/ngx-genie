@@ -1,0 +1,93 @@
+<div class="node-wrapper">
+  <div
+    class="genie-card"
+    [class.has-children]="hasChildren()"
+    [class.is-cluster]="isCluster()"
+    (click)="nodeClick.emit(node())"
+  >
+
+    <div class="genie-card-header">
+      <div class="header-main">
+        <div class="genie-icon-box" [class.cluster-icon]="isCluster()">
+          @if (!isCluster()) {
+            <span class="icon-cube"></span>
+          } @else {
+            <span class="icon-layers"></span>
+          }
+        </div>
+
+        <div class="genie-card-title" [title]="node().label">
+          {{ node().label }}
+        </div>
+      </div>
+
+      <div class="node-meta">
+        @if (isCluster()) {
+          <span class="node-type-badge cluster-badge">x{{ node().groupCount }}</span>
+        }
+
+        @if (!isCluster()) {
+          <span class="node-type-badge" [attr.data-type]="node().type">
+                {{ node().type === 'Environment' ? 'ENV' : 'EL' }}
+          </span>
+        }
+
+        <span class="node-id">#{{ node().id }}</span>
+      </div>
+    </div>
+
+
+    @if (services().length) {
+      <div class="genie-services-grid">
+        @for (svc of services(); track svc.id) {
+          <div
+            class="service-chip"
+            [class.unused]="!svc.usageCount"
+            [class.root-scope]="isRoot(svc)"
+            [class.framework-item]="svc.isFramework"
+            (click)="serviceClick.emit(svc); $event.stopPropagation()"
+          >
+
+            <div class="chip-type" [attr.data-deptype]="svc.dependencyType">
+              {{ getAbbrType(svc.dependencyType!) }}
+            </div>
+
+            <div class="chip-content">
+              <span class="service-name" [title]="svc.label">{{ svc.label }}</span>
+            </div>
+
+            <div class="chip-meta">
+              @if (svc.isFramework) {
+                <span class="framework-dot" title="Angular Internal"></span>
+              }
+              @if (isRoot(svc)) {
+                <span class="root-dot" title="Root Singleton"></span>
+              }
+              @if (svc.usageCount) {
+                <span class="count-badge">×{{ svc.usageCount }}</span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="genie-empty-state">
+        <span class="empty-dot"></span> No providers in use
+      </div>
+    }
+
+
+    @if (hasChildren()) {
+      <button
+        type="button"
+        class="toggle-btn"
+        [class.expanded]="expanded()"
+        (click)="toggleClick.emit(); $event.stopPropagation()"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    }
+  </div>
+</div>

@@ -1,0 +1,18 @@
+@import '../options-panel-vars';
+
+:host {
+  display: block;
+}
+
+.panel-section {
+  @include panel-section;
+}
+
+.section-header {
+  @include section-header;
+}
+
+
+.checkbox-row {
+  @include checkbox-row;
+}

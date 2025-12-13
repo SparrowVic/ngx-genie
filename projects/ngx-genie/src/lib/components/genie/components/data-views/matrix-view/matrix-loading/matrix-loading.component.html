@@ -1,0 +1,35 @@
+<div class="loader-container">
+  <div class="scanlines"></div>
+
+  <div class="content-wrapper">
+    <div class="system-header">
+      <div class="glitch-wrapper">
+        <div class="glitch" data-text="SYSTEM INITIALIZATION">SYSTEM INITIALIZATION</div>
+      </div>
+      <div class="sub-header">GENIE_EXPLORER_V1.0 // ACCESS_LEVEL: ROOT</div>
+    </div>
+
+    <div class="progress-section">
+      <div class="progress-track">
+        <div class="progress-fill" [style.width.%]="progress()"></div>
+      </div>
+      <div class="progress-stats">
+        <span>LOADING_MODULES</span>
+        <span>{{ progress() | number:'1.0-0' }}%</span>
+      </div>
+    </div>
+
+    <div class="terminal-output">
+      @for (line of logLines(); track $index) {
+        <div class="log-line">
+          <span class="prompt">></span>
+          <span class="msg">{{ line }}</span>
+        </div>
+      }
+      <div class="log-line active">
+        <span class="prompt">></span>
+        <span class="cursor">_</span>
+      </div>
+    </div>
+  </div>
+</div>

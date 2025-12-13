@@ -1,0 +1,88 @@
+<li class="genie-tree-node">
+
+  <div
+    class="genie-tree-row"
+    [class.active]="_isActive()"
+    (click)="_handleNodeClick($event)"
+  >
+
+    <div class="tree-guides">
+      <button
+        type="button"
+        class="chevron-btn"
+        [class.hidden]="!_hasChildrenOrDependencies()"
+        [class.expanded]="_isExpanded()"
+        (click)="_toggleExpanded($event)"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+
+    <div class="node-content">
+          <span class="icon-folder" [class.open]="_isExpanded()">
+
+            <svg viewBox="0 0 24 24" fill="currentColor" *ngIf="_isExpanded(); else closedFolder">
+                <path
+                  d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-2.06 11L15 10h7l2.94 7H17.94z"/>
+            </svg>
+            <ng-template #closedFolder>
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+              </svg>
+            </ng-template>
+          </span>
+
+      <span class="node-type-badge" [attr.data-type]="_node().type">
+            {{ _node().type === 'Environment' ? 'ENV' : 'EL' }}
+          </span>
+
+      <span class="node-label">{{ _node().label }}</span>
+
+      <div class="node-meta-group">
+        <span class="node-id">#{{ _node().id }}</span>
+        @if (_dependencies().length; as count) {
+          <span class="badge-pill">{{ count }}</span>
+        }
+      </div>
+    </div>
+  </div>
+
+
+  @if (_isExpanded()) {
+    <div class="node-children-wrapper">
+
+      @if (_dependencies().length) {
+        <ul class="dependencies-list">
+          @for (dep of _dependencies(); track dep.id) {
+            <lib-tree-dependency-item
+              [dependency]="dep"
+              [selectDependency]="selectDependency()"
+              [selectedServiceId]="selectedDependencyId()"
+            />
+          }
+        </ul>
+      }
+
+      @if (_node().children?.length) {
+        <ul class="genie-tree-subnodes">
+          @for (child of _node().children; track child.id) {
+            <lib-tree-node
+              [node]="child"
+              [isNodeExpanded]="isNodeExpanded()"
+              [toggleNode]="toggleNode()"
+              [selectNode]="selectNode()"
+              [selectDependency]="selectDependency()"
+              [dependenciesFetcher]="dependenciesFetcher()"
+
+              [selectedNodeId]="selectedNodeId()"
+              [selectedDependencyId]="selectedDependencyId()"
+            />
+          }
+        </ul>
+      }
+    </div>
+  }
+</li>

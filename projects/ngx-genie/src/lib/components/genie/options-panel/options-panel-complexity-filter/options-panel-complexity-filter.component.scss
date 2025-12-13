@@ -1,0 +1,59 @@
+@import '../options-panel-vars';
+
+:host {
+  display: block;
+}
+
+.panel-section {
+  @include panel-section;
+}
+
+.section-header {
+  @include section-header;
+}
+
+.range-wrapper {
+  padding: 0 4px;
+
+  .range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: $c-text-dim;
+    margin-bottom: 8px;
+
+    .range-max-hint {
+      opacity: 0.6;
+    }
+  }
+
+  .slider-stack {
+    margin-bottom: 12px;
+  }
+
+  .cyber-slider {
+    width: 100%;
+    height: 4px;
+    appearance: none;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    outline: none;
+
+    &::-webkit-slider-thumb {
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      background: $c-primary;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 5px $c-primary;
+      transition: transform 0.1s;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+
+      &:hover {
+        transform: scale(1.2);
+        background: lighten($c-primary, 10%);
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+<div class="panel-section">
+  <div class="section-header">
+    <span class="icon">🔇</span> NOISE REDUCTION
+  </div>
+
+  <label class="checkbox-row">
+    <input type="checkbox" [ngModel]="hideInternals()" (ngModelChange)="updateHideInternals.emit($event)">
+    <span class="checkmark"></span>
+    <span class="label-text">Hide Angular Internals</span>
+  </label>
+
+  <label class="checkbox-row">
+    <input type="checkbox" [ngModel]="groupSimilarSiblings()" (ngModelChange)="updateGroupSimilarSiblings.emit($event)">
+    <span class="checkmark"></span>
+    <span class="label-text">Group Identical Leaf Nodes</span>
+  </label>
+
+  <label class="checkbox-row">
+    <input type="checkbox" [ngModel]="hideUnusedDeps()" (ngModelChange)="updateHideUnusedDeps.emit($event)">
+    <span class="checkmark"></span>
+    <span class="label-text">Hide Unused Deps</span>
+  </label>
+
+  <label class="checkbox-row">
+    <input type="checkbox" [ngModel]="hideIsolatedComponents()"
+           (ngModelChange)="updateHideIsolatedComponents.emit($event)">
+    <span class="checkmark"></span>
+    <span class="label-text">Hide Leaf Nodes (No Children)</span>
+  </label>
+</div>

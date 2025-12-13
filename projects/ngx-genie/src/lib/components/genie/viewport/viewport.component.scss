@@ -1,0 +1,161 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.full-size {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.hidden-overflow {
+  overflow: hidden;
+}
+
+.viewport-toolbar {
+  height: 40px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(100, 150, 255, 0.15);
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+.view-switcher {
+  display: flex;
+  gap: 4px;
+
+  button {
+    background: none;
+    border: none;
+    color: #64748b;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+
+    &:hover {
+      color: #e2e8f0;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    &.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    }
+
+    &.active.epic-btn {
+      color: #8b5cf6;
+      background: rgba(139, 92, 246, 0.15);
+    }
+
+    &.active.matrix-btn {
+      color: #00ff41;
+      background: rgba(0, 255, 65, 0.15);
+    }
+
+    &.active.diag-btn {
+      color: #f59e0b;
+      background: rgba(245, 158, 11, 0.15);
+    }
+  }
+}
+
+.toolbar-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.zoom-group {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+
+  button {
+    width: 24px;
+    height: 20px;
+    border: none;
+    background: none;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 9px;
+
+    &:hover {
+      color: #fff;
+    }
+  }
+
+  span {
+    font-size: 10px;
+    min-width: 30px;
+    text-align: center;
+    color: #3b82f6;
+  }
+}
+
+.epic-zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-right: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+
+  .zoom-label {
+    font-size: 9px;
+    color: #64748b;
+    font-weight: bold;
+  }
+
+  .zoom-val {
+    font-size: 10px;
+    width: 32px;
+    text-align: center;
+    color: #3b82f6;
+    font-family: monospace;
+  }
+
+  input[type=range] {
+    width: 80px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    appearance: none;
+    cursor: pointer;
+  }
+}
+
+.viewport-content {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+
+  &.scrollable-mode {
+    overflow: auto;
+  }
+
+  &.pan-zoom-mode {
+    overflow: hidden;
+    cursor: grab;
+
+    &:active {
+      cursor: grabbing;
+    }
+  }
+}

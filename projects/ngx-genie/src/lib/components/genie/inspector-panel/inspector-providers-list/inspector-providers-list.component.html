@@ -1,0 +1,68 @@
+<div class="providers-list">
+  @for (svc of services(); track svc.id) {
+    <div class="provider-item"
+         [class.active]="selectedId() === svc.id"
+         [class.is-used]="svc.isUsed"
+         [class.unused]="!svc.isUsed"
+         [class.global-match]="svc.matchesGlobal"
+         (click)="select.emit(svc)">
+
+
+      <div class="status-stripe"></div>
+
+      <div class="provider-col-main">
+        <div class="token-row">
+          <span class="type-tag" [attr.data-deptype]="svc.dependencyType">
+            {{ svc.dependencyType === 'Service' ? 'SVC' : (svc.dependencyType | slice:0:4) }}
+          </span>
+          <span class="provider-token" [title]="svc.label">
+            {{ svc.label }}
+          </span>
+
+          @if (!syncEnabled() && svc.matchesGlobal) {
+            <span class="match-dot" title="Matches global options">•</span>
+          }
+        </div>
+
+        <div class="provider-meta-row">
+          <span class="provider-id">#{{ svc.id }}</span>
+
+          @if (svc.isUsed) {
+            <span class="meta-badge used">USED</span>
+          }
+
+          @if (svc.isRoot || svc.token?.['ɵprov']?.providedIn === 'root') {
+            <span class="meta-badge singleton">ROOT</span>
+          }
+
+
+          @if (svc.dependencyFlags; as flags) {
+            <div class="flags-wrapper">
+              @if (flags.optional) {
+                <span class="flag-badge optional">OPT</span>
+              }
+              @if (flags.host) {
+                <span class="flag-badge host">HST</span>
+              }
+              @if (flags.self) {
+                <span class="flag-badge self">SLF</span>
+              }
+              @if (flags.skipSelf) {
+                <span class="flag-badge skip">SKP</span>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="provider-col-meta">
+        <span class="type-badge" [attr.data-type]="svc.providerType">{{ svc.providerType }}</span>
+      </div>
+    </div>
+  } @empty {
+    <div class="no-results">
+      <span class="icon">∅</span>
+      <span>No providers match filters.</span>
+    </div>
+  }
+</div>

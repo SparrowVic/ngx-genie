@@ -1,0 +1,106 @@
+<div class="options-header">
+  <span class="icon">⚙️</span> DIAGNOSTICS ENGINE
+</div>
+
+<div class="options-scroll custom-scrollbar">
+
+  <div class="option-group">
+    <div class="group-title">RULES</div>
+
+    <label class="toggle-row">
+      <input type="checkbox"
+             [ngModel]="config().checkSingleton"
+             (ngModelChange)="updateConfig('checkSingleton', $event)">
+      <span class="slider"></span>
+      <span class="label-text">Singleton Violations</span>
+    </label>
+
+    <label class="toggle-row">
+      <input type="checkbox"
+             [ngModel]="config().checkUnused"
+             (ngModelChange)="updateConfig('checkUnused', $event)">
+      <span class="slider"></span>
+      <span class="label-text">Unused Providers</span>
+    </label>
+
+    <label class="toggle-row">
+      <input type="checkbox"
+             [ngModel]="config().checkChangeDetection"
+             (ngModelChange)="updateConfig('checkChangeDetection', $event)">
+      <span class="slider"></span>
+      <span class="label-text">Perf / Change Detection</span>
+    </label>
+
+    <label class="toggle-row">
+      <input type="checkbox"
+             [ngModel]="config().checkCircular"
+             (ngModelChange)="updateConfig('checkCircular', $event)">
+      <span class="slider"></span>
+      <span class="label-text">Injector Abuse (Circular)</span>
+    </label>
+
+    <label class="toggle-row">
+      <input type="checkbox"
+             [ngModel]="config().checkCleanup"
+             (ngModelChange)="updateConfig('checkCleanup', $event)">
+      <span class="slider"></span>
+      <span class="label-text">Missing Cleanup</span>
+    </label>
+  </div>
+
+  <div class="option-group">
+    <div class="group-title">THRESHOLDS</div>
+
+    <div class="control-block">
+      <div class="control-header">
+        <label class="toggle-row mini">
+          <input type="checkbox"
+                 [ngModel]="config().checkCoupling"
+                 (ngModelChange)="updateConfig('checkCoupling', $event)">
+          <span class="slider"></span>
+          <span class="label-text">High Coupling</span>
+        </label>
+        <span class="val">{{ config().thresholdCoupling }} deps</span>
+      </div>
+      <input type="range" min="5" max="50" step="1"
+             [disabled]="!config().checkCoupling"
+             [ngModel]="config().thresholdCoupling"
+             (ngModelChange)="updateConfig('thresholdCoupling', $event)">
+    </div>
+
+    <div class="control-block">
+      <div class="control-header">
+        <label class="toggle-row mini">
+          <input type="checkbox"
+                 [ngModel]="config().checkLargeApi"
+                 (ngModelChange)="updateConfig('checkLargeApi', $event)">
+          <span class="slider"></span>
+          <span class="label-text">Large API</span>
+        </label>
+        <span class="val">{{ config().thresholdLargeApi }} props</span>
+      </div>
+      <input type="range" min="10" max="100" step="5"
+             [disabled]="!config().checkLargeApi"
+             [ngModel]="config().thresholdLargeApi"
+             (ngModelChange)="updateConfig('thresholdLargeApi', $event)">
+    </div>
+
+    <div class="control-block">
+      <div class="control-header">
+        <label class="toggle-row mini">
+          <input type="checkbox"
+                 [ngModel]="config().checkHeavyState"
+                 (ngModelChange)="updateConfig('checkHeavyState', $event)">
+          <span class="slider"></span>
+          <span class="label-text">Heavy State</span>
+        </label>
+        <span class="val">> {{ config().thresholdHeavyState }} items</span>
+      </div>
+      <input type="range" min="100" max="5000" step="100"
+             [disabled]="!config().checkHeavyState"
+             [ngModel]="config().thresholdHeavyState"
+             (ngModelChange)="updateConfig('thresholdHeavyState', $event)">
+    </div>
+  </div>
+
+</div>

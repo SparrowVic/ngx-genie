@@ -1,0 +1,69 @@
+<div class="legend-bar" [class.expanded]="isOpen()">
+
+  <div class="legend-header" (click)="toggle()">
+    <span class="title">MATRIX KEY // ACCESS_GUIDE</span>
+    <span class="toggle-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 15l-6-6-6 6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+  </div>
+
+  <div class="legend-content">
+
+    <div class="legend-section">
+      <div class="section-title">ENTITY_TYPES</div>
+      <div class="badges-grid">
+        <div class="badge-item"><span class="hex type-service"></span> SVC // SERVICE</div>
+        <div class="badge-item"><span class="hex type-system"></span> SYS // SYSTEM</div>
+        <div class="badge-item"><span class="hex type-value"></span> VAL // VALUE</div>
+        <div class="badge-item"><span class="hex type-observable"></span> OBS // OBSERVABLE</div>
+        <div class="badge-item"><span class="hex type-token"></span> TOK // TOKEN</div>
+        <div class="badge-item"><span class="hex type-component"></span> CMP // COMPONENT</div>
+        <div class="badge-item"><span class="hex type-directive"></span> DIR // DIRECTIVE</div>
+        <div class="badge-item"><span class="hex type-pipe"></span> PIP // PIPE</div>
+      </div>
+    </div>
+
+    <div class="legend-section">
+      <div class="section-title">ORIGIN_MARKERS</div>
+      <div class="markers-list">
+        <div class="marker-item">
+          <span class="shape-user"></span>
+          <span>USER CODE (FILLED)</span>
+        </div>
+        <div class="marker-item">
+          <span class="shape-framework"></span>
+          <span>FRAMEWORK (HOLLOW)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend-section">
+      <div class="section-title">RELATION_MARKERS</div>
+      <div class="markers-list">
+        <div class="marker-item">
+          <span class="shape-consumer"></span>
+          <span>CONSUMER (DIAMOND)</span>
+        </div>
+        <div class="marker-item">
+          <span class="shape-provider"></span>
+          <span>PROVIDER (CIRCLE)</span>
+        </div>
+        <div class="marker-item">
+          <span class="shape-empty"></span>
+          <span>NULL // NO_RELATION</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend-section">
+      <div class="section-title">CONTROLS</div>
+      <div class="controls-list">
+        <div>SHIFT + SCROLL: HORIZONTAL PAN</div>
+        <div>CTRL + SCROLL: ZOOM GRID</div>
+      </div>
+    </div>
+
+  </div>
+</div>

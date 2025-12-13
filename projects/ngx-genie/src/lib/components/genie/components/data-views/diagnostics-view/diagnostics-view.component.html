@@ -1,0 +1,318 @@
+<div class="layout-wrapper">
+
+  <div class="diag-sidebar" [style.width.px]="optionsWidth()">
+    <lib-diagnostic-options
+      [config]="config()"
+      (configChange)="config.set($event)">
+    </lib-diagnostic-options>
+
+    <div class="resizer"
+         genieResizable direction="horizontal"
+         [startSize]="optionsWidth()"
+         (resizing)="onOptionsResize($event)">
+      <div class="bar"></div>
+    </div>
+  </div>
+
+  <div class="diagnostics-container custom-scrollbar">
+
+    <div class="view-header">
+      <div class="header-title">
+        <span class="icon">🩺</span> SYSTEM HEALTH
+      </div>
+      <div class="header-actions">
+        <button class="action-btn icon-only" (click)="toggleViewMode()"
+                [title]="viewMode() === 'list' ? 'Switch to Grid View' : 'Switch to List View'">
+          <span *ngIf="viewMode() === 'list'">⊞</span>
+          <span *ngIf="viewMode() === 'grid'">☰</span>
+        </button>
+
+        <button class="action-btn" (click)="copyReport()" title="Copy FILTERED report to clipboard">
+          <span>📋</span> COPY REPORT
+        </button>
+      </div>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="metric-card score-card">
+        <div class="integrity-gauge">
+          <svg viewBox="0 0 36 36" class="circular-chart">
+            <path class="circle-bg"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+            <path class="circle"
+                  [attr.stroke-dasharray]="report().score + ', 100'"
+                  [style.stroke]="integrityColor()"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+            <text x="18" y="20.35" class="percentage">{{ report().score }}%</text>
+          </svg>
+        </div>
+        <div class="score-details">
+          <div class="label">INTEGRITY</div>
+          <div class="status-text" [style.color]="integrityColor()">
+            {{ report().score >= 95 ? 'OPTIMAL' : report().score > 70 ? 'STABLE' : report().score > 40 ? 'UNSTABLE' : 'CRITICAL' }}
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-card distribution-card">
+        <div class="mini-chart">
+          <svg viewBox="0 0 36 36" class="circular-chart donut">
+            <circle class="segment info" cx="18" cy="18" r="15.9155" fill="none" stroke-width="4"
+                    [attr.stroke-dasharray]="getSegmentDash(stats().info, stats().total) + ' ' + (100 - getSegmentDash(stats().info, stats().total))"
+                    [attr.stroke-dashoffset]="25">
+            </circle>
+            <circle class="segment warn" cx="18" cy="18" r="15.9155" fill="none" stroke-width="4"
+                    [attr.stroke-dasharray]="getSegmentDash(stats().warning, stats().total) + ' ' + (100 - getSegmentDash(stats().warning, stats().total))"
+                    [attr.stroke-dashoffset]="25 - getSegmentDash(stats().info, stats().total)">
+            </circle>
+            <circle class="segment crit" cx="18" cy="18" r="15.9155" fill="none" stroke-width="4"
+                    [attr.stroke-dasharray]="getSegmentDash(stats().critical, stats().total) + ' ' + (100 - getSegmentDash(stats().critical, stats().total))"
+                    [attr.stroke-dashoffset]="25 - getSegmentDash(stats().info, stats().total) - getSegmentDash(stats().warning, stats().total)">
+            </circle>
+            <text x="18" y="21" class="total-text">{{ stats().total }}</text>
+          </svg>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-row"><span class="dot crit"></span> CRITICAL</div>
+          <div class="legend-row"><span class="dot warn"></span> WARNING</div>
+          <div class="legend-row"><span class="dot info"></span> INFO</div>
+        </div>
+      </div>
+
+      <div class="metric-card breakdown-card">
+        <div class="breakdown-header">COUNTS</div>
+        <div class="breakdown-bars">
+          <div class="bar-row">
+            <span class="bar-label crit">CRIT</span>
+            <div class="bar-track">
+              <div class="bar-fill crit"
+                   [style.width.%]="stats().total ? (stats().critical / stats().total * 100) : 0"></div>
+            </div>
+            <span class="bar-val">{{ stats().critical }}</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label warn">WARN</span>
+            <div class="bar-track">
+              <div class="bar-fill warn"
+                   [style.width.%]="stats().total ? (stats().warning / stats().total * 100) : 0"></div>
+            </div>
+            <span class="bar-val">{{ stats().warning }}</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label info">INFO</span>
+            <div class="bar-track">
+              <div class="bar-fill info"
+                   [style.width.%]="stats().total ? (stats().info / stats().total * 100) : 0"></div>
+            </div>
+            <span class="bar-val">{{ stats().info }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filters-bar-wrapper">
+
+      <div class="filters-row main-row">
+        <div class="search-box-container" (click)="searchInput.focus()">
+          <span class="search-icon">🔍</span>
+          <div class="tags-list">
+            @for (tag of selectedTags(); track tag) {
+              <span class="tag-chip">
+              {{ tag }}
+                <span class="remove-x" (click)="removeTag(tag); $event.stopPropagation()">×</span>
+            </span>
+            }
+            <input #searchInput
+                   type="text"
+                   placeholder="Search..."
+                   [ngModel]="inputValue()"
+                   (ngModelChange)="onInputChange($event)"
+                   (keydown)="onInputKeydown($event)"
+                   (focus)="onFocus()"
+                   (blur)="onBlur()">
+          </div>
+          @if (isDropdownOpen() && filteredSuggestions().length > 0) {
+            <div class="suggestions-dropdown custom-scrollbar">
+              @for (suggestion of filteredSuggestions(); track suggestion) {
+                <div class="suggestion-item" (mousedown)="addTag(suggestion); $event.preventDefault()">
+                  {{ suggestion }}
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="category-select-wrapper">
+          <select [ngModel]="categoryFilter()" (ngModelChange)="setCategoryFilter($event)" class="category-select">
+            <option value="ALL">ALL CATEGORIES</option>
+            <option value="architecture">ARCHITECTURE</option>
+            <option value="performance">PERFORMANCE</option>
+            <option value="memory">MEMORY</option>
+            <option value="best-practice">BEST PRACTICE</option>
+          </select>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="toggle-group">
+          <button class="filter-btn crit" [class.active]="filterSeverity().critical" (click)="toggleFilter('critical')"
+                  title="Toggle Critical Issues">
+            <span class="dot"></span> CRIT
+          </button>
+          <button class="filter-btn warn" [class.active]="filterSeverity().warning" (click)="toggleFilter('warning')"
+                  title="Toggle Warnings">
+            <span class="dot"></span> WARN
+          </button>
+          <button class="filter-btn info" [class.active]="filterSeverity().info" (click)="toggleFilter('info')"
+                  title="Toggle Info">
+            <span class="dot"></span> INFO
+          </button>
+        </div>
+      </div>
+
+      <div class="filters-row secondary">
+
+        <div class="scope-group user-scope">
+          <span class="filter-label">USER CODE</span>
+          <div class="toggle-group compact">
+            <button class="filter-btn type" [class.active]="filterSourceUser().components"
+                    (click)="toggleUserSource('components')">CMP
+            </button>
+            <button class="filter-btn type" [class.active]="filterSourceUser().services"
+                    (click)="toggleUserSource('services')">SVC
+            </button>
+            <button class="filter-btn type" [class.active]="filterSourceUser().directives"
+                    (click)="toggleUserSource('directives')">DIR
+            </button>
+            <button class="filter-btn type" [class.active]="filterSourceUser().pipes"
+                    (click)="toggleUserSource('pipes')">PIP
+            </button>
+            <button class="filter-btn type" [class.active]="filterSourceUser().tokens"
+                    (click)="toggleUserSource('tokens')">TOK
+            </button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="scope-group system-scope" [class.active]="showSystemIssues()">
+          <div class="sys-toggle-wrapper">
+            <label class="sys-checkbox">
+              <input type="checkbox" [ngModel]="showSystemIssues()" (ngModelChange)="toggleSystemIssues()">
+              <span class="box"></span>
+              <span class="label-text">INCLUDE FRAMEWORK</span>
+            </label>
+          </div>
+
+          <div class="toggle-group compact" *ngIf="showSystemIssues()">
+            <button class="filter-btn type sys" [class.active]="filterSourceSystem().components"
+                    (click)="toggleSystemSource('components')">CMP
+            </button>
+            <button class="filter-btn type sys" [class.active]="filterSourceSystem().services"
+                    (click)="toggleSystemSource('services')">SVC
+            </button>
+            <button class="filter-btn type sys" [class.active]="filterSourceSystem().directives"
+                    (click)="toggleSystemSource('directives')">DIR
+            </button>
+            <button class="filter-btn type sys" [class.active]="filterSourceSystem().pipes"
+                    (click)="toggleSystemSource('pipes')">PIP
+            </button>
+            <button class="filter-btn type sys" [class.active]="filterSourceSystem().tokens"
+                    (click)="toggleSystemSource('tokens')">TOK
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="anomalies-list" [ngClass]="{'grid-view': viewMode() === 'grid'}">
+
+      <div class="list-meta-bar">
+        <div class="counter-badge" [class.has-hidden]="hiddenCount() > 0">
+          <span class="visible-count">{{ filteredAnomalies().length }} VISIBLE</span>
+          @if (hiddenCount() > 0) {
+            <span class="separator">/</span>
+            <span class="hidden-count">{{ report().anomalies.length }} DETECTED</span>
+            <span class="hidden-note">({{ hiddenCount() }} hidden by filters)</span>
+          } @else {
+            <span class="separator">/</span>
+            <span class="total-count">{{ report().anomalies.length }} TOTAL</span>
+          }
+        </div>
+      </div>
+
+      <div
+        class="anomaly-card"
+        *ngFor="let item of filteredAnomalies()"
+        [ngClass]="[
+          item.severity,
+          item.isFramework ? 'framework-card' : '',
+          isNodeLevelIssue(item.type) ? 'node-context' : 'provider-context'
+        ]"
+        (click)="resolveAndSelect(item)"
+      >
+        <div class="card-edge"></div>
+
+        <div class="card-header">
+          <div class="badges-row">
+            <div class="anomaly-type-badge" [ngClass]="item.severity">
+              {{ item.severity | uppercase }}
+            </div>
+
+            <div class="anomaly-tag-badge">{{ item.type | uppercase }}</div>
+
+            <div class="framework-badge" *ngIf="item.isFramework">SYS</div>
+            <div class="framework-badge user" *ngIf="!item.isFramework">USER</div>
+            <div class="category-badge">{{ item.category | uppercase }}</div>
+
+            <div class="scope-badge node" *ngIf="isNodeLevelIssue(item.type)">NODE LEVEL</div>
+            <div class="scope-badge provider" *ngIf="!isNodeLevelIssue(item.type)">PROVIDER</div>
+          </div>
+
+          <div class="anomaly-title">
+            <span class="type-icon">{{ getIconForType(item.type) }}</span>
+            <span class="type-title-text">{{ item.title }}</span>
+          </div>
+          <button class="copy-btn" (click)="copyAnomaly(item, $event)" title="Copy details">❐</button>
+        </div>
+
+        <div class="card-body">
+          <p class="description">{{ item.description }}</p>
+
+          <div class="suggestion-box">
+            <span class="bulb">💡</span>
+            <span class="suggestion-text">{{ item.suggestion }}</span>
+          </div>
+        </div>
+
+        <div class="card-footer" *ngIf="item.relatedServiceIds.length > 0">
+          <span class="action-link">
+            {{ isNodeLevelIssue(item.type) ? 'INSPECT COMPONENT' : 'INSPECT PROVIDER' }}
+            <span class="arrow">&rarr;</span>
+          </span>
+        </div>
+        <div class="card-footer info-only" *ngIf="item.relatedServiceIds.length === 0">
+          <span class="info-text">INFO ONLY (NO DIRECT TARGET)</span>
+        </div>
+      </div>
+
+      <div class="all-clear" *ngIf="filteredAnomalies().length === 0">
+        <div class="icon-stack">
+          <span class="check-icon">✓</span>
+        </div>
+        <span class="main-text">NO VISIBLE ISSUES</span>
+
+        <span class="sub-text" *ngIf="hiddenCount() > 0">
+          {{ hiddenCount() }} issues are currently hidden by your active filters.
+          <br>Adjust filters or enable "Include Framework" to see them.
+        </span>
+        <span class="sub-text" *ngIf="hiddenCount() === 0">
+          System is operating within configured parameters.
+        </span>
+      </div>
+    </div>
+
+  </div>
+</div>

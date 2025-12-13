@@ -1,0 +1,123 @@
+<div class="inspector-content custom-scrollbar">
+
+  @if (selectedNode(); as node) {
+
+
+    <div class="node-header">
+      <div class="header-main">
+        <div class="header-top">
+          <span class="label">INJECTOR SCOPE</span>
+          <span class="injector-type" [attr.data-type]="node.type">{{ node.type }}</span>
+        </div>
+        <span class="node-name" [title]="node.label">{{ node.label }}</span>
+      </div>
+
+      <div class="header-actions">
+
+        <button class="icon-action-btn"
+                [class.active]="showToolbar()"
+                (click)="toggleToolbar()"
+                title="Toggle Filters Toolbar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+               stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+          </svg>
+        </button>
+
+        <div class="divider-vertical"></div>
+
+
+        <label class="sync-toggle" title="Filter list based on global Options Panel settings">
+          <input type="checkbox"
+                 [ngModel]="state.syncEnabled()"
+                 (ngModelChange)="state.syncEnabled.set($event)">
+
+          <span class="checkmark"></span>
+          <span class="sync-label">Sync Filters</span>
+        </label>
+
+        <button class="close-node-btn" (click)="closeSelection.emit()">✕</button>
+      </div>
+    </div>
+
+
+    @if (showToolbar()) {
+      <lib-inspector-toolbar
+        [search]="state.search()"
+        [typeFilter]="state.typeFilter()"
+        [depTypeFilter]="state.depTypeFilter()"
+        [modFilter]="state.modFilter()"
+        (searchChange)="state.search.set($event)"
+        (typeFilterChange)="state.typeFilter.set($event)"
+        (depTypeFilterChange)="state.depTypeFilter.set($event)"
+        (modFilterChange)="state.modFilter.set($event)">
+      </lib-inspector-toolbar>
+    }
+
+
+    <div class="providers-list-container custom-scrollbar" [style.height.px]="listHeight()">
+      <lib-inspector-providers-list
+        [services]="state.filteredServices()"
+        [selectedId]="selectedService()?.id"
+        [syncEnabled]="state.syncEnabled()"
+        (select)="selectService.emit($event)">
+      </lib-inspector-providers-list>
+    </div>
+
+
+    <div class="section-resizer"
+         genieResizable direction="vertical"
+         (resizing)="onListResize($event)">
+
+
+      <button class="resize-action-btn" (click)="$event.stopPropagation(); snapListToTop()" title="Collapse List">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 15l-6-6-6 6"/>
+        </svg>
+      </button>
+
+
+      <div class="handle-grip">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+
+
+      <button class="resize-action-btn" (click)="$event.stopPropagation(); snapListToBottom()" title="Expand List">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </button>
+    </div>
+
+
+    @if (selectedService()) {
+      <lib-inspector-provider-details
+        [service]="selectedService()!"
+        [state]="serviceState()"
+        [path]="injectionPath()"
+        [isLiveWatch]="isLiveWatch()"
+        (consoleLog)="consoleLog.emit()"
+        (toggleLive)="toggleLiveWatch.emit()">
+      </lib-inspector-provider-details>
+    } @else {
+      <div class="empty-details">
+        <span class="msg">Select a provider to view details</span>
+      </div>
+    }
+
+  } @else {
+
+    <div class="empty-state">
+      <div class="empty-icon-wrapper">
+        <div class="empty-anim"></div>
+        <span class="empty-icon">⌖</span>
+      </div>
+      <span class="empty-text">SELECT NODE TO INSPECT</span>
+      <span class="empty-sub">Click on tree node or matrix cell</span>
+    </div>
+  }
+</div>

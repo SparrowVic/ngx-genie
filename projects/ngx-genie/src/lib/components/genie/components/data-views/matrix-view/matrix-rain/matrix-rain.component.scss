@@ -1,0 +1,15 @@
+:host {
+  display: block;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  mix-blend-mode: screen;
+  opacity: 0.6;
+}
+
+.rain-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}

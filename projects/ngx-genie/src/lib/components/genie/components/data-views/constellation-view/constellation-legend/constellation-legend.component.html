@@ -1,0 +1,60 @@
+<div class="legend-bar" [class.expanded]="isOpen()">
+
+  <div class="legend-header" (click)="toggle()">
+    <span class="title">STAR MAP LEGEND</span>
+    <span class="toggle-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 15l-6-6-6 6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+  </div>
+
+  <div class="legend-content">
+
+    <div class="legend-section">
+      <div class="section-title">NODE TYPES</div>
+      <div class="badges-grid">
+        <div class="badge-item"><span class="dot svc"></span> Service</div>
+        <div class="badge-item"><span class="dot sys"></span> System</div>
+        <div class="badge-item"><span class="dot val"></span> Value</div>
+        <div class="badge-item"><span class="dot obs"></span> Observable</div>
+        <div class="badge-item"><span class="dot tok"></span> Token</div>
+        <div class="badge-item"><span class="dot cmp"></span> Component</div>
+        <div class="badge-item"><span class="dot dir"></span> Directive</div>
+        <div class="badge-item"><span class="dot pip"></span> Pipe</div>
+      </div>
+    </div>
+
+    <div class="legend-section">
+      <div class="section-title">SHAPES & SCOPE</div>
+      <div class="shapes-list">
+        <div class="shape-item">
+          <span class="shape hex"></span>
+          <span>Injector / Node</span>
+        </div>
+        <div class="shape-item">
+          <span class="shape diamond-filled"></span>
+          <span>User Code (Filled)</span>
+        </div>
+        <div class="shape-item">
+          <span class="shape diamond-hollow"></span>
+          <span>Framework (Hollow)</span>
+        </div>
+        <div class="shape-item">
+          <span class="dot root"></span>
+          <span>Root Singleton</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend-section">
+      <div class="section-title">CONTROLS</div>
+      <div class="controls-list">
+        <div>SCROLL: ZOOM UNIVERSE</div>
+        <div>DRAG: PAN CAMERA</div>
+        <div>CLICK: INSPECT NODE</div>
+      </div>
+    </div>
+
+  </div>
+</div>

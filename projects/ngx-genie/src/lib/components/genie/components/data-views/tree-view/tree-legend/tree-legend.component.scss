@@ -1,0 +1,204 @@
+$c-bg-dark: #0f172a;
+$c-bg-panel: #1e293b;
+$c-text-main: #e2e8f0;
+$c-text-muted: #94a3b8;
+$c-border: rgba(255, 255, 255, 0.1);
+
+$c-svc: #60a5fa;
+$c-sys: #f472b6;
+$c-val: #2dd4bf;
+$c-obs: #e879f9;
+$c-tok: #94a3b8;
+$c-cmp: #c084fc;
+$c-dir: #a3e635;
+$c-pip: #fb923c;
+
+$c-root: #10b981;
+$c-framework: #f59e0b;
+
+:host {
+  display: block;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+}
+
+.legend-bar {
+  background: rgba($c-bg-panel, 0.95);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid $c-border;
+  transform: translateY(calc(100% - 28px));
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+
+  &.expanded {
+    transform: translateY(0);
+
+    .toggle-icon {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+.legend-header {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.03);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+
+    .title {
+      color: #fff;
+    }
+  }
+
+  .title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: $c-text-muted;
+    letter-spacing: 1px;
+    transition: color 0.2s;
+  }
+
+  .toggle-icon {
+    color: $c-text-muted;
+    display: flex;
+    transition: transform 0.3s;
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+}
+
+.legend-content {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.section-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: $c-text-muted;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.badges-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.badge-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: $c-text-main;
+
+  .indicator {
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    min-width: 28px;
+    text-align: center;
+
+    &.svc {
+      color: $c-svc;
+      background: rgba($c-svc, 0.15);
+    }
+
+    &.sys {
+      color: $c-sys;
+      background: rgba($c-sys, 0.15);
+    }
+
+    &.val {
+      color: $c-val;
+      background: rgba($c-val, 0.15);
+    }
+
+    &.obs {
+      color: $c-obs;
+      background: rgba($c-obs, 0.15);
+    }
+
+    &.tok {
+      color: $c-tok;
+      background: rgba($c-tok, 0.15);
+    }
+
+    &.cmp {
+      color: $c-cmp;
+      background: rgba($c-cmp, 0.15);
+    }
+
+    &.dir {
+      color: $c-dir;
+      background: rgba($c-dir, 0.15);
+    }
+
+    &.pip {
+      color: $c-pip;
+      background: rgba($c-pip, 0.15);
+    }
+  }
+}
+
+.flags-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.flag-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: $c-text-main;
+
+  .example-box {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 3px;
+    border: 1px solid transparent;
+
+    &.root {
+      color: $c-root;
+      background: rgba($c-root, 0.1);
+      border-color: rgba($c-root, 0.2);
+    }
+
+    &.framework {
+      color: $c-framework;
+      background: rgba($c-framework, 0.1);
+      border-color: rgba($c-framework, 0.2);
+    }
+  }
+
+  .example-text.unused {
+    color: $c-text-muted;
+    text-decoration: line-through;
+    text-decoration-color: rgba(255, 255, 255, 0.2);
+  }
+}

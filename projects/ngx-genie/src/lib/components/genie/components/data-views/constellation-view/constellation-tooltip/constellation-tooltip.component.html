@@ -1,0 +1,28 @@
+<div class="node-tooltip"
+     [style.left.px]="x()"
+     [style.top.px]="y()">
+
+  @if (node(); as n) {
+    <div class="tooltip-header" [style.border-color]="n.baseColor">
+      <span class="tooltip-type">{{ n.meta?.dependencyType }}</span>
+      <span class="tooltip-id">#{{ n.id }}</span>
+    </div>
+
+    <div class="tooltip-body">
+      <div class="tooltip-label">{{ n.meta?.label }}</div>
+      <div class="tooltip-sub">{{ n.meta?.subLabel }}</div>
+
+      <div class="tooltip-tags-row">
+        @if (n.meta?.isRoot) {
+          <div class="tooltip-tag root">ROOT</div>
+        }
+        @if (n.meta?.isFramework) {
+          <div class="tooltip-tag framework">NG</div>
+        }
+        @if (n.meta?.isUnused) {
+          <div class="tooltip-tag unused">UNUSED</div>
+        }
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,73 @@
+<div class="tree-node" [class.root]="isRoot()">
+
+  <div class="node-row"
+       (click)="_meta().isExpandable && toggle()"
+       [class.clickable]="_meta().isExpandable">
+
+    <span class="expander"
+          [class.hidden]="!_meta().isExpandable"
+          [class.open]="_expanded()">
+      ▶
+    </span>
+
+    @if (key()) {
+      <span class="key">{{ key() }}:</span>
+    }
+
+    <span class="value" [attr.data-type]="_meta().type">
+
+      @if (_meta().type === 'signal') {
+        <span class="signal-badge">SIGNAL</span>
+      }
+
+      @if (!_expanded() || !_isComplex()) {
+        {{ _meta().preview }}
+      }
+
+      @if (_expanded() && _isComplex()) {
+        @switch (_meta().type) {
+          @case ('object') {
+            <span class="bracket">&#123;</span>
+          }
+          @case ('array') {
+            <span class="bracket">[</span>
+          }
+          @case ('signal') {
+            <span class="bracket">(</span>
+          }
+        }
+      }
+    </span>
+  </div>
+
+  @if (_expanded()) {
+    <div class="node-children">
+      @if (_isComplex() && _isEmpty()) {
+        <div class="empty-state">
+          <span class="empty-text">No public properties</span>
+        </div>
+      }
+
+      @for (child of _children(); track child.key) {
+        <lib-json-tree
+          [key]="child.key"
+          [value]="child.value">
+        </lib-json-tree>
+      }
+
+      <div class="closing-bracket">
+        @switch (_meta().type) {
+          @case ('object') {
+            <span class="bracket">&#125;</span>
+          }
+          @case ('array') {
+            <span class="bracket">]</span>
+          }
+          @case ('signal') {
+            <span class="bracket">)</span>
+          }
+        }
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,99 @@
+<div
+  #windowRef
+  class="genie-hud-window"
+  [class.maximized]="isMaximized()"
+  [style.left.px]="isMaximized() ? 0 : windowPosition().x"
+  [style.top.px]="isMaximized() ? 0 : windowPosition().y"
+  [style.width.px]="isMaximized() ? null : windowSize().width"
+  [style.height.px]="isMaximized() ? null : windowSize().height"
+  *ngIf="config.enabled && visible()"
+>
+  <div class="window-glow"></div>
+  <div class="window-border"></div>
+
+  <lib-header
+    [stats]="state.stats()"
+    [searchQuery]="state.searchQuery()"
+    [isMaximized]="isMaximized()"
+    (searchQueryChange)="updateSearch($event)"
+    (maximize)="toggleMaximize()"
+    (close)="closeWindow()"
+    (dragStart)="startWindowDrag($event)"
+  ></lib-header>
+
+  <div class="genie-body" [style.grid-template-columns]="gridTemplate()">
+
+    <aside class="options-sidebar" *ngIf="showOptionsPanel()">
+      <div class="options-title">
+        <span>GLOBAL OPS</span>
+      </div>
+      <div class="options-content">
+        <lib-options-panel
+          [isDeepFocusMode]="state.isDeepFocusMode()"
+          [allNodes]="state.nodes()"
+          [allServices]="state.services()"
+          [maxDetectedDeps]="state.maxNodeDeps()"
+          (toggleDeepFocusMode)="toggleDeepFocusMode()"
+          (expandAll)="state.expandAll()"
+          (collapseAll)="state.collapseAll()"
+          (filterChange)="handleFilterChange($event)"
+        ></lib-options-panel>
+      </div>
+      <div class="sidebar-resizer"
+           genieResizable
+           direction="horizontal"
+           [startSize]="optionsPanelWidth()"
+           (resizing)="onOptionsPanelResize($event)">
+        <div class="handle-bar"></div>
+      </div>
+    </aside>
+
+    <div class="viewport-section">
+      <lib-viewport
+        [viewMode]="state.activeView()"
+        (viewModeChange)="handleViewChange($event)"
+        [tree]="state.filteredTree()"
+        [filterState]="state.filterState()"
+        [expandedIds]="state.expandedIds()"
+        [toggleNode]="toggleNode"
+        [getProvidersForNode]="getProvidersForNode"
+        [selectDependency]="selectDependency"
+        [selectNode]="selectNode"
+      ></lib-viewport>
+    </div>
+
+    <aside class="inspector-section" *ngIf="showInspectorPanel()">
+      <div class="inspector-resize-handle"
+           genieResizable
+           direction="horizontal"
+           [startSize]="inspectorWidth()"
+           (resizing)="onInspectorResize($event)">
+        <div class="handle-bar"></div>
+      </div>
+      <div class="inspector-title">
+        <span>DATA INSPECTOR</span>
+        <div class="scan-anim"></div>
+      </div>
+      <lib-inspector-panel
+        [selectedNode]="state.selectedNode()"
+        [selectedService]="state.selectedService()"
+        [nodeServices]="state.inspectorServices()"
+        [dependencies]="state.inspectorDependencies()"
+        [injectionPath]="state.inspectorInjectionPath()"
+        [serviceState]="state.selectedServiceState()"
+        [isLiveWatch]="state.isLiveWatch()"
+        [filterState]="state.filterState()"
+        (closeSelection)="state.clearSelection()"
+        (selectService)="state.selectedService.set($event)"
+        (toggleLiveWatch)="toggleLiveWatch()"
+        (consoleLog)="logToConsole()">
+      </lib-inspector-panel>
+    </aside>
+  </div>
+
+  <div class="resize-handle" (mousedown)="startWindowResize($event)">
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+      <path d="M22 22v-20l-20 20h20z" opacity="0.5"/>
+    </svg>
+  </div>
+</div>

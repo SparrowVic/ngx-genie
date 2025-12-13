@@ -1,0 +1,61 @@
+@import '../options-panel-vars';
+
+:host {
+  display: block;
+}
+
+.panel-section {
+  @include panel-section;
+}
+
+.section-header {
+  @include section-header;
+}
+
+.checkbox-row {
+  @include checkbox-row;
+
+  &.warning-theme {
+    .checkmark {
+      border-color: #f59e0b;
+    }
+
+    input:checked ~ .checkmark {
+      background-color: #f59e0b;
+    }
+  }
+}
+
+.tabs-header {
+  display: flex;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+  .tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #64748b;
+    padding: 8px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+
+    &:hover {
+      color: #94a3b8;
+    }
+
+    &.active {
+      color: #3b82f6;
+      border-bottom-color: #3b82f6;
+    }
+
+    &:last-child.active {
+      color: #f59e0b;
+      border-bottom-color: #f59e0b;
+    }
+  }
+}

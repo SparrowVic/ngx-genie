@@ -1,0 +1,49 @@
+<div class="mode-layer">
+  <div class="controls-wrapper">
+    <button class="mode-switch-btn"
+            (click)="toggle.emit()"
+            [class.active]="active()"
+            (mousedown)="$event.stopPropagation()"
+            (touchstart)="$event.stopPropagation()">
+      <div class="btn-content">
+        <span class="icon">🌲</span>
+        <div class="text-col">
+          <span class="label-xs">DATA INTERPRETATION</span>
+          <span class="label-main">
+              @if (active()) {
+                HIERARCHY VIEW
+              } @else {
+                GRAPH VIEW
+              }
+            </span>
+        </div>
+      </div>
+      <div class="indicator"></div>
+    </button>
+
+    <div class="info-badge">
+      <span class="info-icon">?</span>
+      <div class="tooltip-card">
+        <div class="tooltip-header">Visualization Modes</div>
+
+        <div class="mode-desc">
+          <div class="mode-name hierarchy">Hierarchy View</div>
+          <div class="mode-text">
+            Reflects the logical structure of the Angular component tree. Ideal for analyzing parent-child relationships
+            and the DOM structure.
+          </div>
+        </div>
+
+        <div class="separator"></div>
+
+        <div class="mode-desc">
+          <div class="mode-name graph">Graph View</div>
+          <div class="mode-text">
+            Visualizes the Dependency Injection (DI) network as a constellation. Connects services and components to
+            show data flow and application relationships.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

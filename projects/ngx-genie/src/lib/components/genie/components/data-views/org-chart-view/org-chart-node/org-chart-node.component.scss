@@ -1,0 +1,365 @@
+$c-bg-dark: #09090b;
+$c-text-main: #f8fafc;
+$c-text-muted: #94a3b8;
+$c-primary: #3b82f6;
+
+$glass-bg: rgba(30, 41, 59, 0.7);
+$glass-border: rgba(255, 255, 255, 0.08);
+$glass-highlight: rgba(255, 255, 255, 0.1);
+$glass-shadow: 0 0.5em 2em 0 rgba(0, 0, 0, 0.5);
+
+$radius-card: 0.75em;
+$radius-chip: 0.25em;
+
+
+$c-svc: #60a5fa;
+$c-sys: #f472b6;
+$c-val: #2dd4bf;
+$c-obs: #e879f9;
+$c-tok: #94a3b8;
+$c-cmp: #c084fc;
+$c-dir: #a3e635;
+$c-pipe: #fb923c;
+
+$c-root: #10b981;
+$c-framework: #f59e0b;
+
+
+:host {
+  display: inline-block;
+  position: relative;
+  z-index: 10;
+}
+
+.node-wrapper {
+  display: block;
+}
+
+.genie-card {
+  min-width: 16em;
+  width: 18em;
+  padding: 1em;
+  border-radius: $radius-card;
+  background: $glass-bg;
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  box-shadow: inset 1px 1px 0 0 $glass-highlight, inset -1px -1px 0 0 transparent, $glass-shadow;
+  border: 1px solid $glass-border;
+  border-bottom-color: rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 0.8em;
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-0.25em);
+    background: rgba(40, 55, 80, 0.8);
+    border-color: rgba(96, 165, 250, 0.3);
+    box-shadow: 0 1em 2em rgba(0, 0, 0, 0.6);
+
+    .genie-icon-box {
+      color: #60a5fa;
+      background: rgba(59, 130, 246, 0.15);
+    }
+  }
+}
+
+.genie-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 0.5em;
+
+  .header-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6em;
+  }
+
+  .node-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .node-type-badge {
+      font-size: 0.6em;
+      font-weight: 800;
+      padding: 0.1em 0.4em;
+      border-radius: 0.2em;
+      color: rgba(255, 255, 255, 0.7);
+
+      &[data-type="Environment"] {
+        background: rgba($c-cmp, 0.2);
+        color: lighten($c-cmp, 20%);
+      }
+
+      &[data-type="Element"] {
+        background: rgba($c-svc, 0.2);
+        color: lighten($c-svc, 20%);
+      }
+    }
+
+    .node-id {
+      font-size: 0.6em;
+      color: rgba(255, 255, 255, 0.2);
+    }
+  }
+}
+
+.genie-icon-box {
+  flex-shrink: 0;
+  width: 2em;
+  height: 2em;
+  border-radius: 0.5em;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $c-text-muted;
+  transition: all 0.3s;
+}
+
+.icon-cube {
+  display: block;
+  width: 0.75em;
+  height: 0.75em;
+  border: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.icon-layers {
+  display: block;
+  width: 0.75em;
+  height: 0.75em;
+  background: currentColor;
+  mask-image: linear-gradient(black, black);
+}
+
+.genie-card-title {
+  font-size: 0.85em;
+  line-height: 1.3;
+  font-weight: 600;
+  color: $c-text-main;
+  white-space: normal;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+.genie-services-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.service-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.7em;
+  padding: 0.3em 0.5em;
+  border-radius: $radius-chip;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: $c-text-muted;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+
+
+  &.framework-item {
+    background: rgba(0, 0, 0, 0.1);
+    border-color: rgba($c-framework, 0.1);
+    opacity: 0.7;
+
+    .service-name {
+      font-family: 'JetBrains Mono', monospace;
+      opacity: 0.8;
+    }
+
+    .chip-type {
+      filter: saturate(0.5);
+    }
+
+    &:hover {
+      opacity: 1;
+      border-color: $c-framework;
+
+      .chip-type {
+        filter: none;
+      }
+    }
+  }
+
+  .chip-type {
+    font-size: 0.85em;
+    font-weight: 800;
+    padding: 0.1em 0.3em;
+    border-radius: 0.2em;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    min-width: 2.2em;
+    text-align: center;
+
+    &[data-deptype="Service"] {
+      color: $c-svc;
+      background: rgba($c-svc, 0.15);
+    }
+
+    &[data-deptype="Pipe"] {
+      color: $c-pipe;
+      background: rgba($c-pipe, 0.15);
+    }
+
+    &[data-deptype="Directive"] {
+      color: $c-dir;
+      background: rgba($c-dir, 0.15);
+    }
+
+    &[data-deptype="Component"] {
+      color: $c-cmp;
+      background: rgba($c-cmp, 0.15);
+    }
+
+    &[data-deptype="Token"] {
+      color: $c-tok;
+      background: rgba($c-tok, 0.15);
+    }
+
+
+    &[data-deptype="System"] {
+      color: $c-sys;
+      background: rgba($c-sys, 0.15);
+    }
+
+    &[data-deptype="Value"] {
+      color: $c-val;
+      background: rgba($c-val, 0.15);
+    }
+
+    &[data-deptype="Observable"] {
+      color: $c-obs;
+      background: rgba($c-obs, 0.15);
+    }
+  }
+
+  .chip-content {
+    flex: 1;
+    overflow: hidden;
+
+    .service-name {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #cbd5e1;
+      font-weight: 500;
+    }
+  }
+
+  .chip-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+
+    .root-dot {
+      width: 0.4em;
+      height: 0.4em;
+      border-radius: 50%;
+      background: $c-root;
+      box-shadow: 0 0 4px $c-root;
+    }
+
+    .framework-dot {
+      width: 0.4em;
+      height: 0.4em;
+      border-radius: 50%;
+      background: $c-framework;
+      box-shadow: 0 0 4px $c-framework;
+    }
+
+    .count-badge {
+      font-weight: bold;
+      color: $c-text-muted;
+    }
+  }
+
+  &.unused {
+    opacity: 0.5;
+
+    .service-name {
+      text-decoration: line-through;
+      text-decoration-color: rgba(255, 255, 255, 0.2);
+    }
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    opacity: 1;
+    z-index: 2;
+
+    .service-name {
+      color: #fff;
+    }
+  }
+}
+
+.genie-empty-state {
+  font-size: 0.7em;
+  color: rgba(148, 163, 184, 0.4);
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.25em 0;
+
+  .empty-dot {
+    width: 0.25em;
+    height: 0.25em;
+    background: rgba(148, 163, 184, 0.2);
+    border-radius: 50%;
+  }
+}
+
+.toggle-btn {
+  position: absolute;
+  bottom: -0.75em;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0.25em 0.6em rgba(0, 0, 0, 0.3);
+  color: $c-text-muted;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  transition: all 0.2s;
+
+  svg {
+    width: 0.9em;
+    height: 0.9em;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  &:hover {
+    background: $c-primary;
+    border-color: $c-primary;
+    color: white;
+    box-shadow: 0 0 1em rgba(59, 130, 246, 0.5);
+  }
+
+  &.expanded svg {
+    transform: rotate(-180deg);
+  }
+}

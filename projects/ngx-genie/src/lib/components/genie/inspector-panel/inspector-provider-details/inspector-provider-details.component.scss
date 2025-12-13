@@ -1,0 +1,294 @@
+$c-border: rgba(100, 150, 255, 0.15);
+$c-primary: #3b82f6;
+$c-accent: #8b5cf6;
+$c-text: #e2e8f0;
+$c-text-dim: #64748b;
+
+@mixin scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #444 #020202;
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+
+    &:hover {
+      background: $c-primary;
+    }
+  }
+}
+
+.custom-scrollbar {
+  @include scrollbar;
+}
+
+:host {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+
+.section-resizer {
+  height: 12px;
+  background: #111;
+  cursor: row-resize;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 10;
+  touch-action: none;
+  transition: background 0.2s;
+
+  &:hover, &:active {
+    background: #1a1a1a;
+
+    .handle-grip .dot {
+      background: $c-primary;
+      box-shadow: 0 0 5px $c-primary;
+    }
+  }
+
+  .resize-action-btn {
+    background: transparent;
+    border: none;
+    color: $c-text-dim;
+    cursor: pointer;
+    padding: 0 4px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: all 0.2s;
+
+    &:hover {
+      opacity: 1;
+      color: #fff;
+      transform: scale(1.2);
+    }
+
+    cursor: pointer;
+  }
+
+  .handle-grip {
+    display: flex;
+    gap: 3px;
+
+    .dot {
+      width: 4px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      transition: all 0.2s;
+    }
+  }
+}
+
+.service-details-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  height: 100%;
+
+  .details-header {
+    height: 34px;
+    box-sizing: border-box;
+    padding: 0 16px;
+    padding-left: 20px;
+    font-size: 10px;
+    font-weight: bold;
+    color: $c-primary;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    letter-spacing: 1px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+
+    .left-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .token-name {
+      color: $c-text;
+      text-transform: none;
+      letter-spacing: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .power-actions {
+    display: flex;
+    gap: 6px;
+
+    .tool-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: $c-text-dim;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      padding: 3px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+      }
+
+      &.active {
+        background: rgba(59, 130, 246, 0.2);
+        color: $c-primary;
+        border-color: $c-primary;
+      }
+
+      &.console-btn {
+        color: #10b981;
+
+        &:hover {
+          background: rgba(16, 185, 129, 0.2);
+        }
+      }
+    }
+  }
+
+  .meta-info-bar {
+    padding: 6px 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 10px;
+    color: $c-text-dim;
+    display: flex;
+    gap: 12px;
+
+    .scope-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: bold;
+
+      &.scope-root {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.25);
+      }
+
+      &.scope-component {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3b82f6;
+        border: 1px solid rgba(59, 130, 246, 0.25);
+      }
+
+      &.scope-platform {
+        background: rgba(139, 92, 246, 0.15);
+        color: #8b5cf6;
+        border: 1px solid rgba(139, 92, 246, 0.25);
+      }
+    }
+  }
+
+  .data-card {
+    border: none;
+    background: transparent;
+    margin: 0;
+    padding: 10px;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .snapshot-section {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 1;
+    overflow: hidden;
+    min-height: 34px;
+    max-height: calc(100% - 46px);
+  }
+
+  .path-section {
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 34px;
+  }
+}
+
+.path-list {
+  padding: 10px 16px;
+  padding-left: 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 24px;
+    top: 15px;
+    bottom: 15px;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .path-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 2px 0;
+    font-size: 10px;
+    color: $c-text-dim;
+    z-index: 1;
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      background: #111;
+      border: 1px solid #555;
+      border-radius: 50%;
+      margin-left: 2px;
+    }
+
+    &.active {
+      color: #fff;
+
+      .dot {
+        background: $c-primary;
+        border-color: $c-primary;
+        box-shadow: 0 0 5px $c-primary;
+      }
+    }
+  }
+}

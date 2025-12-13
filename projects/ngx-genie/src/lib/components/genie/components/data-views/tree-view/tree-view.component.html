@@ -1,0 +1,25 @@
+<div class="tree-wrapper" genieResizable>
+  <div class="background-layer"></div>
+  <div class="scroll-container custom-scrollbar">
+    <div class="content-padding">
+      <ul class="genie-tree-root">
+        @for (node of filteredTree(); track node.id) {
+          <lib-tree-node
+            [node]="node"
+            [isNodeExpanded]="isNodeExpanded()"
+            [toggleNode]="toggleNode()"
+            [selectNode]="selectNode()"
+            [selectDependency]="selectDependency()"
+            [selectedNodeId]="_selectedNodeId()"
+            [selectedDependencyId]="_selectedDependencyId()"
+            [dependenciesFetcher]="getProvidersForNode()"
+          />
+        }
+      </ul>
+    </div>
+
+    <div style="height: 30px"></div>
+  </div>
+
+  <lib-tree-legend></lib-tree-legend>
+</div>

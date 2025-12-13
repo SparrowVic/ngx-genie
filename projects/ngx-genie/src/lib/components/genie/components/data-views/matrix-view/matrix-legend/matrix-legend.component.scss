@@ -1,0 +1,219 @@
+$c-matrix-bg: #050a07;
+$c-matrix-primary: #00ff41;
+$c-matrix-dim: #008f11;
+$c-text-main: #ccffda;
+
+
+$c-comp: #2eff7d;
+$c-dir: #00ffff;
+$c-pipe: #e066ff;
+$c-svc: #ffea00;
+$c-tok: #ffffff;
+$c-sys: #ff3399;
+$c-val: #00d2ff;
+$c-obs: #bf00ff;
+
+:host {
+  display: block;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  font-family: 'JetBrains Mono', monospace;
+  pointer-events: none;
+}
+
+.legend-bar {
+  background: rgba(0, 15, 0, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid $c-matrix-primary;
+  transform: translateY(calc(100% - 32px));
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 -4px 20px rgba(0, 255, 65, 0.1);
+  pointer-events: auto;
+
+  &.expanded {
+    transform: translateY(0);
+    box-shadow: 0 -4px 30px rgba(0, 255, 65, 0.2);
+
+    .toggle-icon {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+.legend-header {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  cursor: pointer;
+  background: rgba(0, 255, 65, 0.05);
+  border-bottom: 1px solid rgba(0, 255, 65, 0.2);
+
+  &:hover {
+    background: rgba(0, 255, 65, 0.1);
+
+    .title {
+      color: #fff;
+      text-shadow: 0 0 5px #fff;
+    }
+  }
+
+  .title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: $c-matrix-primary;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+  }
+
+  .toggle-icon {
+    color: $c-matrix-primary;
+    display: flex;
+    transition: transform 0.3s;
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
+
+.legend-content {
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1.5fr 1fr;
+  gap: 20px;
+  max-height: 250px;
+  overflow-y: auto;
+  color: $c-text-main;
+}
+
+.section-title {
+  font-size: 10px;
+  font-weight: 900;
+  color: $c-matrix-dim;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(0, 143, 17, 0.3);
+  letter-spacing: 1px;
+}
+
+.badges-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.badge-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: bold;
+
+  .hex {
+    width: 8px;
+    height: 8px;
+    background: currentColor;
+    transform: rotate(45deg);
+    box-shadow: 0 0 5px currentColor;
+  }
+
+
+  .type-service {
+    color: $c-svc;
+  }
+
+  .type-system {
+    color: $c-sys;
+  }
+
+  .type-value {
+    color: $c-val;
+  }
+
+  .type-observable {
+    color: $c-obs;
+  }
+
+  .type-token {
+    color: $c-tok;
+  }
+
+  .type-component {
+    color: $c-comp;
+  }
+
+  .type-directive {
+    color: $c-dir;
+  }
+
+  .type-pipe {
+    color: $c-pipe;
+  }
+}
+
+.markers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.marker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  color: $c-text-main;
+
+  .shape-consumer {
+    width: 10px;
+    height: 10px;
+    border: 2px solid $c-text-main;
+    transform: rotate(45deg);
+  }
+
+  .shape-provider {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid $c-text-main;
+  }
+
+  .shape-empty {
+    width: 4px;
+    height: 4px;
+    background: $c-matrix-dim;
+    opacity: 0.5;
+  }
+
+
+  .shape-user {
+    width: 10px;
+    height: 10px;
+    background: $c-matrix-primary;
+    box-shadow: 0 0 5px $c-matrix-primary;
+  }
+
+  .shape-framework {
+    width: 10px;
+    height: 10px;
+    border: 2px solid $c-matrix-primary;
+    background: transparent;
+  }
+}
+
+.controls-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 10px;
+  color: $c-matrix-dim;
+  opacity: 0.8;
+}

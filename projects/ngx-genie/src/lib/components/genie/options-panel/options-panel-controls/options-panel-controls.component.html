@@ -1,0 +1,30 @@
+<div class="panel-section">
+  <div class="section-header">
+    <span class="icon">👁</span> VIEW CONTROLS
+  </div>
+
+  <div class="control-row">
+    <button class="action-btn" (click)="_onExpandAll()" title="Expand all nodes in the tree">
+      <span>▼</span> EXPAND ALL
+    </button>
+    <button class="action-btn" (click)="_onCollapseAll()" title="Collapse all nodes to root">
+      <span>▲</span> COLLAPSE
+    </button>
+  </div>
+
+
+  <div class="control-row full-width">
+    <button
+      class="focus-toggle"
+      [class.active]="isDeepFocusMode()"
+      (click)="_onToggleDeepFocus()"
+      title="Isolates the selected node branch and hides unrelated components to reduce noise.">
+      <span class="focus-icon">◎</span>
+      <div class="focus-label">
+        <span class="main">DEEP FOCUS</span>
+        <span class="sub">Isolate path & neighbors</span>
+      </div>
+      <div class="toggle-indicator"></div>
+    </button>
+  </div>
+</div>

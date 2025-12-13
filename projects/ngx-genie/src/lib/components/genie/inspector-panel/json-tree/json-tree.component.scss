@@ -1,0 +1,128 @@
+$c-key: #94a3b8;
+$c-string: #a5f3fc;
+$c-number: #fcd34d;
+$c-boolean: #f472b6;
+$c-null: #64748b;
+$c-signal: #22c55e;
+$c-bracket: #475569;
+
+:host {
+  display: block;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #e2e8f0;
+}
+
+.tree-node {
+  &.root {
+  }
+}
+
+.node-row {
+  display: flex;
+  align-items: flex-start;
+  cursor: pointer;
+  border-radius: 2px;
+  padding-left: 2px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  &.clickable {
+  }
+}
+
+.expander {
+  display: inline-block;
+  width: 14px;
+  text-align: center;
+  font-size: 9px;
+  color: #64748b;
+  transform: rotate(0deg);
+  transition: transform 0.15s;
+  margin-right: 2px;
+
+  &.open {
+    transform: rotate(90deg);
+    color: #e2e8f0;
+  }
+
+  &.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+.key {
+  color: $c-key;
+  margin-right: 6px;
+  font-weight: 500;
+}
+
+.value {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &[data-type="string"] {
+    color: $c-string;
+  }
+
+  &[data-type="number"] {
+    color: $c-number;
+  }
+
+  &[data-type="boolean"] {
+    color: $c-boolean;
+  }
+
+  &[data-type="null"], &[data-type="undefined"] {
+    color: $c-null;
+    font-style: italic;
+  }
+
+  &[data-type="object"], &[data-type="array"] {
+    color: #fff;
+    opacity: 0.7;
+  }
+}
+
+.signal-badge {
+  display: inline-block;
+  font-size: 9px;
+  padding: 0 4px;
+  border-radius: 2px;
+  background: rgba($c-signal, 0.15);
+  color: $c-signal;
+  border: 1px solid rgba($c-signal, 0.3);
+  margin-right: 6px;
+  font-weight: bold;
+}
+
+.bracket {
+  color: $c-bracket;
+  font-weight: bold;
+}
+
+.node-children {
+  padding-left: 16px;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  margin-left: 6px;
+}
+
+.closing-bracket {
+  padding-left: 2px;
+  color: $c-bracket;
+}
+
+.empty-state {
+  padding: 2px 0;
+
+  .empty-text {
+    font-size: 10px;
+    color: #64748b;
+    font-style: italic;
+  }
+}

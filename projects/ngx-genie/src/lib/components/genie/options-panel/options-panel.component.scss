@@ -1,0 +1,44 @@
+@import 'options-panel-vars';
+
+:host {
+  display: block;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: $c-bg-dark;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: $c-text;
+}
+
+.options-container {
+  height: 100%;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 100px;
+
+  scrollbar-width: thin;
+  scrollbar-color: #444 #020202;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+
+    &:hover {
+      background: $c-primary;
+    }
+  }
+}

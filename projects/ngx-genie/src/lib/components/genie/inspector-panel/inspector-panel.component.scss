@@ -1,0 +1,325 @@
+$c-border: rgba(100, 150, 255, 0.15);
+$c-text-dim: #64748b;
+$c-text: #e2e8f0;
+$c-primary: #3b82f6;
+
+:host {
+  height: 100%;
+  overflow: hidden;
+  background: #0f172a;
+  border-left: 1px solid $c-border;
+  display: flex;
+  flex-direction: column;
+}
+
+.inspector-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.node-header {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid $c-border;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: 45px;
+
+  .header-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 8px;
+  }
+
+  .divider-vertical {
+    width: 1px;
+    height: 14px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 4px;
+  }
+
+  .icon-action-btn {
+    background: transparent;
+    border: none;
+    color: $c-text-dim;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+
+    &:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    &.active {
+      color: $c-primary;
+      background: rgba(59, 130, 246, 0.1);
+    }
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+
+    .label {
+      font-size: 9px;
+      font-weight: bold;
+      color: $c-text-dim;
+      letter-spacing: 0.5px;
+    }
+
+    .injector-type {
+      font-size: 8px;
+      padding: 1px 4px;
+      border-radius: 2px;
+      font-weight: bold;
+      background: rgba(255, 255, 255, 0.1);
+      color: #aaa;
+
+      &[data-type="Environment"] {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+      }
+
+      &[data-type="Element"] {
+        background: rgba(59, 130, 246, 0.15);
+        color: #60a5fa;
+      }
+    }
+  }
+
+  .node-name {
+    display: block;
+    font-size: 13px;
+    font-weight: bold;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+
+  .sync-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 10px;
+    color: $c-text-dim;
+    user-select: none;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+
+    &:hover {
+      color: $c-text;
+      background: rgba(255, 255, 255, 0.05);
+
+      .checkmark {
+        border-color: $c-primary;
+      }
+    }
+
+    input {
+      display: none;
+    }
+
+    .checkmark {
+      width: 12px;
+      height: 12px;
+      border: 1px solid $c-text-dim;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: rgba(0, 0, 0, 0.2);
+      transition: all 0.2s;
+
+      &::after {
+        content: '✓';
+        font-size: 9px;
+        color: #fff;
+        opacity: 0;
+        transform: scale(0);
+        transition: all 0.2s;
+        line-height: 1;
+      }
+    }
+
+    input:checked + .checkmark {
+      background: $c-primary;
+      border-color: $c-primary;
+
+      &::after {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .sync-label {
+      opacity: 0.9;
+    }
+  }
+
+  .close-node-btn {
+    background: none;
+    border: none;
+    color: $c-text-dim;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+    line-height: 1;
+    margin-left: 4px;
+
+    &:hover {
+      color: #fff;
+    }
+  }
+}
+
+.providers-list-container {
+  overflow-y: auto;
+  min-height: 0;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+
+.section-resizer {
+  height: 12px;
+  background: #111;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+  transition: background 0.2s;
+  z-index: 10;
+  touch-action: none;
+
+  &:hover, &:active {
+    background: #1a1a1a;
+
+    .handle-grip .dot {
+      background: $c-primary;
+      box-shadow: 0 0 5px $c-primary;
+    }
+  }
+
+  .handle-grip {
+    display: flex;
+    gap: 3px;
+
+    .dot {
+      width: 4px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      transition: all 0.2s;
+    }
+  }
+
+  .resize-action-btn {
+    background: transparent;
+    border: none;
+    color: $c-text-dim;
+    padding: 0 4px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: all 0.2s;
+
+    &:hover {
+      opacity: 1;
+      color: #fff;
+      transform: scale(1.2);
+    }
+
+
+    cursor: pointer;
+  }
+}
+
+.empty-state, .empty-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: $c-text-dim;
+  padding: 20px;
+  text-align: center;
+  min-height: 100px;
+}
+
+.empty-state {
+  opacity: 0.6;
+  gap: 12px;
+
+  .empty-icon-wrapper {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+
+    .empty-icon {
+      font-size: 24px;
+      color: $c-primary;
+    }
+
+    .empty-anim {
+      position: absolute;
+      inset: 0;
+      border: 1px solid $c-primary;
+      border-radius: 50%;
+      opacity: 0.3;
+      animation: pulse 2s infinite;
+    }
+  }
+
+  .empty-text {
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+
+  .empty-sub {
+    font-size: 10px;
+    opacity: 0.7;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}

@@ -1,0 +1,39 @@
+<div
+  class="dependency-item"
+  [class.unused]="!_dependency().usageCount"
+  [class.root-scope]="_isRoot()"
+  [class.framework-item]="_isFramework()"
+  [class.active]="_isActive()"
+  (click)="_handleClick($event)"
+>
+
+  <div class="type-indicator"
+       [attr.data-deptype]="_dependency().dependencyType"
+       [title]="_dependency().dependencyType">
+    {{ _abbrType() }}
+  </div>
+
+  <div class="content">
+    <span class="label" [title]="_dependency().label">{{ _dependency().label }}</span>
+    <div class="details">
+      <span class="id">#{{ _dependency().id }}</span>
+      <span class="prov-type" [attr.data-ptype]="_dependency().providerType">
+            {{ _dependency().providerType | uppercase | slice:0:3 }}
+      </span>
+    </div>
+  </div>
+
+  <div class="meta-right">
+    @if (_isFramework()) {
+      <span class="framework-badge" title="Angular Internal">NG</span>
+    }
+    @if (_isRoot()) {
+      <span class="root-badge" title="Root Singleton">ROOT</span>
+    }
+    @if (_dependency().usageCount; as count) {
+      <span class="usage-badge" title="Usage Count">×{{ count }}</span>
+    } @else {
+      <span class="usage-badge unused">0</span>
+    }
+  </div>
+</div>

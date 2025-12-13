@@ -1,0 +1,157 @@
+:host {
+  display: block;
+}
+
+.genie-header {
+  height: 50px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(100, 150, 255, 0.15);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: grab;
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  font-size: 14px;
+  margin-right: 24px;
+  color: #e2e8f0;
+
+  .brand-icon {
+    color: #3b82f6;
+    font-size: 18px;
+  }
+
+  .brand-accent {
+    color: #3b82f6;
+    font-size: 10px;
+    margin-left: 2px;
+    opacity: 0.8;
+  }
+}
+
+.sys-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: #64748b;
+
+  .stat-item {
+    display: flex;
+    gap: 4px;
+
+    .value {
+      color: #8b5cf6;
+      font-weight: bold;
+    }
+  }
+
+  .stat-divider {
+    opacity: 0.3;
+  }
+}
+
+.header-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.search-bar {
+  pointer-events: auto;
+  position: relative;
+  width: 360px;
+  display: flex;
+  align-items: center;
+
+  input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(100, 150, 255, 0.15);
+    color: #fff;
+    padding: 6px 36px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 12px;
+    transition: all 0.2s;
+
+    &:focus {
+      outline: none;
+      border-color: #3b82f6;
+      background: rgba(0, 0, 0, 0.5);
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+    }
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    width: 14px;
+    color: #64748b;
+  }
+
+  .clear-btn {
+    position: absolute;
+    right: 6px;
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 14px;
+
+    &:hover {
+      color: #fff;
+    }
+  }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.window-controls {
+  display: flex;
+  gap: 8px;
+  border-left: 1px solid rgba(100, 150, 255, 0.15);
+  padding-left: 16px;
+
+  .control-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    font-size: 14px;
+    background: transparent;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    &.close:hover {
+      background: rgba(255, 50, 50, 0.2);
+      color: #ff5555;
+    }
+  }
+}
