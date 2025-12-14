@@ -3,9 +3,7 @@
 > **Note:** This project is licensed under the **Apache License 2.0**.
 
 
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/35bdc36a-67d2-4d3e-b7e1-ad7e095f037e" alt="GenieOS Demo" width="100%">
-</div>
+![GenieOSDemo](https://github-production-user-asset-6210df.s3.amazonaws.com/52491779/526235253-35bdc36a-67d2-4d3e-b7e1-ad7e095f037e.gif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20251214%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251214T013259Z&X-Amz-Expires=300&X-Amz-Signature=da8df70c78aa1b2bf16d760e4a042c4694769713bf50b8828e39cc281895754c&X-Amz-SignedHeaders=host)
 
 **GenieOS** (`ngx-genie`) is an advanced developer tool for the **Angular** framework, designed for visualizing, analyzing, and diagnosing the **Dependency Injection (DI)** system.
 
