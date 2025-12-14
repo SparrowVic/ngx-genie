@@ -11,35 +11,21 @@
 
 ---
 
-[//]: # (## Installation)
+## Installation
 
-[//]: # ()
+Install the package:
 
-[//]: # (Install the package:)
+Using **npm**:
 
-[//]: # ()
+```bash
+npm install ngx-genie --save-dev
+```
 
-[//]: # (Using **npm**:)
+Using **yarn**:
 
-[//]: # ()
-
-[//]: # (```bash)
-
-[//]: # (npm install ngx-genie --save-dev)
-
-[//]: # (```)
-
-[//]: # ()
-
-[//]: # (Using **yarn**:)
-
-[//]: # ()
-
-[//]: # (```bash)
-
-[//]: # (yarn add ngx-genie --dev)
-
-[//]: # (```)
+```bash
+yarn add ngx-genie --dev
+```
 
 > Using a `devDependency` is recommended, as the tool should not be shipped to production.
 

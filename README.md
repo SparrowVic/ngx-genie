@@ -3,7 +3,9 @@
 > **Note:** This project is licensed under the **Apache License 2.0**.
 
 
-![](https://github.com/user-attachments/assets/078d35b7-80d1-4f34-bed0-47f903d339b5)
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/35bdc36a-67d2-4d3e-b7e1-ad7e095f037e" alt="GenieOS Demo" width="100%">
+</div>
 
 **GenieOS** (`ngx-genie`) is an advanced developer tool for the **Angular** framework, designed for visualizing, analyzing, and diagnosing the **Dependency Injection (DI)** system.
 
@@ -54,39 +56,23 @@ GenieOS is currently **implemented against Angular 20**.
 Support for **earlier Angular versions** (e.g. Angular 17–19) is **planned**, but not yet available.
 
 
-[//]: # (---)
+---
 
-[//]: # ()
+## 🚀 Quick start
 
-[//]: # (## 🚀 Quick start)
+### Installation
 
-[//]: # ()
+Using **npm**:
 
-[//]: # (### Installation)
+```bash
+npm install ngx-genie --save-dev
+```
 
-[//]: # ()
+Using **yarn**:
 
-[//]: # (Using **npm**:)
-
-[//]: # ()
-
-[//]: # (```bash)
-
-[//]: # (npm install ngx-genie --save-dev)
-
-[//]: # (```)
-
-[//]: # ()
-
-[//]: # (Using **yarn**:)
-
-[//]: # ()
-
-[//]: # (```bash)
-
-[//]: # (yarn add ngx-genie --dev)
-
-[//]: # (```)
+```bash
+yarn add ngx-genie --dev
+```
 
 ---
 

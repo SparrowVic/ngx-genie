@@ -1,183 +1,256 @@
-# 🏗️ Technical Library Overview
-
-This section provides a comprehensive deep dive into the internal architecture of GenieOS. It is specifically designed for core contributors, maintainers, and advanced developers who need to understand the underlying mechanisms, the critical reliance on Angular's internal APIs, and the potential stability implications across different framework versions.
+# 🏗️ Technical Architecture Overview
 
 <details open>
-<summary><strong>📑 Spis treści</strong></summary>
+<summary><strong>Document description</strong></summary>
 
-- [1. Core Architecture](#1-core-architecture)
-  - [Interception Layer (GenieRegistryService)](#interception-layer-genieregistryservice)
-  - [State Layer (StateService)](#state-layer-stateservice)
-  - [Presentation Layer](#presentation-layer)
-- [2. The Interception Mechanism ("The Spy")](#2-the-interception-mechanism-the-spy)
-  - [2.1 Monkey Patching Injector.prototype.get](#21-monkey-patching-injectorprototypeget)
-    - [Deep Dive & Implications](#deep-dive--implications)
-  - [2.2 DOM & Injector Tree Traversal](#22-dom--injector-tree-traversal)
-    - [Entry Point (ApplicationRef)](#entry-point-applicationref)
-    - [The window.ng Hook](#the-windowng-hook)
-    - [LView and Internal Access](#lview-and-internal-access)
-- [3. Data Structures & Memory Management](#3-data-structures--memory-management)
-  - [3.1 Weak Reference Strategy](#31-weak-reference-strategy)
-  - [3.2 Normalized Graph Storage](#32-normalized-graph-storage)
-- [4. Risks and Limitations](#4-risks-and-limitations)
-  - [4.1 Reliance on Private APIs (The ɵ Risk)](#41-reliance-on-private-apis-the--risk)
-  - [4.2 Production Builds & Tree Shaking](#42-production-builds--tree-shaking)
-  - [4.3 Heuristic Analysis Limitations](#43-heuristic-analysis-limitations)
-- [5. Performance Strategy](#5-performance-strategy)
-  - [5.1 Reactive Signals & OnPush](#51-reactive-signals--onpush)
-  - [5.2 Deferred Initialization](#52-deferred-initialization)
-- [6. Update Guide for Maintainers](#6-update-guide-for-maintainers)
+This document presents a detailed analysis of the internal architecture of **GenieOS**. It is intended for core contributors and advanced users and focuses on:
+
+* low-level dependencies on Angular’s internal APIs,
+* the rationale behind key architectural decisions,
+* stability implications related to future framework upgrades.
 
 </details>
 
 ---
 
-## 🧱 1. Core Architecture
+## 📚 Table of Contents
 
-GenieOS operates as a runtime overlay, meaning it does not perform static analysis of the source code (AST parsing) but instead inspects the live, instantiated application state directly in the browser memory. The architecture is strictly stratified into three distinct layers to separate data collection from presentation logic:
+* [1. Core Architecture](#1-core-architecture)
 
-<a id="interception-layer-genieregistryservice"></a>
-<details>
-<summary><strong>🛡️ Interception Layer (GenieRegistryService)</strong></summary>
+  * [1.1 Interception Layer](#11-interception-layer-genieregistryservice)
+  * [1.2 State Management Layer](#12-state-management-layer-stateservice)
+  * [1.3 Presentation Layer](#13-presentation-layer)
+* [2. Interception Mechanism](#2-interception-mechanism)
 
-**Role:** The "nervous system" of the library.  
-**Mechanism:** It sits directly on top of Angular's Injector and ApplicationRef.
-</details>
+  * [2.1 Monkey Patching Injector.get](#21-monkey-patching-injectorprototypeget)
+  * [2.2 Tree Traversal](#22-tree-traversal)
+* [3. Memory & Data Structures](#3-memory--data-structures)
 
-<a id="state-layer-stateservice"></a>
-<details>
-<summary><strong>📊 State Layer (StateService)</strong></summary>
+  * [3.1 Weak Reference Strategy](#31-weak-reference-strategy)
+  * [3.2 Normalized Storage](#32-normalized-storage)
+* [4. Risks & Limitations](#4-risks--limitations)
 
-**Role:** Reactive data store built on Angular Signals.  
-**Mechanism:** Transforms raw registry data into semantic graphs.
-</details>
-
-<a id="presentation-layer"></a>
-<details>
-<summary><strong>🎨 Presentation Layer</strong></summary>
-
-**Role:** Decoupled UI rendering layer.  
-**Mechanism:** Uses ChangeDetectionStrategy.OnPush exclusively.
-</details>
+  * [4.1 Internal API Dependency](#41-internal-api-dependency)
+  * [4.2 Production Builds](#42-production-builds)
+  * [4.3 Heuristic Analysis](#43-heuristic-analysis)
+* [5. Performance Strategy](#5-performance-strategy)
+* [6. Upgrade Checklist](#6-upgrade-checklist)
 
 ---
 
-## 🔍 2. The Interception Mechanism ("The Spy")
+<details open>
+<summary id="1-core-architecture"><strong>🧱 1. Core Architecture</strong></summary>
 
-The heart of GenieOS is Runtime DI Interception.
+GenieOS operates as a **runtime overlay**, which clearly distinguishes it from static analysis tools.
 
-<a id="21-monkey-patching-injectorprototypeget"></a>
-<details>
-<summary><strong>🐒 2.1 Monkey Patching Injector.prototype.get</strong></summary>
+Instead of analyzing source code (AST), the library **inspects the live state of the application** directly in the browser’s memory. This makes it possible to visualize dynamic relationships that do not exist in a static form.
 
-GenieOS monkey-patches Injector.prototype.get to intercept all DI resolutions.
+The architecture of GenieOS is **strictly layered** and deliberately separated by responsibilities.
 
-<a id="deep-dive--implications"></a>
-<details>
-<summary><strong>⚙️ Deep Dive & Implications</strong></summary>
+<details open>
+<summary id="11-interception-layer-genieregistryservice"><strong>🛡 1.1 Interception Layer (GenieRegistryService)</strong></summary>
 
-- Flag decoding (@Optional, @SkipSelf)
-- Lazy-loaded module support
-- Micro-latency risk and mitigation
+* **Role**
+
+  * The “nervous system” of the library.
+  * The central point for intercepting and registering DI events.
+
+* **Mechanism**
+
+  * Real-time monitoring of dependency resolution.
+  * Mapping Angular internal references (Injectors, service instances) to stable GenieOS identifiers.
+  * A bridge between Angular’s private runtime and the GenieOS data model.
 
 </details>
 
+<details open>
+<summary id="12-state-management-layer-stateservice"><strong>📊 1.2 State Management Layer (<code>*StateService</code>)</strong></summary>
+
+* **Role**
+
+  * The reactive “brain” of the system.
+  * A lightweight alternative to classic state management libraries, designed specifically for devtools.
+
+* **Mechanism**
+
+  * Fully based on Angular Signals.
+  * Transformation of raw registry data into semantic structures:
+
+    * dependency trees,
+    * relationship matrices,
+    * service constellations.
+  * Handling view logic, filtering, and search.
+  * No mutation of the source of truth, ensuring data consistency across views.
+
 </details>
 
-<a id="22-dom--injector-tree-traversal"></a>
-<details>
-<summary><strong>🌳 2.2 DOM & Injector Tree Traversal</strong></summary>
+<details open>
+<summary id="13-presentation-layer"><strong>🎨 1.3 Presentation Layer</strong></summary>
 
-<a id="entry-point-applicationref"></a>
-<details>
-<summary><strong>🚪 Entry Point (ApplicationRef)</strong></summary>
+* **Role**
 
-Traversal starts from appRef.components.
-</details>
+  * The visual layer exposed to the user.
 
-<a id="the-windowng-hook"></a>
-<details>
-<summary><strong>🔗 The window.ng Hook</strong></summary>
+* **Mechanism**
 
-Relies on Angular DevTools hooks.
-</details>
+  * Use of `ChangeDetectionStrategy.OnPush` throughout the entire UI.
+  * Isolation of expensive graph rendering from the host application’s change detection cycles.
+  * Protection against the “Heisenberg effect”, where observing the application significantly impacts its performance.
 
-<a id="lview-and-internal-access"></a>
-<details>
-<summary><strong>📦 LView and Internal Access</strong></summary>
-
-Accesses Ivy internals (LView, TView, ɵcmp).
 </details>
 
 </details>
 
 ---
 
-## 💾 3. Data Structures & Memory Management
+<details open>
+<summary id="2-interception-mechanism"><strong>🔍 2. Interception Mechanism</strong></summary>
 
-<a id="31-weak-reference-strategy"></a>
-<details>
-<summary><strong>🔗 3.1 Weak Reference Strategy</strong></summary>
+A key feature of GenieOS is **Runtime Dependency Injection Interception**.
 
-Uses WeakMap to avoid memory leaks.
+While standard Angular tools focus on the **Component Tree**, GenieOS reconstructs the **Dependency Graph** — the hidden network of relationships between services, injectors, and components.
+
+<details open>
+<summary id="21-monkey-patching-injectorprototypeget"><strong>🐒 2.1 Monkey Patching <code>Injector.prototype.get</code></strong></summary>
+
+* Intercepting every dependency resolution event is achieved by modifying the behavior of the DI mechanism at runtime.
+* This allows observation of all injections without decorating or altering the user’s application code.
+
+**Technical implications:**
+
+* **DI Flag Decoding**
+
+  * Flags such as `@Optional`, `@Self`, `@SkipSelf`, `@Host` are analyzed to correctly reconstruct the actual dependency resolution path.
+
+* **Lazy loading and dynamic components**
+
+  * The mechanism automatically covers lazy-loaded modules and dynamically created components.
+
+* **Performance impact**
+
+  * Minimal, synchronous overhead added to the dependency resolution process.
+  * Filtering internal tokens is critical to avoid recursion and performance degradation.
+
 </details>
 
-<a id="32-normalized-graph-storage"></a>
-<details>
-<summary><strong>📈 3.2 Normalized Graph Storage</strong></summary>
+<details open>
+<summary id="22-tree-traversal"><strong>🌳 2.2 DOM & Injector Tree Traversal</strong></summary>
 
-Flat, normalized graph for fast queries.
+Reconstructing the full DI hierarchy requires combining the logical and physical views of the application.
+
+* Scanning starts from the application’s root components.
+* Angular global debug hooks are used to map DOM elements to Angular contexts.
+* The Logical View (LView) structure is analyzed, which makes it possible to:
+
+  * detect providers that exist in configuration but are never used,
+  * identify so-called “zombie services”.
+
+</details>
+
 </details>
 
 ---
 
-## ⚠️ 4. Risks and Limitations
+<details open>
+<summary id="3-memory--data-structures"><strong>💾 3. Memory & Data Structures</strong></summary>
 
-<a id="41-reliance-on-private-apis-the--risk"></a>
-<details>
-<summary><strong>🔒 4.1 Reliance on Private APIs (The ɵ Risk)</strong></summary>
+Designing a tool that analyzes large applications requires aggressive memory control.
 
-Heavy use of Angular internals.
+<details open>
+<summary id="31-weak-reference-strategy"><strong>🔗 3.1 Weak Reference Strategy</strong></summary>
+
+* Internal mappings are based exclusively on weak references.
+* GenieOS does not hold strong references to Angular objects.
+* The Garbage Collector can freely collect destroyed components and injectors.
+* This prevents memory leaks during long debugging sessions.
+
 </details>
 
-<a id="42-production-builds--tree-shaking"></a>
-<details>
-<summary><strong>🚧 4.2 Production Builds & Tree Shaking</strong></summary>
+<details open>
+<summary id="32-normalized-storage"><strong>📈 3.2 Normalized Storage</strong></summary>
 
-window.ng unavailable in prod builds.
+* Data is stored in a normalized form (flat lists of nodes and edges).
+* This enables:
+
+  * fast linear-time filtering,
+  * simple state updates,
+  * easy serialization (e.g. snapshot exports).
+
 </details>
 
-<a id="43-heuristic-analysis-limitations"></a>
-<details>
-<summary><strong>❓ 4.3 Heuristic Analysis Limitations</strong></summary>
-
-Some diagnostics are heuristic-based.
 </details>
 
 ---
 
-## ⚡ 5. Performance Strategy
+<details open>
+<summary id="4-risks--limitations"><strong>⚠️ 4. Risks & Limitations</strong></summary>
 
-<a id="51-reactive-signals--onpush"></a>
-<details>
-<summary><strong>📡 5.1 Reactive Signals & OnPush</strong></summary>
+GenieOS operates at a very low runtime level, which introduces certain risks.
 
-Fine-grained UI updates with Signals.
+<details open>
+<summary id="41-internal-api-dependency"><strong>🔒 4.1 Internal API Dependency</strong></summary>
+
+* The library relies on Angular private APIs, marked with the `ɵ` and `_` prefixes.
+* These structures are not covered by any stability guarantees across framework versions.
+
+**Mitigation strategy:**
+
+* All access to private APIs is centralized in a single integration module.
+* Each Angular upgrade requires verification and regression testing.
+
 </details>
 
-<a id="52-deferred-initialization"></a>
-<details>
-<summary><strong>⏳ 5.2 Deferred Initialization</strong></summary>
+<details open>
+<summary id="42-production-builds"><strong>🚧 4.2 Production Builds</strong></summary>
 
-Defers scanning until app stabilizes.
+* In production builds, Angular global debug hooks are not available.
+* Minification significantly reduces the readability of service and component names.
+* The graph structure remains correct, but the diagnostic value is limited.
+
 </details>
 
-[//]: # (---)
+<details open>
+<summary id="43-heuristic-analysis"><strong>❓ 4.3 Heuristic Analysis</strong></summary>
 
-[//]: # ()
+* **Heavy State Detection**
 
-[//]: # (## 🔄 6. Update Guide for Maintainers)
+  * Approximate analysis of object complexity.
+  * Limited recursion depth prevents infinite loops.
 
-[//]: # ()
+* **Coupling Score**
 
-[//]: # (Checklist for upgrading Angular versions.)
+  * A metric based on the number of injected dependencies.
+  * May generate false positives in the case of wide but rarely used services.
+
+</details>
+
+</details>
+
+---
+
+<details open>
+<summary id="5-performance-strategy"><strong>⚡ 5. Performance Strategy</strong></summary>
+
+* Global use of `OnPush`.
+* 📡 Precise, Signals-based updates.
+* No full re-renders of large UI structures.
+* ⏳ Deferred initialization:
+
+  * analysis starts only after the application has stabilized,
+  * heavy operations are executed during idle time.
+
+</details>
+
+---
+
+<details open>
+<summary id="6-upgrade-checklist"><strong>6. Upgrade Checklist</strong></summary>
+
+When upgrading to a new Angular version, you should:
+
+* verify the behavior of the dependency resolution mechanism,
+* check the correctness of component metadata reading,
+* validate the compatibility of logical view structures,
+* confirm the operation of debug hooks.
+
+</details>

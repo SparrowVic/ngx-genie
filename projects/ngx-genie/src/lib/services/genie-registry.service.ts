@@ -34,7 +34,7 @@ const IGNORED_TOKENS = new Set<any>([
 ]);
 
 const GENIE_INTERNAL_COMPONENTS = new Set([
-  '_GenieExplorerComponent'
+  '_GenieComponent'
 ]);
 
 const CONTEXT_INDEX = 8;
