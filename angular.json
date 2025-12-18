@@ -17,7 +17,9 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
+            "index": "src/index.html",
             "browser": "src/main.ts",
+            "outputPath": "dist/ngx-genie-playground",
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
@@ -28,6 +30,9 @@
             ],
             "styles": [
               "src/styles.scss"
+            ],
+            "polyfills": [
+              "zone.js"
             ]
           },
           "configurations": {
@@ -41,7 +46,7 @@
                 {
                   "type": "anyComponentStyle",
                   "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  "maximumError": "32kB"
                 }
               ],
               "outputHashing": "all"
@@ -94,6 +99,9 @@
       "prefix": "lib",
       "architect": {
         "build": {
+          "options": {
+            "project": "projects/ngx-genie/ng-package.json"
+          },
           "builder": "@angular/build:ng-packagr",
           "configurations": {
             "production": {
