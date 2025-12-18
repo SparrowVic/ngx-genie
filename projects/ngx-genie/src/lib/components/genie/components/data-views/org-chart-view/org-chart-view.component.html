@@ -2,7 +2,6 @@
 
   <div class="genie-grid-bg"></div>
 
-
   <div class="zoom-wrapper" [style.transform]="transformStyle()">
     <div class="genie-chart-tree">
       <ul>
@@ -16,12 +15,7 @@
     </div>
   </div>
 
-
-  @defer (on idle) {
-    <lib-org-chart-legend/>
-  } @placeholder {
-
-  }
+  <lib-org-chart-legend></lib-org-chart-legend>
 </div>
 
 

@@ -42,6 +42,12 @@
     </label>
 
     <label class="checkbox-row compact">
+      <input type="checkbox" [ngModel]="showUserSignals()" (ngModelChange)="updateUserSignals.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Signals</span>
+    </label>
+
+    <label class="checkbox-row compact">
       <input type="checkbox" [ngModel]="showUserComponents()" (ngModelChange)="updateUserComponents.emit($event)">
       <span class="checkmark"></span>
       <span class="label-text">Components</span>
@@ -84,6 +90,13 @@
              (ngModelChange)="updateFrameworkObservables.emit($event)">
       <span class="checkmark"></span>
       <span class="label-text">Observables</span>
+    </label>
+
+    <label class="checkbox-row compact warning-theme">
+      <input type="checkbox" [ngModel]="showFrameworkSignals()"
+             (ngModelChange)="updateFrameworkSignals.emit($event)">
+      <span class="checkmark"></span>
+      <span class="label-text">Signals</span>
     </label>
 
     <label class="checkbox-row compact warning-theme">

@@ -6,7 +6,9 @@ import {DashboardShellService} from '../../dashboard-shell.service';
   selector: 'app-factory',
   imports: [],
   providers: [DashboardShellService],
-  templateUrl: './factory.html',
+  template: `
+    <p>factory works!</p>
+  `
 })
 export class Factory {
   constructor(elRef: ElementRef, cdRef: ChangeDetectorRef, readonly shell: DashboardShellService) {

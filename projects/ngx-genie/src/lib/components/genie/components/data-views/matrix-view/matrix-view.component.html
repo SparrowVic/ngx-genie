@@ -1,8 +1,9 @@
-<div class="matrix-host" [style.--matrix-scale]="scale()">
+<div class="matrix-host">
+  <canvas #mainCanvas class="main-canvas"></canvas>
 
-  @defer (on idle) {
-    <lib-matrix-rain [active]="settings().rain"></lib-matrix-rain>
-  }
+  <div class="virtual-scroller" #virtualScroller (scroll)="onScroll($event)">
+    <div class="virtual-spacer" [style.width.px]="virtualWidth()" [style.height.px]="virtualHeight()"></div>
+  </div>
 
   @if (isLoading()) {
     <lib-matrix-loading
@@ -14,74 +15,8 @@
   <lib-matrix-settings
     [settings]="settings()"
     (settingsChange)="updateSettings($event)"
-    (resetLayout)="forceLayoutUpdate()">
+    (resetLayout)="resetView()">
   </lib-matrix-settings>
 
-  <div class="matrix-layout" [class.hidden]="isLoading()">
-
-    <div class="zone-corner">
-      @defer (on viewport) {
-        <lib-matrix-corner [active]="settings().rain"></lib-matrix-corner>
-      } @placeholder {
-        <div class="corner-placeholder"></div>
-      }
-    </div>
-
-    <div class="zone-top" #headerTop>
-      <div class="headers-track" [style.width]="gridWidthStyle()">
-        @for (col of columns(); track col.id) {
-          <div class="cell col-header"
-               [ngClass]="[col.typeClass, col.isFramework ? 'framework-item' : '']">
-            <div class="col-indicator"></div>
-            <div class="col-label">{{ col.label }}</div>
-          </div>
-        }
-      </div>
-    </div>
-
-    <div class="zone-left" #headerLeft>
-      <div class="headers-col-track">
-        @for (row of rows(); track row.node.id; let r = $index) {
-          <div class="cell row-header">
-            <span class="row-idx">{{ r + 1 }}</span>
-            <span class="row-label" [title]="row.node.label">{{ row.node.label }}</span>
-          </div>
-        }
-      </div>
-    </div>
-
-    <div class="zone-data custom-scrollbar" #dataViewport (scroll)="onScroll()">
-      <div class="data-grid-container" [style.width]="gridWidthStyle()">
-        @for (row of rows(); track row.node.id) {
-          <div class="data-row">
-            @for (cell of row.cells; track cell.id) {
-              <div class="cell data-cell"
-                   [ngClass]="[
-                     cell.typeClass,
-                     cell.active ? 'active' : '',
-                     settings().animation ? 'pulse-animation' : '',
-                     cell.isFramework ? 'framework-cell' : ''
-                   ]"
-                   (click)="onCellClick(cell)"
-                   [title]="getCellTitle(cell)">
-
-                @if (cell.isConsumer) {
-                  <div class="cell-marker cell-marker-consumer"></div>
-                }
-                @if (cell.isProvider && !cell.isConsumer) {
-                  <div class="cell-marker cell-marker-provider"></div>
-                }
-                @if (!cell.active) {
-                  <div class="cell-empty-dot"></div>
-                }
-              </div>
-            }
-          </div>
-        }
-      </div>
-    </div>
-
-    <lib-matrix-legend class="zone-footer"></lib-matrix-legend>
-
-  </div>
+  <lib-matrix-legend class="matrix-legend"></lib-matrix-legend>
 </div>

@@ -30,12 +30,9 @@
     (repulsionChange)="updateRepulsion($event)"
   />
 
-  @defer (on idle) {
-    <lib-constellation-legend/>
-  } @placeholder {
-  }
+  <lib-constellation-legend/>
 
-  @defer (on idle) {
+  @if (hoveredNode()) {
     <lib-constellation-tooltip
       [node]="hoveredNode()"
       [x]="tooltipPos().x"

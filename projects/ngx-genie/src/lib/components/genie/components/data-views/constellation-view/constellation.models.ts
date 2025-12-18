@@ -10,6 +10,7 @@ export const CONSTELLATION_THEME = {
   system: {color: '#f472b6', glow: '#fbcfe8'},
   value: {color: '#2dd4bf', glow: '#99f6e4'},
   observable: {color: '#e879f9', glow: '#f5d0fe'},
+  signal: {color: '#fbbf24', glow: '#fcd34d'},
   token: {color: '#94a3b8', glow: '#cbd5e1'},
   component: {color: '#c084fc', glow: '#d8b4fe'},
   directive: {color: '#a3e635', glow: '#bef264'},

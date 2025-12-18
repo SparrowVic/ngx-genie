@@ -12,7 +12,13 @@ import {OrdersServiceThree} from '../../orders.service3';
     Cars,
     NgForOf
   ],
-  templateUrl: './colors.html',
+  template: `
+    <p>colors works!</p>
+
+    <app-cars></app-cars>
+
+    <div *ngFor="let i of [1,1,1]">ngFor test</div>
+  `
 })
 export class Colors {
 

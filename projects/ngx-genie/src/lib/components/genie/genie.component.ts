@@ -7,6 +7,7 @@ import {
   ViewChild,
   effect,
   computed,
+  OnDestroy
 } from '@angular/core';
 import {CommonModule, DOCUMENT} from '@angular/common';
 import {interval, Subscription} from 'rxjs';
@@ -22,6 +23,20 @@ import {InspectorPanelComponent} from './inspector-panel/inspector-panel.compone
 
 import {GenieExplorerStateService} from './explorer-state.service';
 import {GenieFilterState} from './options-panel/options-panel.models';
+
+const STORAGE_KEY_LAYOUT = 'genie_layout_config';
+
+interface GenieLayoutState {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  isMaximized: boolean;
+  optionsWidth: number;
+  inspectorWidth: number;
+  optionsCollapsed: boolean;
+  inspectorCollapsed: boolean;
+}
 
 @Component({
   standalone: true,
@@ -39,7 +54,7 @@ import {GenieFilterState} from './options-panel/options-panel.models';
   styleUrl: './genie.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class GenieComponent {
+export class GenieComponent implements OnDestroy {
 
   readonly state = inject(GenieExplorerStateService);
   readonly config: GenieConfig = inject(GENIE_CONFIG);
@@ -47,32 +62,29 @@ export class GenieComponent {
 
   @ViewChild('windowRef') windowRef!: ElementRef<HTMLElement>;
 
+  private readonly initialState = this.loadLayoutState();
+
   readonly visible = signal<boolean>(this.config.visibleOnStart);
-  readonly isMaximized = signal<boolean>(false);
 
-  readonly windowPosition = signal({x: 40, y: 40});
-  readonly windowSize = signal({width: 1200, height: 800});
+  readonly isMaximized = signal<boolean>(this.initialState.isMaximized);
+  readonly windowPosition = signal({x: this.initialState.x, y: this.initialState.y});
+  readonly windowSize = signal({width: this.initialState.width, height: this.initialState.height});
 
-  readonly optionsPanelWidth = signal<number>(300);
-  readonly inspectorWidth = signal<number>(400);
-  readonly isOptionsCollapsed = signal<boolean>(false);
-  readonly isInspectorCollapsed = signal<boolean>(false);
+  readonly optionsPanelWidth = signal<number>(this.initialState.optionsWidth);
+  readonly inspectorWidth = signal<number>(this.initialState.inspectorWidth);
+
+  readonly isOptionsCollapsed = signal<boolean>(this.initialState.optionsCollapsed);
+  readonly isInspectorCollapsed = signal<boolean>(this.initialState.inspectorCollapsed);
 
 
   readonly showOptionsPanel = computed(() => this.state.activeView() !== 'diagnostics');
-
-
   readonly showInspectorPanel = signal(true);
 
   readonly gridTemplate = computed(() => {
     const inspectorW = this.inspectorWidth();
-
     if (this.showOptionsPanel()) {
-
       return `${this.optionsPanelWidth()}px 1fr ${inspectorW}px`;
     }
-
-
     return `1fr ${inspectorW}px`;
   });
 
@@ -80,8 +92,21 @@ export class GenieComponent {
   private _lastInspectorWidth = 400;
   private readonly _COLLAPSED_WIDTH = 24;
   private _liveSub: Subscription | null = null;
+  private _keyListener: ((e: KeyboardEvent) => void) | null = null;
+
+  private _saveTimeout: any = null;
 
   constructor() {
+    if (this.config.enabled && this.config.hotkey) {
+      this._keyListener = (event: KeyboardEvent) => {
+        if (event.key === this.config.hotkey) {
+          event.preventDefault();
+          this.visible.update(v => !v);
+        }
+      };
+      window.addEventListener('keydown', this._keyListener);
+    }
+
     effect(() => {
       if (this.state.isLiveWatch()) {
         this._liveSub = interval(500).subscribe(() =>
@@ -96,6 +121,12 @@ export class GenieComponent {
     });
   }
 
+  ngOnDestroy() {
+    if (this._keyListener) {
+      window.removeEventListener('keydown', this._keyListener);
+    }
+  }
+
   handleViewChange(mode: GenieViewMode) {
     this.state.setView(mode);
   }
@@ -107,6 +138,7 @@ export class GenieComponent {
 
   toggleMaximize() {
     this.isMaximized.update(v => !v);
+    this.saveLayoutState();
   }
 
   closeWindow() {
@@ -155,6 +187,7 @@ export class GenieComponent {
     const mouseUpHandler = () => {
       this.document.removeEventListener('mousemove', mouseMoveHandler);
       this.document.removeEventListener('mouseup', mouseUpHandler);
+      this.saveLayoutState();
     };
 
     this.document.addEventListener('mousemove', mouseMoveHandler);
@@ -182,6 +215,7 @@ export class GenieComponent {
     const mouseUpHandler = () => {
       this.document.removeEventListener('mousemove', mouseMoveHandler);
       this.document.removeEventListener('mouseup', mouseUpHandler);
+      this.saveLayoutState();
     };
 
     this.document.addEventListener('mousemove', mouseMoveHandler);
@@ -194,6 +228,7 @@ export class GenieComponent {
       return;
     }
     this.optionsPanelWidth.update(w => Math.max(150, Math.min(500, w + delta)));
+    this.scheduleSave();
   }
 
   onInspectorResize(delta: number): void {
@@ -202,6 +237,7 @@ export class GenieComponent {
       return;
     }
     this.inspectorWidth.update(w => Math.max(250, Math.min(800, w - delta)));
+    this.scheduleSave();
   }
 
   toggleOptionsPanel(shouldCollapse: boolean) {
@@ -212,6 +248,7 @@ export class GenieComponent {
     } else {
       this.optionsPanelWidth.set(Math.max(200, this._lastOptionsWidth));
     }
+    this.saveLayoutState();
   }
 
   toggleInspectorPanel(shouldCollapse: boolean) {
@@ -222,5 +259,55 @@ export class GenieComponent {
     } else {
       this.inspectorWidth.set(Math.max(300, this._lastInspectorWidth));
     }
+    this.saveLayoutState();
+  }
+
+  private scheduleSave() {
+    if (this._saveTimeout) clearTimeout(this._saveTimeout);
+    this._saveTimeout = setTimeout(() => this.saveLayoutState(), 500);
+  }
+
+  private saveLayoutState() {
+    const state: GenieLayoutState = {
+      x: this.windowPosition().x,
+      y: this.windowPosition().y,
+      width: this.windowSize().width,
+      height: this.windowSize().height,
+      isMaximized: this.isMaximized(),
+      optionsWidth: this.optionsPanelWidth(),
+      inspectorWidth: this.inspectorWidth(),
+      optionsCollapsed: this.isOptionsCollapsed(),
+      inspectorCollapsed: this.isInspectorCollapsed()
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify(state));
+    } catch (e) {
+      console.warn('Genie: Failed to save layout state', e);
+    }
+  }
+
+  private loadLayoutState(): GenieLayoutState {
+    const defaultState: GenieLayoutState = {
+      x: 40,
+      y: 40,
+      width: 1200,
+      height: 800,
+      isMaximized: false,
+      optionsWidth: 350,
+      inspectorWidth: 400,
+      optionsCollapsed: false,
+      inspectorCollapsed: false
+    };
+
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_LAYOUT);
+      if (raw) {
+        const loaded = JSON.parse(raw);
+        return {...defaultState, ...loaded};
+      }
+    } catch (e) {
+    }
+
+    return defaultState;
   }
 }

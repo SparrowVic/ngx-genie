@@ -44,16 +44,9 @@ import {provideGenie} from 'genie';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    // ... other application providers ...
-
     provideGenie({
-      // Hotkey for opening / closing the panel
       hotkey: 'F1',
-
-      // Whether the panel should be visible immediately on app startup
       visibleOnStart: true,
-
-      // Global switch to enable / disable the plugin
       enabled: true
     })
   ]

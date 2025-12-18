@@ -1,11 +1,10 @@
 import {computed, Injectable, signal} from '@angular/core';
 import {
-  GenieDependency,
+  GenieDependency, GenieDependencyType,
   GenieProviderType,
   GenieServiceRegistration,
   InjectionFlags
 } from '../../../models/genie-node.model';
-import {GenieDependencyType} from '../../../services/genie-registry.service';
 import {GenieFilterState} from '../options-panel/options-panel.models';
 
 export interface InspectorViewModel extends GenieServiceRegistration {

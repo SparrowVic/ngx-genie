@@ -6,11 +6,14 @@
     (toggleDeepFocusMode)="toggleDeepFocusMode.emit()"
   ></lib-options-panel-controls>
 
+  <gen-options-panel-filters></gen-options-panel-filters>
+
   <lib-options-panel-provider-types
     [showUserServices]="_showUserServices()"
     [showUserTokens]="_showUserTokens()"
     [showUserValues]="_showUserValues()"
     [showUserObservables]="_showUserObservables()"
+    [showUserSignals]="_showUserSignals()"
     [showUserComponents]="_showUserComponents()"
     [showUserDirectives]="_showUserDirectives()"
     [showUserPipes]="_showUserPipes()"
@@ -18,6 +21,7 @@
     (updateUserTokens)="_showUserTokens.set($event)"
     (updateUserValues)="_showUserValues.set($event)"
     (updateUserObservables)="_showUserObservables.set($event)"
+    (updateUserSignals)="_showUserSignals.set($event)"
     (updateUserComponents)="_showUserComponents.set($event)"
     (updateUserDirectives)="_showUserDirectives.set($event)"
     (updateUserPipes)="_showUserPipes.set($event)"
@@ -26,13 +30,16 @@
     [showFrameworkSystem]="_showFrameworkSystem()"
     [showFrameworkTokens]="_showFrameworkTokens()"
     [showFrameworkObservables]="_showFrameworkObservables()"
+    [showFrameworkSignals]="_showFrameworkSignals()"
     [showFrameworkComponents]="_showFrameworkComponents()"
     [showFrameworkDirectives]="_showFrameworkDirectives()"
     [showFrameworkPipes]="_showFrameworkPipes()"
+
     (updateFrameworkServices)="_showFrameworkServices.set($event)"
     (updateFrameworkSystem)="_showFrameworkSystem.set($event)"
     (updateFrameworkTokens)="_showFrameworkTokens.set($event)"
     (updateFrameworkObservables)="_showFrameworkObservables.set($event)"
+    (updateFrameworkSignals)="_showFrameworkSignals.set($event)"
     (updateFrameworkComponents)="_showFrameworkComponents.set($event)"
     (updateFrameworkDirectives)="_showFrameworkDirectives.set($event)"
     (updateFrameworkPipes)="_showFrameworkPipes.set($event)"
@@ -62,6 +69,7 @@
     [maxDetectedDeps]="maxDetectedDeps()"
     (updateMinDeps)="_setMinDeps($event)"
   ></lib-options-panel-complexity-filter>
+
 
   <lib-options-panel-deep-search
     [allNodes]="allNodes()"

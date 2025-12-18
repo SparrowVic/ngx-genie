@@ -5,11 +5,14 @@ import {DashboardShellService} from '../../../dashboard-shell.service';
 @Component({
   standalone: true,
   selector: 'app-order-details',
-  templateUrl: './order-details.component.html',
-  styleUrls: ['./order-details.component.scss'],
   providers: [
     OrderDetailsService
-  ]
+  ],
+  template: `
+    <div class="box nested">
+      <p>Order details (uses OrderDetailsService)</p>
+    </div>
+  `
 })
 export class OrderDetailsComponent {
   constructor(readonly shell: DashboardShellService,

@@ -17,6 +17,30 @@ export class GenieExplorerStateService {
 
   private readonly rawTree = computed<GenieTreeNode[]>(() => buildGenieTree(this.nodes()));
 
+
+  readonly serviceConsumersMap = computed(() => {
+    const deps = this.dependencies();
+    const nodes = this.nodes();
+    const map = new Map<number, string[]>();
+
+    const nodeNames = new Map<number, string>();
+    nodes.forEach(n => nodeNames.set(n.id, n.label));
+
+    deps.forEach(dep => {
+      if (dep.providerId !== null) {
+        if (!map.has(dep.providerId)) {
+          map.set(dep.providerId, []);
+        }
+        const consumerName = nodeNames.get(dep.consumerNodeId) || `Node #${dep.consumerNodeId}`;
+        const list = map.get(dep.providerId)!;
+        if (!list.includes(consumerName)) {
+          list.push(consumerName);
+        }
+      }
+    });
+    return map;
+  });
+
   readonly uniqueComponentNames = computed(() => {
     const nodes = this.nodes();
     const names = new Set<string>();
@@ -56,6 +80,7 @@ export class GenieExplorerStateService {
     showUserTokens: true,
     showUserValues: true,
     showUserObservables: true,
+    showUserSignals: true,
 
     showFrameworkServices: false,
     showFrameworkSystem: false,
@@ -64,6 +89,7 @@ export class GenieExplorerStateService {
     showFrameworkComponents: false,
     showFrameworkTokens: false,
     showFrameworkObservables: false,
+    showFrameworkSignals: false,
 
     minDeps: 0,
     maxDeps: 100,
@@ -303,6 +329,7 @@ export class GenieExplorerStateService {
         if (type === 'Token' && !filters.showUserTokens) return false;
         if (type === 'Value' && !filters.showUserValues) return false;
         if (type === 'Observable' && !filters.showUserObservables) return false;
+        if (type === 'Signal' && !filters.showUserSignals) return false;
       } else {
         if (type === 'Service' && !filters.showFrameworkServices) return false;
         if (type === 'System' && !filters.showFrameworkSystem) return false;
@@ -311,6 +338,7 @@ export class GenieExplorerStateService {
         if (type === 'Component' && !filters.showFrameworkComponents) return false;
         if (type === 'Token' && !filters.showFrameworkTokens) return false;
         if (type === 'Observable' && !filters.showFrameworkObservables) return false;
+        if (type === 'Signal' && !filters.showFrameworkSignals) return false;
       }
 
       return true;

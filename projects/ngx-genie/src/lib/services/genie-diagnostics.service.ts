@@ -1,7 +1,6 @@
-import {Injectable, inject} from '@angular/core';
+import {Injectable, inject, isSignal} from '@angular/core';
 import {GenieRegistryService} from './genie-registry.service';
 import {GenieServiceRegistration} from '../models/genie-node.model';
-import {ANGULAR_INTERNALS} from '../configs/angular-internals';
 
 export type AnomalyType =
   | 'singleton-violation'
@@ -62,10 +61,12 @@ export class GenieDiagnosticsService {
   private registry = inject(GenieRegistryService);
 
   runDiagnostics(config: DiagnosticsConfig = DEFAULT_DIAGNOSTICS_CONFIG): { score: number, anomalies: Anomaly[] } {
+
     const services = this.registry.services();
     const nodes = this.registry.nodes();
     const dependencies = this.registry.dependencies();
     const anomalies: Anomaly[] = [];
+
 
     const serviceGroups = new Map<string, GenieServiceRegistration[]>();
     services.forEach(svc => {
@@ -80,6 +81,9 @@ export class GenieDiagnosticsService {
           const first = group[0];
           const isRoot = first.isRoot || first.token?.['ɵprov']?.providedIn === 'root';
           const isFramework = first.isFramework;
+
+
+          if (first.dependencyType === 'Component' || first.dependencyType === 'Directive') return;
 
           if (isRoot) {
             anomalies.push({
@@ -110,8 +114,12 @@ export class GenieDiagnosticsService {
       });
     }
 
+
     services.forEach(svc => {
+
       if (svc.instance) {
+
+
         if (config.checkHeavyState) {
           const sizeScore = this.estimateSize(svc.instance);
           if (sizeScore > config.thresholdHeavyState) {
@@ -129,8 +137,9 @@ export class GenieDiagnosticsService {
           }
         }
 
+
         if (config.checkLargeApi) {
-          const propCount = Object.keys(svc.instance).length;
+          const propCount = this.countPublicProperties(svc.instance);
           if (propCount > config.thresholdLargeApi && !svc.isFramework) {
             anomalies.push({
               id: `god-${svc.id}`,
@@ -147,20 +156,27 @@ export class GenieDiagnosticsService {
         }
       }
 
+
       if (config.checkUnused) {
         if (
           !svc.isRoot &&
           svc.usageCount === 0 &&
-          (svc.dependencyType === 'Service' || svc.dependencyType === 'Pipe' || svc.dependencyType === 'Token')
+          (
+            svc.dependencyType === 'Service' ||
+            svc.dependencyType === 'Pipe' ||
+            svc.dependencyType === 'Token' ||
+            svc.dependencyType === 'Signal' ||
+            svc.dependencyType === 'Observable'
+          )
         ) {
           anomalies.push({
             id: `zombie-${svc.id}`,
             type: 'unused-instance',
             severity: 'info',
-            title: svc.isFramework ? `Unused Internal: ${svc.label}` : `Zombie Service: ${svc.label}`,
+            title: svc.isFramework ? `Unused Internal: ${svc.label}` : `Zombie Provider: ${svc.label}`,
             description: svc.isFramework
               ? 'Angular provider created but never injected. May be tree-shakable but currently instantiated.'
-              : 'Service instance created but never injected/used by any other component.',
+              : 'Provider instance created but never injected/used by any other component/service.',
             relatedServiceIds: [svc.id],
             isFramework: svc.isFramework,
             category: 'best-practice',
@@ -168,21 +184,17 @@ export class GenieDiagnosticsService {
           });
         }
       }
-    });
 
-    const dependencyCounts = new Map<number, number>();
-    dependencies.forEach(dep => {
-      const current = dependencyCounts.get(dep.consumerNodeId) || 0;
-      dependencyCounts.set(dep.consumerNodeId, current + 1);
-    });
-
-    if (config.checkCircular) {
-      services.forEach(svc => {
-        if (!svc.isFramework && svc.instance) {
+      if (config.checkCircular && !svc.isFramework && svc.instance) {
+        if (!isSignal(svc.instance) && typeof svc.instance === 'object') {
           const keys = Object.keys(svc.instance);
           const hasInjector = keys.some(k => {
-            const val = svc.instance[k];
-            return val && val.constructor && val.constructor.name === 'Injector';
+            try {
+              const val = svc.instance[k];
+              return val && val.constructor && val.constructor.name === 'Injector';
+            } catch {
+              return false;
+            }
           });
 
           if (hasInjector) {
@@ -199,11 +211,18 @@ export class GenieDiagnosticsService {
             });
           }
         }
-      });
-    }
+      }
+    });
+
+    const dependencyCounts = new Map<number, number>();
+    dependencies.forEach(dep => {
+      const current = dependencyCounts.get(dep.consumerNodeId) || 0;
+      dependencyCounts.set(dep.consumerNodeId, current + 1);
+    });
 
     nodes.forEach(node => {
       const depCount = dependencyCounts.get(node.id) || 0;
+
       if (config.checkCoupling) {
         if (depCount > config.thresholdCoupling) {
           const svc = services.find(s => s.nodeId === node.id && s.dependencyType === 'Component');
@@ -227,6 +246,7 @@ export class GenieDiagnosticsService {
       }
 
       if (node.componentInstance && !node.label.startsWith('Anonymous')) {
+
         if (config.checkChangeDetection) {
           const ctor = node.componentInstance.constructor;
           const def = (ctor as any)['ɵcmp'];
@@ -255,7 +275,9 @@ export class GenieDiagnosticsService {
           const hasSubscriptions = Object.values(instance).some((val: any) =>
             val && typeof val === 'object' && 'closed' in val && 'unsubscribe' in val
           );
-          const hasOnDestroy = typeof instance.ngOnDestroy === 'function';
+
+          const proto = Object.getPrototypeOf(instance);
+          const hasOnDestroy = !!instance.ngOnDestroy || !!proto.ngOnDestroy;
 
           if (hasSubscriptions && !hasOnDestroy) {
             const svc = services.find(s => s.nodeId === node.id && s.dependencyType === 'Component');
@@ -294,8 +316,30 @@ export class GenieDiagnosticsService {
     return 1;
   }
 
+  private countPublicProperties(obj: any): number {
+    if (!obj || typeof obj !== 'object') return 0;
+    if (isSignal(obj)) return 1;
+
+    let count = 0;
+    for (const key in obj) {
+      if (!key.startsWith('_') && !key.startsWith('ng') && !key.startsWith('ɵ') && !key.startsWith('$')) {
+        count++;
+      }
+    }
+    return count;
+  }
+
   private estimateSize(obj: any, depth = 0): number {
     if (!obj || depth > 3) return 0;
+
+    if (isSignal(obj)) {
+      try {
+        return this.estimateSize(obj(), depth);
+      } catch {
+        return 1;
+      }
+    }
+
     let count = 0;
 
     if (Array.isArray(obj)) {
@@ -308,7 +352,8 @@ export class GenieDiagnosticsService {
       const keys = Object.keys(obj);
       count += keys.length;
       keys.forEach(k => {
-        if (!k.startsWith('_') && !k.startsWith('ng') && !k.startsWith('$')) {
+
+        if (!k.startsWith('_') && !k.startsWith('ng') && !k.startsWith('ɵ') && !k.startsWith('$')) {
           count += this.estimateSize(obj[k], depth + 1);
         }
       });

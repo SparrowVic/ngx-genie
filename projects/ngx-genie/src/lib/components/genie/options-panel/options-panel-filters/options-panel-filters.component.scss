@@ -1,0 +1,92 @@
+@import '../options-panel-vars';
+
+:host {
+  display: block;
+}
+
+.panel-section {
+  @include panel-section;
+}
+
+.section-header {
+  @include section-header;
+}
+
+
+.btn-advanced {
+  background: rgba($c-primary, 0.1);
+  border: 1px solid rgba($c-primary, 0.3);
+  color: $c-primary;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba($c-primary, 0.2);
+    border-color: $c-primary;
+  }
+
+  .icon-gear {
+    font-size: 12px;
+  }
+}
+
+.quick-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.group-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .checkbox-row {
+    @include checkbox-row;
+    flex: 1;
+
+    .group-name {
+      color: $c-text;
+      font-size: 11px;
+    }
+  }
+
+  .badge {
+    font-size: 9px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: $c-text-dim;
+  }
+}
+
+.hint-text {
+  font-size: 10px;
+  color: $c-text-dim;
+  margin-top: 8px;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid $c-border;
+  color: $c-text;
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}

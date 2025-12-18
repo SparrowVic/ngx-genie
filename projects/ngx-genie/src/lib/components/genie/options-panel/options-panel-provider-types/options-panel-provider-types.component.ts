@@ -21,6 +21,7 @@ export class OptionsPanelProviderTypesComponent {
   readonly showUserTokens = input.required<boolean>();
   readonly showUserValues = input.required<boolean>();
   readonly showUserObservables = input.required<boolean>();
+  readonly showUserSignals = input.required<boolean>();
   readonly showUserComponents = input.required<boolean>();
   readonly showUserDirectives = input.required<boolean>();
   readonly showUserPipes = input.required<boolean>();
@@ -29,6 +30,7 @@ export class OptionsPanelProviderTypesComponent {
   readonly updateUserTokens = output<boolean>();
   readonly updateUserValues = output<boolean>();
   readonly updateUserObservables = output<boolean>();
+  readonly updateUserSignals = output<boolean>();
   readonly updateUserComponents = output<boolean>();
   readonly updateUserDirectives = output<boolean>();
   readonly updateUserPipes = output<boolean>();
@@ -37,6 +39,7 @@ export class OptionsPanelProviderTypesComponent {
   readonly showFrameworkSystem = input.required<boolean>();
   readonly showFrameworkTokens = input.required<boolean>();
   readonly showFrameworkObservables = input.required<boolean>();
+  readonly showFrameworkSignals = input.required<boolean>();
   readonly showFrameworkComponents = input.required<boolean>();
   readonly showFrameworkDirectives = input.required<boolean>();
   readonly showFrameworkPipes = input.required<boolean>();
@@ -45,6 +48,7 @@ export class OptionsPanelProviderTypesComponent {
   readonly updateFrameworkSystem = output<boolean>();
   readonly updateFrameworkTokens = output<boolean>();
   readonly updateFrameworkObservables = output<boolean>();
+  readonly updateFrameworkSignals = output<boolean>();
   readonly updateFrameworkComponents = output<boolean>();
   readonly updateFrameworkDirectives = output<boolean>();
   readonly updateFrameworkPipes = output<boolean>();

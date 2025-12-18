@@ -3,7 +3,7 @@ import {CommonModule} from '@angular/common';
 import {GenieTreeNode, GenieServiceRegistration} from '../../../../../models/genie-node.model';
 import {GenieResizableDirective} from '../../../../../shared/directives/resizable/resizable.directive';
 import {TreeNodeComponent} from './tree-node/tree-node.component';
-import {TreeLegendComponent} from './tree-legend/tree-legend.component'; // Import legendy
+import {TreeLegendComponent} from './tree-legend/tree-legend.component';
 import {GenieFilterState} from '../../../options-panel/options-panel.models';
 import {OrgChartUtils} from '../org-chart-view/org-chart.utils';
 

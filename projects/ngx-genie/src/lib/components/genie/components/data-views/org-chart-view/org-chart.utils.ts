@@ -100,6 +100,8 @@ export class OrgChartUtils {
         return 'VAL';
       case 'Observable':
         return 'OBS';
+      case 'Signal':
+        return 'SIG';
       case 'Component':
         return 'CMP';
       case 'Directive':

@@ -30,10 +30,35 @@
     @if (_isRoot()) {
       <span class="root-badge" title="Root Singleton">ROOT</span>
     }
+
     @if (_dependency().usageCount; as count) {
-      <span class="usage-badge" title="Usage Count">×{{ count }}</span>
+      <span class="usage-badge"
+            (mouseenter)="onBadgeEnter($event)"
+            (mouseleave)="onBadgeLeave()">
+        ×{{ count }}
+      </span>
     } @else {
-      <span class="usage-badge unused">0</span>
+      <span class="usage-badge unused" title="Status: UNUSED. Registered but never injected.">0</span>
     }
   </div>
 </div>
+
+@if (isTooltipVisible()) {
+  <div class="custom-tooltip"
+       [style.left.px]="tooltipPosition()?.x"
+       [style.top.px]="tooltipPosition()?.y"
+       (mouseenter)="onTooltipEnter()"
+       (mouseleave)="onTooltipLeave()">
+    <div class="tooltip-header">
+      Used by {{ _consumersList().length }} consumers:
+    </div>
+    <ul class="tooltip-list">
+      @for (consumer of _consumersList(); track $index) {
+        <li>
+          <span class="dot"></span>
+          {{ consumer }}
+        </li>
+      }
+    </ul>
+  </div>
+}

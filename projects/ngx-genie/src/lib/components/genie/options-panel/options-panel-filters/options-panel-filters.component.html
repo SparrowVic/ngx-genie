@@ -1,0 +1,27 @@
+<div class="panel-section">
+  <div class="section-header space-between">
+    <div><span class="icon">🛡️</span> INTERNAL FILTERS</div>
+    <button class="btn-advanced" (click)="openAdvancedSettings()" title="Configure Advanced Filters">
+      <span class="icon-gear">⚙️</span> Modify
+    </button>
+  </div>
+
+  <div class="hint-text">
+    Configure which dependencies should be treated as "Internal" (hidden by default).
+    Use "Modify" to manage patterns and specific tokens.
+  </div>
+</div>
+
+
+<gen-modal
+  [isOpen]="showAdvancedModal()"
+  [width]="'1300px'"
+  title="Advanced Internals Configuration"
+  (close)="closeAdvancedSettings()"
+>
+  <gen-advanced-filters-config></gen-advanced-filters-config>
+
+  <div footer>
+    <button class="btn-secondary" (click)="closeAdvancedSettings()">Close</button>
+  </div>
+</gen-modal>

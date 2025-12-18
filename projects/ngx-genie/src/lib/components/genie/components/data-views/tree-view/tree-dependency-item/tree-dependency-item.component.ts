@@ -1,6 +1,16 @@
-import {ChangeDetectionStrategy, Component, computed, input} from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  input,
+  signal,
+  ViewChild
+} from '@angular/core';
 import {GenieServiceRegistration} from '../../../../../../models/genie-node.model';
-import {SlicePipe, UpperCasePipe} from '@angular/common';
+import {NgIf, SlicePipe, UpperCasePipe} from '@angular/common';
+import {GenieExplorerStateService} from '../../../../explorer-state.service';
 
 @Component({
   selector: 'lib-tree-dependency-item',
@@ -8,18 +18,25 @@ import {SlicePipe, UpperCasePipe} from '@angular/common';
   imports: [
     UpperCasePipe,
     SlicePipe,
+    NgIf
   ],
   templateUrl: './tree-dependency-item.component.html',
   styleUrl: './tree-dependency-item.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TreeDependencyItemComponent {
+  private readonly state = inject(GenieExplorerStateService);
+
   dependency = input.required<GenieServiceRegistration>();
   selectDependency = input.required<(dep: GenieServiceRegistration) => void>();
-
   selectedServiceId = input<number | null>(null);
 
   protected readonly _dependency = this.dependency;
+
+
+  protected readonly isTooltipVisible = signal(false);
+  protected readonly tooltipPosition = signal<{ x: number, y: number } | null>(null);
+  private _tooltipTimeout: any;
 
   protected readonly _isRoot = computed(() => {
     const s = this.dependency();
@@ -45,6 +62,8 @@ export class TreeDependencyItemComponent {
         return 'VAL';
       case 'Observable':
         return 'OBS';
+      case 'Signal':
+        return 'SIG';
       case 'Component':
         return 'CMP';
       case 'Directive':
@@ -58,8 +77,47 @@ export class TreeDependencyItemComponent {
     }
   });
 
+
+  protected readonly _consumersList = computed(() => {
+    const id = this.dependency().id;
+    const usage = this.dependency().usageCount;
+    if (usage === 0) return [];
+
+    const consumers = this.state.serviceConsumersMap().get(id) || [];
+    return consumers;
+  });
+
   protected _handleClick(event: MouseEvent): void {
     event.stopPropagation();
     this.selectDependency()(this.dependency());
+  }
+
+
+  protected onBadgeEnter(event: MouseEvent) {
+    if (this._tooltipTimeout) clearTimeout(this._tooltipTimeout);
+
+    const target = event.target as HTMLElement;
+    const rect = target.getBoundingClientRect();
+
+
+    this.tooltipPosition.set({
+      x: rect.right + 10,
+      y: rect.top
+    });
+    this.isTooltipVisible.set(true);
+  }
+
+  protected onBadgeLeave() {
+    this._tooltipTimeout = setTimeout(() => {
+      this.isTooltipVisible.set(false);
+    }, 300);
+  }
+
+  protected onTooltipEnter() {
+    if (this._tooltipTimeout) clearTimeout(this._tooltipTimeout);
+  }
+
+  protected onTooltipLeave() {
+    this.isTooltipVisible.set(false);
   }
 }

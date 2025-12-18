@@ -1,5 +1,5 @@
 // --- DIRECTIVES --- //
-const ANGULAR_INTERNAL_FORMS_DIRECTIVES = new Set([
+export const ANGULAR_INTERNAL_FORMS_DIRECTIVES = new Set([
   // FORM_DIRECTIVES
   'NgNoValidate',
   'NgSelectOption',
@@ -39,7 +39,7 @@ const ANGULAR_INTERNAL_FORMS_DIRECTIVES = new Set([
   'ControlValueAccessor'
 ]);
 
-const ANGULAR_INTERNAL_COMMON_DIRECTIVES = new Set([
+export const ANGULAR_INTERNAL_COMMON_DIRECTIVES = new Set([
   'NgClass',
   'NgComponentOutlet',
   'NgForOf',
@@ -52,13 +52,13 @@ const ANGULAR_INTERNAL_COMMON_DIRECTIVES = new Set([
   'NgTemplateOutlet',
 ]);
 
-const ANGULAR_INTERNAL_ROUTER_DIRECTIVES = new Set([
+export const ANGULAR_INTERNAL_ROUTER_DIRECTIVES = new Set([
   'RouterLink',
   'RouterLinkActive',
   'RouterOutlet',
 ]);
 
-const ANGULAR_INTERNAL_DIRECTIVES = new Set([
+export const ANGULAR_INTERNAL_DIRECTIVES = new Set([
   ...ANGULAR_INTERNAL_FORMS_DIRECTIVES,
   ...ANGULAR_INTERNAL_COMMON_DIRECTIVES,
   ...ANGULAR_INTERNAL_ROUTER_DIRECTIVES,
@@ -66,7 +66,7 @@ const ANGULAR_INTERNAL_DIRECTIVES = new Set([
 
 
 // --- PIPES --- //
-const ANGULAR_INTERNAL_COMMON_PIPES = new Set([
+export const ANGULAR_INTERNAL_COMMON_PIPES = new Set([
   'AsyncPipe',
   'LowerCasePipe',
   'TitleCasePipe',
@@ -110,7 +110,7 @@ export const ANGULAR_FRAMEWORK_SERVICES = new Set([
   'DomSanitizer',
   'Meta',
   'TransferState'
-]);
+].map(item => `_${item}`));
 
 export const ANGULAR_INTERNALS = new Set([
   ...ANGULAR_INTERNAL_DIRECTIVES,

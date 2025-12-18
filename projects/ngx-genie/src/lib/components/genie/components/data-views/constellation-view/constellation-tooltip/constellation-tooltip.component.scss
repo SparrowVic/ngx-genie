@@ -21,6 +21,7 @@
     background: rgba(255, 255, 255, 0.02);
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     padding: 6px 10px;
+    border-top: 2px solid transparent;
 
     .tooltip-type {
       font-size: 10px;
@@ -65,7 +66,7 @@
       align-items: center;
       font-size: 9px;
       font-weight: 700;
-      padding: 2px 5px;
+      padding: 2px 6px;
       border-radius: 3px;
       text-transform: uppercase;
       letter-spacing: 0.3px;
@@ -77,15 +78,22 @@
       }
 
       &.framework {
-        background: rgba(245, 158, 11, 0.1);
+        background: linear-gradient(90deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.05));
         color: #fbbf24;
-        border: 1px solid rgba(245, 158, 11, 0.2);
+        border: 1px solid rgba(245, 158, 11, 0.3);
       }
 
       &.unused {
-        background: rgba(148, 163, 184, 0.1);
+        background: repeating-linear-gradient(
+            45deg,
+            rgba(148, 163, 184, 0.1),
+            rgba(148, 163, 184, 0.1) 5px,
+            rgba(0, 0, 0, 0.2) 5px,
+            rgba(0, 0, 0, 0.2) 10px
+        );
         color: #94a3b8;
         border: 1px solid rgba(148, 163, 184, 0.2);
+        font-style: italic;
       }
     }
   }

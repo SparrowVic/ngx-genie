@@ -129,6 +129,7 @@ export class ConstellationMapper {
             if (type === 'Component' && !filterState.showFrameworkComponents) return false;
             if (type === 'Token' && !filterState.showFrameworkTokens) return false;
             if (type === 'Observable' && !filterState.showFrameworkObservables) return false;
+            if (type === 'Signal' && !filterState.showFrameworkSignals) return false;
           } else {
             if (type === 'Service' && !filterState.showUserServices) return false;
             if (type === 'Pipe' && !filterState.showUserPipes) return false;
@@ -137,6 +138,7 @@ export class ConstellationMapper {
             if (type === 'Token' && !filterState.showUserTokens) return false;
             if (type === 'Value' && !filterState.showUserValues) return false;
             if (type === 'Observable' && !filterState.showUserObservables) return false;
+            if (type === 'Signal' && !filterState.showUserSignals) return false;
           }
 
           if (filterState.showRootOnly && !s.isRoot) return false;
@@ -290,6 +292,8 @@ export class ConstellationMapper {
         return CONSTELLATION_THEME.value;
       case 'Observable':
         return CONSTELLATION_THEME.observable;
+      case 'Signal':
+        return CONSTELLATION_THEME.signal;
       default:
         return CONSTELLATION_THEME.service;
     }

@@ -9,6 +9,7 @@ $c-token: #94a3b8;
 $c-sys: #f472b6;
 $c-val: #2dd4bf;
 $c-obs: #e879f9;
+$c-sig: #fbbf24;
 
 $c-root: #10b981;
 $c-framework: #f59e0b;
@@ -49,6 +50,7 @@ $c-primary: #3b82f6;
     opacity: 1;
     border-color: rgba(255, 255, 255, 0.05);
     border-left-color: transparent;
+    z-index: 1;
 
     .label {
       color: #fff;
@@ -72,55 +74,97 @@ $c-primary: #3b82f6;
       filter: none;
       transform: scale(1.05);
     }
-
-    .details .prov-type {
-      color: rgba(255, 255, 255, 0.7);
-    }
   }
+
 
   &.unused {
-    opacity: 0.6;
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(0, 0, 0, 0.2),
+        rgba(0, 0, 0, 0.2) 5px,
+        rgba(255, 255, 255, 0.02) 5px,
+        rgba(255, 255, 255, 0.02) 10px
+    );
 
     .label {
-      color: $c-text-muted;
-      text-decoration: line-through;
-      text-decoration-color: rgba(255, 255, 255, 0.1);
+      color: #64748b;
+      font-style: italic;
+    }
+
+    .type-indicator {
+      filter: grayscale(0.8);
+      opacity: 0.5;
+    }
+
+    &:hover {
+      .label {
+        color: #94a3b8;
+      }
     }
   }
 
+
   &.framework-item {
-    background: rgba(15, 15, 20, 0.3);
-    border-left-color: rgba($c-framework, 0.3);
+    background: linear-gradient(90deg, rgba($c-framework, 0.08) 0%, transparent 100%);
+    border-left-color: rgba($c-framework, 0.4);
 
     .label {
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.8em;
-      opacity: 0.75;
+      color: #e2e8f0;
+      opacity: 0.9;
     }
 
     .type-indicator {
-      filter: saturate(0.6) brightness(0.9);
-      opacity: 0.8;
+      opacity: 0.9;
     }
 
     &:hover {
-      background: rgba($c-framework, 0.1);
+      background: linear-gradient(90deg, rgba($c-framework, 0.15) 0%, rgba($c-framework, 0.05) 100%);
+      border-left-color: $c-framework;
       opacity: 1;
-
-      .label {
-        opacity: 1;
-      }
-
-      .type-indicator {
-        filter: none;
-        opacity: 1;
-      }
     }
 
     &.active {
       border-left-color: $c-framework !important;
-      background: rgba($c-framework, 0.15) !important;
+      background: rgba($c-framework, 0.2) !important;
       border-color: rgba($c-framework, 0.3);
+    }
+
+
+    &.unused {
+      background: repeating-linear-gradient(
+          45deg,
+          rgba($c-framework, 0.05),
+          rgba($c-framework, 0.05) 5px,
+          rgba(0, 0, 0, 0.1) 5px,
+          rgba(0, 0, 0, 0.1) 10px
+      );
+      border-left-color: rgba($c-framework, 0.2);
+
+      .label {
+        color: rgba($c-framework, 0.7);
+        font-style: italic;
+      }
+
+      .type-indicator {
+        filter: grayscale(0.5) sepia(0.5) hue-rotate(0deg);
+        opacity: 0.6;
+      }
+
+      &:hover {
+        background: repeating-linear-gradient(
+            45deg,
+            rgba($c-framework, 0.1),
+            rgba($c-framework, 0.1) 5px,
+            rgba(0, 0, 0, 0.1) 5px,
+            rgba(0, 0, 0, 0.1) 10px
+        );
+
+        .label {
+          color: $c-framework;
+        }
+      }
     }
   }
 }
@@ -177,6 +221,11 @@ $c-primary: #3b82f6;
     color: $c-obs;
     background: rgba($c-obs, 0.15);
   }
+
+  &[data-deptype="Signal"] {
+    color: $c-sig;
+    background: rgba($c-sig, 0.15);
+  }
 }
 
 .content {
@@ -218,32 +267,127 @@ $c-primary: #3b82f6;
   gap: 0.4em;
   margin-left: auto;
 
-  .root-badge {
+  .root-badge, .framework-badge {
     font-size: 0.6em;
     font-weight: bold;
-    color: $c-root;
-    background: rgba($c-root, 0.1);
     padding: 0.1em 0.4em;
     border-radius: 0.2em;
+  }
+
+  .root-badge {
+    color: $c-root;
+    background: rgba($c-root, 0.1);
     border: 1px solid rgba($c-root, 0.2);
   }
 
   .framework-badge {
-    font-size: 0.6em;
-    font-weight: bold;
     color: $c-framework;
     background: rgba($c-framework, 0.1);
-    padding: 0.1em 0.4em;
-    border-radius: 0.2em;
     border: 1px solid rgba($c-framework, 0.2);
   }
 
   .usage-badge {
     font-size: 0.7em;
     color: $c-text-muted;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.1em 0.5em;
+    border-radius: 0.25em;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 
     &.unused {
       color: rgba(255, 255, 255, 0.2);
+      cursor: default;
     }
+
+    &:hover:not(.unused) {
+      background: rgba($c-primary, 0.2);
+      color: #fff;
+      border-color: rgba($c-primary, 0.4);
+      text-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+    }
+  }
+}
+
+.custom-tooltip {
+  position: fixed;
+  z-index: 9999;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 8px 12px;
+  min-width: 200px;
+  max-width: 350px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  font-size: 0.8rem;
+  color: #e2e8f0;
+  pointer-events: auto;
+  animation: tooltipFadeIn 0.2s ease-out;
+
+  .tooltip-header {
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: $c-primary;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 4px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .tooltip-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #475569 #1e293b;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 2px;
+    }
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 0;
+      color: #cbd5e1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+
+      .dot {
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: #94a3b8;
+      }
+
+      &:hover {
+        color: #fff;
+
+        .dot {
+          background: $c-primary;
+        }
+      }
+    }
+  }
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

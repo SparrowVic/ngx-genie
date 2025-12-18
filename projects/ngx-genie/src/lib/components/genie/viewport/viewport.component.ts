@@ -12,12 +12,12 @@ import {
 import {GenieTreeNode, GenieServiceRegistration} from '../../../models/genie-node.model';
 import {TreeViewComponent} from '../components/data-views/tree-view/tree-view.component';
 import {OrgChartViewComponent} from '../components/data-views/org-chart-view/org-chart-view.component';
-import {MatrixViewComponent} from '../components/data-views/matrix-view/matrix-view.component';
 import {ConstellationViewComponent} from '../components/data-views/constellation-view/constellation-view.component';
 import {DiagnosticsViewComponent} from '../components/data-views/diagnostics-view/diagnostics-view.component';
 import {FormsModule} from '@angular/forms';
 import {DecimalPipe} from '@angular/common';
 import {GenieFilterState} from '../options-panel/options-panel.models';
+import {GenieMatrixViewComponent} from '../components/data-views/matrix-view/matrix-view.component';
 
 export type GenieViewMode = 'tree' | 'org' | 'constellation' | 'matrix' | 'diagnostics';
 
@@ -27,11 +27,11 @@ export type GenieViewMode = 'tree' | 'org' | 'constellation' | 'matrix' | 'diagn
   imports: [
     TreeViewComponent,
     OrgChartViewComponent,
-    MatrixViewComponent,
     ConstellationViewComponent,
     DiagnosticsViewComponent,
     FormsModule,
-    DecimalPipe
+    DecimalPipe,
+    GenieMatrixViewComponent
   ],
   templateUrl: './viewport.component.html',
   styleUrl: './viewport.component.scss',

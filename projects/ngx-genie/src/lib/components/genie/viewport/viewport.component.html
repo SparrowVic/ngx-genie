@@ -53,12 +53,13 @@
       />
     }
     @case ('matrix') {
-      <lib-matrix-view
+      <gen-matrix-view
         class="full-size hidden-overflow"
         [tree]="tree()"
         [filterState]="filterState()"
         [getProvidersForNode]="getProvidersForNode()"
         [selectService]="selectDependency()"
+        [selectNode]="selectNode()"
       />
     }
     @case ('org') {

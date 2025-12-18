@@ -30,6 +30,8 @@ $font-tech: 'JetBrains Mono', 'Consolas', monospace;
   transition: box-shadow 0.3s, border-color 0.3s;
   max-height: 100vh;
   box-sizing: border-box;
+  min-height: 700px;
+  min-width: 1100px;
 
   &.maximized {
     top: 0 !important;

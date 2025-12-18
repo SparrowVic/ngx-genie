@@ -9,7 +9,11 @@ import {interval, Subscription} from 'rxjs';
     NgForOf,
     NgIf
   ],
-  templateUrl: './cars.html',
+  template: `
+    <p>cars works!</p>
+    <div *ngFor="let i of [1,1,1]">ngFor test</div>
+    <div *ngIf="true">ngIf test</div>
+  `
 })
 export class Cars {
   // @ts-ignore

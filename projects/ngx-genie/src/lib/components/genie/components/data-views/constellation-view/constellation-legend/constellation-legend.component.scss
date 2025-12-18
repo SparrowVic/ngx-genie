@@ -9,6 +9,7 @@ $c-svc: #60a5fa;
 $c-sys: #f472b6;
 $c-val: #2dd4bf;
 $c-obs: #e879f9;
+$c-sig: #fbbf24;
 $c-tok: #94a3b8;
 $c-cmp: #c084fc;
 $c-dir: #a3e635;
@@ -144,6 +145,11 @@ $c-root: #10b981;
     color: $c-obs;
   }
 
+  .sig {
+    background: $c-sig;
+    color: $c-sig;
+  }
+
   .tok {
     background: $c-tok;
     color: $c-tok;
@@ -194,8 +200,21 @@ $c-root: #10b981;
   }
 
   .diamond-hollow {
-    border: 2px solid #e2e8f0;
+    border: 2px solid #f59e0b;
     transform: rotate(45deg);
+  }
+
+
+  .diamond-unused {
+    transform: rotate(45deg);
+    border: 1px solid #64748b;
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(100, 116, 139, 0.2),
+        rgba(100, 116, 139, 0.2) 2px,
+        rgba(0, 0, 0, 0) 2px,
+        rgba(0, 0, 0, 0) 4px
+    );
   }
 
   .root {

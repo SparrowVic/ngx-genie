@@ -12,6 +12,7 @@ $c-tok: #ffffff;
 $c-sys: #ff3399;
 $c-val: #00d2ff;
 $c-obs: #bf00ff;
+$c-sig: #fbbf24;
 
 :host {
   display: block;
@@ -140,6 +141,10 @@ $c-obs: #bf00ff;
 
   .type-observable {
     color: $c-obs;
+  }
+
+  .type-signal {
+    color: $c-sig;
   }
 
   .type-token {

@@ -22,8 +22,48 @@ import {of} from 'rxjs';
 @Component({
   standalone: true,
   selector: 'app-dashboard-shell',
-  templateUrl: './dashboard-shell.component.html',
-  styleUrls: ['./dashboard-shell.component.scss'],
+  template: `
+    <h2>Dashboard Shell</h2>
+
+    @if (true) {
+      <div>TRUE IF TEST</div>
+    }
+
+
+    <div *ngIf="true">ngIf TEST</div>
+
+    <div class="row">
+      <section>
+        <h3>Orders</h3>
+        <app-orders-list></app-orders-list>
+      </section>
+
+      <section>
+        <h3>Users</h3>
+        <app-users-list></app-users-list>
+      </section>
+
+      <section>
+        <h3>Factory</h3>
+        <app-factory></app-factory>
+      </section>
+
+      <section>
+        <h3 appDumpDirOne>Cars</h3>
+        <app-cars></app-cars>
+      </section>
+
+      <section>
+        <h3>Colors {{ 'asd' | dumpPipeTwoStd }}</h3>
+        <app-colors></app-colors>
+      </section>
+    </div>
+
+
+    <app-colors></app-colors>
+    <app-colors></app-colors>
+    <app-colors></app-colors>
+  `,
   imports: [OrdersListComponent, UsersListComponent, Factory, Cars, Colors, DumpPipeTwoStdPipe, DumpDirOne, NgIf],
   providers: [
     DashboardShellService,
@@ -35,7 +75,7 @@ import {of} from 'rxjs';
     OrdersServiceFive,
     OrdersServiceSix,
     DumpDirTwoStd,
-    DumpPipeOnePipe
+    DumpPipeOnePipe,
   ]
 })
 export class DashboardShellComponent {

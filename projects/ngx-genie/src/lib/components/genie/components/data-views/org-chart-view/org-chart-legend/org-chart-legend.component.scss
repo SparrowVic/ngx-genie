@@ -8,6 +8,7 @@ $c-svc: #60a5fa;
 $c-sys: #f472b6;
 $c-val: #2dd4bf;
 $c-obs: #e879f9;
+$c-sig: #fbbf24;
 $c-tok: #94a3b8;
 $c-cmp: #c084fc;
 $c-dir: #a3e635;
@@ -142,6 +143,11 @@ $c-framework: #f59e0b;
       background: rgba($c-obs, 0.15);
     }
 
+    &.sig {
+      color: $c-sig;
+      background: rgba($c-sig, 0.15);
+    }
+
     &.tok {
       color: $c-tok;
       background: rgba($c-tok, 0.15);
@@ -186,16 +192,31 @@ $c-framework: #f59e0b;
       background: $c-root;
       box-shadow: 0 0 6px $c-root;
     }
-
-    &.framework {
-      background: $c-framework;
-      box-shadow: 0 0 6px $c-framework;
-    }
   }
 
-  .example-text.unused {
-    color: $c-text-muted;
-    text-decoration: line-through;
-    text-decoration-color: rgba(255, 255, 255, 0.3);
+  .example-box.framework {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: #e2e8f0;
+    background: linear-gradient(90deg, rgba($c-framework, 0.15) 0%, transparent 100%);
+    border-left: 2px solid rgba($c-framework, 0.5);
+    padding-left: 6px;
+  }
+
+  .example-pattern.unused {
+    font-size: 10px;
+    padding: 2px 8px;
+    color: #64748b;
+    font-style: italic;
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(0, 0, 0, 0.2),
+        rgba(0, 0, 0, 0.2) 5px,
+        rgba(255, 255, 255, 0.02) 5px,
+        rgba(255, 255, 255, 0.02) 10px
+    );
+    border-radius: 3px;
   }
 }

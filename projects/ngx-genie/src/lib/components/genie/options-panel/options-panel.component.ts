@@ -22,6 +22,7 @@ import {
   OptionsPanelComplexityFilterComponent
 } from './options-panel-complexity-filter/options-panel-complexity-filter.component';
 import {OptionsPanelDeepSearchComponent} from './options-panel-deep-search/options-panel-deep-search.component';
+import {GenOptionsPanelFiltersComponent} from './options-panel-filters/options-panel-filters.component';
 
 @Component({
   selector: 'lib-options-panel',
@@ -35,6 +36,7 @@ import {OptionsPanelDeepSearchComponent} from './options-panel-deep-search/optio
     OptionsPanelScopeLifetimeComponent,
     OptionsPanelComplexityFilterComponent,
     OptionsPanelDeepSearchComponent,
+    GenOptionsPanelFiltersComponent,
   ],
   templateUrl: './options-panel.component.html',
   styleUrl: './options-panel.component.scss',
@@ -69,6 +71,7 @@ export class OptionsPanelComponent {
   protected readonly _showUserTokens = signal(true);
   protected readonly _showUserValues = signal(true);
   protected readonly _showUserObservables = signal(true);
+  protected readonly _showUserSignals = signal(true);
 
   protected readonly _showFrameworkServices = signal(false);
   protected readonly _showFrameworkSystem = signal(false);
@@ -77,6 +80,7 @@ export class OptionsPanelComponent {
   protected readonly _showFrameworkComponents = signal(false);
   protected readonly _showFrameworkTokens = signal(false);
   protected readonly _showFrameworkObservables = signal(false);
+  protected readonly _showFrameworkSignals = signal(false);
 
   protected readonly _searchMode = signal<SearchMode>('component');
   protected readonly _matchMode = signal<MatchMode>('OR');
@@ -112,6 +116,7 @@ export class OptionsPanelComponent {
         showUserTokens: this._showUserTokens(),
         showUserValues: this._showUserValues(),
         showUserObservables: this._showUserObservables(),
+        showUserSignals: this._showUserSignals(),
 
         showFrameworkServices: this._showFrameworkServices(),
         showFrameworkSystem: this._showFrameworkSystem(),
@@ -120,6 +125,7 @@ export class OptionsPanelComponent {
         showFrameworkComponents: this._showFrameworkComponents(),
         showFrameworkTokens: this._showFrameworkTokens(),
         showFrameworkObservables: this._showFrameworkObservables(),
+        showFrameworkSignals: this._showFrameworkSignals(),
 
         componentTags: Array.from(this._selectedComponentTags()),
         dependencyTags: Array.from(this._selectedDependencyTags()),

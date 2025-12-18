@@ -21,6 +21,9 @@ export class ConstellationEngine {
   private _focusedNodeIds = new Set<string>();
   private _currentFocusLevel = 0;
 
+
+  private _unusedPattern: CanvasPattern | null = null;
+
   animationsEnabled = true;
   focusModeEnabled = true;
   isPaused = false;
@@ -33,6 +36,7 @@ export class ConstellationEngine {
   ) {
     this._ctx = this._canvas.getContext('2d', {alpha: false}) as CanvasRenderingContext2D;
     this._initWorker();
+    this._createUnusedPattern();
   }
 
   start() {
@@ -62,6 +66,8 @@ export class ConstellationEngine {
     this._dpiScale = dpi;
     this._canvas.width = width * dpi;
     this._canvas.height = height * dpi;
+
+    this._createUnusedPattern();
 
     if (this._worker) {
       this._worker.postMessage({type: 'RESIZE', payload: {width, height}});
@@ -168,6 +174,22 @@ export class ConstellationEngine {
       } catch (e) {
         console.error('[Engine] Worker init failed', e);
       }
+    }
+  }
+
+  private _createUnusedPattern() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 10;
+    canvas.height = 10;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 10);
+      ctx.lineTo(10, 0);
+      ctx.stroke();
+      this._unusedPattern = this._ctx.createPattern(canvas, 'repeat');
     }
   }
 
@@ -358,16 +380,17 @@ export class ConstellationEngine {
         nodeOpacity = this._lerp(1.0, 0.1, this._currentFocusLevel);
       }
     }
-    if (node.meta?.isUnused) nodeOpacity *= 0.4;
+
+    if (node.meta?.isUnused && !this._unusedPattern) nodeOpacity *= 0.4;
 
     _ctx.globalAlpha = nodeOpacity;
 
     if (node.type === 'injector') {
       this._drawHexagon(_ctx, node, zoom, isHighlight, time);
     } else {
-
-      const isFramework = node.meta?.isFramework;
-      this._drawDiamond(_ctx, node, zoom, isHighlight, time, !!isFramework);
+      const isFramework = !!node.meta?.isFramework;
+      const isUnused = !!node.meta?.isUnused;
+      this._drawDiamond(_ctx, node, zoom, isHighlight, time, isFramework, isUnused);
     }
 
     _ctx.globalAlpha = 1.0;
@@ -419,30 +442,20 @@ export class ConstellationEngine {
     if (isHighlight || zoom > 0.6) this._drawLabel(_ctx, node, y + radius + 12 / zoom, zoom, isHighlight);
   }
 
-  private _drawDiamond(_ctx: CanvasRenderingContext2D, node: RenderNode, zoom: number, isHighlight: boolean, time: number, isHollow: boolean) {
+  private _drawDiamond(_ctx: CanvasRenderingContext2D, node: RenderNode, zoom: number, isHighlight: boolean, time: number, isFramework: boolean, isUnused: boolean) {
     const {x, y, radius, baseColor, glowColor} = node;
     let sizeAnim = radius;
 
-
     if (this.animationsEnabled) {
-      if (isHollow) {
-
-        const pulse = Math.sin((time + (node.pulseOffset || 0)) / 600);
-
-        sizeAnim = radius * (1 + pulse * 0.1);
-      } else {
-
-        const pulse = Math.sin((time + (node.pulseOffset || 0)) / 400);
-        sizeAnim = radius + (pulse * 1.5);
-      }
+      const pulse = Math.sin((time + (node.pulseOffset || 0)) / (isFramework ? 600 : 400));
+      sizeAnim = radius * (1 + pulse * 0.1);
     }
 
 
     if (isHighlight || node.meta?.isRoot) {
       _ctx.shadowBlur = isHighlight ? 20 : 10;
       _ctx.shadowColor = glowColor;
-    } else if (isHollow) {
-
+    } else if (isFramework) {
       _ctx.shadowBlur = 5;
       _ctx.shadowColor = baseColor;
     }
@@ -454,32 +467,40 @@ export class ConstellationEngine {
     _ctx.lineTo(x - sizeAnim, y);
     _ctx.closePath();
 
-    if (isHollow) {
 
-      _ctx.strokeStyle = isHighlight ? glowColor : baseColor;
-      _ctx.lineWidth = (isHighlight ? 2.5 : 1.5) / zoom;
-      _ctx.fillStyle = 'rgba(2, 6, 23, 0.7)';
+    if (isUnused && this._unusedPattern) {
+      _ctx.fillStyle = this._unusedPattern;
       _ctx.fill();
-      _ctx.stroke();
-    } else {
+    } else if (isFramework) {
 
+      const grad = _ctx.createLinearGradient(x - sizeAnim, y - sizeAnim, x + sizeAnim, y + sizeAnim);
+      grad.addColorStop(0, 'rgba(0,0,0,0.8)');
+      grad.addColorStop(0.5, baseColor + '11');
+      grad.addColorStop(1, 'rgba(0,0,0,0.8)');
+      _ctx.fillStyle = grad;
+      _ctx.fill();
+    } else {
       _ctx.fillStyle = isHighlight ? glowColor : baseColor;
       _ctx.fill();
     }
 
-    _ctx.shadowBlur = 0;
 
-    if (node.meta?.isUnused) {
-      _ctx.strokeStyle = '#475569';
-      _ctx.lineWidth = 1 / zoom;
-      _ctx.stroke();
+    _ctx.strokeStyle = isHighlight ? glowColor : baseColor;
+    _ctx.lineWidth = (isHighlight ? 2.5 : 1.5) / zoom;
+    if (isUnused) {
+      _ctx.strokeStyle = '#64748b';
     }
+    _ctx.stroke();
+
+    _ctx.shadowBlur = 0;
 
     if (isHighlight || zoom > 0.8) this._drawLabel(_ctx, node, y + radius + 10 / zoom, zoom, isHighlight);
   }
 
   private _drawLabel(_ctx: CanvasRenderingContext2D, node: RenderNode, yPos: number, zoom: number, isHighlight: boolean) {
     _ctx.fillStyle = isHighlight ? '#fff' : 'rgba(226, 232, 240, 0.8)';
+    if (node.meta?.isUnused) _ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+
     const fontSize = Math.max(9, 11 / zoom);
     _ctx.font = `${isHighlight ? 'bold' : ''} ${fontSize}px "JetBrains Mono"`;
     _ctx.textAlign = 'center';
@@ -503,12 +524,5 @@ export class ConstellationEngine {
     _ctx.strokeStyle = CONSTELLATION_THEME.grid;
     _ctx.lineWidth = 1;
     _ctx.stroke();
-
-    _ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
-    for (let x = offsetX; x < w; x += gridSize) {
-      for (let y = offsetY; y < h; y += gridSize) {
-        _ctx.fillRect(x - 2, y - 2, 4, 4);
-      }
-    }
   }
 }

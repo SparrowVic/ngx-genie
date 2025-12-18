@@ -17,7 +17,6 @@ export interface GenieNode {
 
 export interface GenieTreeNode extends GenieNode {
   children: GenieTreeNode[];
-
   groupCount?: number;
 }
 
@@ -27,6 +26,18 @@ export type GenieProviderType =
   | 'Factory'
   | 'Existing'
   | 'Unknown';
+
+
+export type GenieDependencyType =
+  'Service'
+  | 'Pipe'
+  | 'Directive'
+  | 'Component'
+  | 'Token'
+  | 'Value'
+  | 'Observable'
+  | 'Signal'
+  | 'System';
 
 export interface GenieServiceRegistration {
   id: number;
@@ -39,16 +50,10 @@ export interface GenieServiceRegistration {
   properties: Record<string, any>;
   isRoot?: boolean;
   isFramework: boolean;
-  dependencyType:
-    'Service'
-    | 'Pipe'
-    | 'Directive'
-    | 'Component'
-    | 'Token'
-    | 'Value'
-    | 'Observable'
-    | 'System';
+
+  dependencyType: GenieDependencyType;
 }
+
 
 export type DependencyType = 'Direct' | 'Unknown';
 

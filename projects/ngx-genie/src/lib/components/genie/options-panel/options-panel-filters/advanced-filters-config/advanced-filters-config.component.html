@@ -1,0 +1,156 @@
+<div class="transfer-dashboard">
+
+  <div class="top-toolbar">
+    <div class="toolbar-section pattern-section">
+      <div class="unified-input-group">
+        <span class="prefix-icon">✨</span>
+        <input
+          type="text"
+          class="pattern-input"
+          placeholder="New pattern (e.g. MyService)"
+          [ngModel]="newPattern()"
+          (ngModelChange)="newPattern.set($event)"
+          (keyup.enter)="addPattern()"
+        >
+        <div class="vertical-divider"></div>
+        <select [ngModel]="patternType()" (ngModelChange)="patternType.set($event)">
+          <option value="Exact">Exact</option>
+          <option value="Prefix">Prefix</option>
+          <option value="Suffix">Suffix</option>
+          <option value="Regex">Regex</option>
+        </select>
+        <div class="vertical-divider"></div>
+        <button class="btn-add" [disabled]="!newPattern()" (click)="addPattern()">Add</button>
+      </div>
+    </div>
+
+    <div class="toolbar-section tools-section">
+      <div class="input-wrapper search-wrapper">
+        <span class="prefix-icon">🔍</span>
+        <input
+          type="text"
+          placeholder="Filter lists..."
+          [ngModel]="searchTerm()"
+          (ngModelChange)="searchTerm.set($event)"
+        >
+      </div>
+      <button class="btn-reset" (click)="resetDefaults()" title="Reset Configuration">
+        <span>↺</span> Reset
+      </button>
+    </div>
+  </div>
+
+  <div class="lists-layout">
+
+    <div class="main-card public-card">
+      <div class="card-header public-header">
+        <div class="header-content">
+          <div class="title-row">
+            <h3>Public Universe</h3>
+            <span class="badge">{{ publicList().length }}</span>
+          </div>
+          <p class="subtitle">Visible dependencies available in the graph</p>
+        </div>
+        <div class="header-icon">🌍</div>
+      </div>
+
+      <div class="scroll-area">
+        @for (item of publicList(); track item.tokenName) {
+          <div class="list-item">
+            <div class="item-content">
+              <span class="token-name" [title]="item.tokenName">{{ item.tokenName }}</span>
+              <span class="token-type">{{ item.dependencyType }}</span>
+            </div>
+            <button class="btn-icon-action move-right" (click)="moveToInternal(item.tokenName)"
+                    title="Hide (Manual Override)">
+              <span class="arrow">→</span>
+            </button>
+          </div>
+        }
+        @if (publicList().length === 0) {
+          <div class="empty-state">
+            <span>Nothing visible.</span>
+            <small>Check your filters.</small>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="filter-zone-container">
+
+      <div class="sub-panel internal-panel">
+        <div class="panel-header">
+          <div class="title-row">
+            <h3>Hidden / Internals</h3>
+            <span class="badge">{{ internalList().length }}</span>
+          </div>
+          <p class="subtitle">Excluded from visualization</p>
+        </div>
+
+        <div class="scroll-area">
+          @for (item of internalList(); track item.tokenName) {
+            <div
+              class="list-item"
+              [class.highlight-flash]="highlightedTokens().has(item.tokenName)"
+              [attr.data-token]="item.tokenName"
+            >
+              <button class="btn-icon-action move-left" (click)="moveToPublic(item.tokenName)"
+                      title="Show (Manual Override)">
+                <span class="arrow">←</span>
+              </button>
+
+              <div class="item-content">
+                <span class="token-name" [title]="item.tokenName">{{ item.tokenName }}</span>
+                <div class="meta-info">
+                  <span class="token-type">{{ item.dependencyType }}</span>
+                  @if (item.filterReason) {
+                    <span class="reason-pill" [attr.data-type]="item.matchType">
+                      {{ item.filterReason }}
+                    </span>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+          @if (internalList().length === 0) {
+            <div class="empty-state">
+              <span>Clean slate.</span>
+              <small>No hidden items.</small>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="zone-seam"></div>
+
+      <div class="sub-panel patterns-panel">
+        <div class="panel-header">
+          <div class="title-row">
+            <h3>Rules</h3>
+            <span class="badge rule-badge">{{ activeRules().length }}</span>
+          </div>
+          <p class="subtitle">Auto-filters</p>
+        </div>
+
+        <div class="scroll-area">
+          @for (rule of activeRules(); track rule.value) {
+            <div class="pattern-item">
+              <div class="pattern-info">
+                <span class="rule-value" [title]="rule.value">{{ rule.value }}</span>
+                <span class="rule-type" [attr.data-type]="rule.type">{{ rule.type }}</span>
+              </div>
+              <button class="btn-remove-rule" (click)="removeRule(rule.value)">×</button>
+            </div>
+          }
+          @if (activeRules().length === 0) {
+            <div class="empty-state">
+              <span>No rules.</span>
+            </div>
+          }
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>

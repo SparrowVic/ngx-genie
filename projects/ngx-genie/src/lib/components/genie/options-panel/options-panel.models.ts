@@ -17,6 +17,7 @@ export interface GenieFilterState {
   showUserTokens: boolean;
   showUserValues: boolean;
   showUserObservables: boolean;
+  showUserSignals: boolean;
 
   showFrameworkServices: boolean;
   showFrameworkPipes: boolean;
@@ -25,6 +26,7 @@ export interface GenieFilterState {
   showFrameworkTokens: boolean;
   showFrameworkSystem: boolean;
   showFrameworkObservables: boolean;
+  showFrameworkSignals: boolean;
 
   componentTags: string[];
   dependencyTags: string[];
