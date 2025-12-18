@@ -80,7 +80,7 @@ Add the provider to your application configuration (`app.config.ts`):
 
 ```ts
 import {ApplicationConfig} from '@angular/core';
-import {provideGenie} from 'genie';
+import {provideGenie} from 'ngx-genie';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -105,7 +105,7 @@ If your application uses **Standalone Components**, import the GenieOS component
 
 ```ts
 import {Component} from '@angular/core';
-import {GenieComponent} from 'genie';
+import {GenieComponent} from 'ngx-genie';
 
 @Component({
   selector: 'app-root',
