@@ -1,6 +1,6 @@
 {
   "name": "ngx-genie",
-  "version": "20.0.0-beta.12",
+  "version": "18.0.0-beta.0",
   "description": "GenieOS – Angular DI Inspector",
   "author": "Wiktor Wróbel <genie.hlp@gmail.com> (https://github.com/SparrowVic)",
   "license": "Apache-2.0",
@@ -14,8 +14,8 @@
     "email": "genie.hlp@gmail.com"
   },
   "peerDependencies": {
-    "@angular/common": "^20.3.0",
-    "@angular/core": "^20.3.0"
+    "@angular/common": "^18.0.0",
+    "@angular/core": "^18.0.0"
   },
   "dependencies": {
     "tslib": "^2.3.0"

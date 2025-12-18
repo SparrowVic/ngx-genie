@@ -1,4 +1,4 @@
-import {Injectable, signal, linkedSignal, computed} from '@angular/core';
+import {Injectable, signal, computed} from '@angular/core';
 
 @Injectable()
 export class DashboardShellService {
@@ -8,12 +8,6 @@ export class DashboardShellService {
 
 
   currentUser = signal('Admin User');
-
-
-  dashboardTitle = linkedSignal({
-    source: this.currentUser,
-    computation: (user, previous) => `${user}'s Dashboard`
-  });
 
 
   activityLevel = computed(() => this.counter() > 10 ? 'High' : 'Low');

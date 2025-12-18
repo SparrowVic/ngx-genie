@@ -5,6 +5,7 @@ import {NgIf} from '@angular/common';
 
 @Component({
   selector: 'lib-tree-node',
+  standalone: true,
   imports: [
     TreeDependencyItemComponent,
     NgIf

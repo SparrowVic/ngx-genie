@@ -1,4 +1,4 @@
-import {Injectable, signal, computed, linkedSignal} from '@angular/core';
+import {Injectable, signal, computed} from '@angular/core';
 
 @Injectable()
 export class OrdersServiceFive {
@@ -6,12 +6,6 @@ export class OrdersServiceFive {
 
 
   status = signal<'active' | 'idle' | 'error'>('active');
-
-
-  errorCode = linkedSignal({
-    source: this.status,
-    computation: (currentStatus, previous) => currentStatus === 'error' ? 500 : null
-  });
 
 
   isHealthy = computed(() => this.status() === 'active');
