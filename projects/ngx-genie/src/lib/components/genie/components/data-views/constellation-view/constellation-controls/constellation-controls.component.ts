@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, input, output, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, input, output, signal, ViewEncapsulation} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 
@@ -9,6 +9,7 @@ import {FormsModule} from '@angular/forms';
   templateUrl: './constellation-controls.component.html',
   styleUrl: './constellation-controls.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class ConstellationControlsComponent {
   isOpen = input<boolean>(true);

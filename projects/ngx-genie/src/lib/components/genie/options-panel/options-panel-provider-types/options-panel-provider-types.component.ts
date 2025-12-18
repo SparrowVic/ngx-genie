@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, input, output, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, input, output, signal, ViewEncapsulation} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {CommonModule} from '@angular/common';
 
@@ -11,7 +11,8 @@ import {CommonModule} from '@angular/common';
   ],
   templateUrl: './options-panel-provider-types.component.html',
   styleUrl: './options-panel-provider-types.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class OptionsPanelProviderTypesComponent {
 

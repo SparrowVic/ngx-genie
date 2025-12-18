@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, input, output} from '@angular/core';
+import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 
 @Component({
@@ -9,7 +9,8 @@ import {FormsModule} from '@angular/forms';
   ],
   templateUrl: './options-panel-complexity-filter.component.html',
   styleUrl: './options-panel-complexity-filter.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class OptionsPanelComplexityFilterComponent {
   readonly minDeps = input.required<number>();

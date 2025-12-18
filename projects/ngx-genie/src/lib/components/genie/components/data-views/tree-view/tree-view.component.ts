@@ -1,4 +1,13 @@
-import {ChangeDetectionStrategy, Component, computed, inject, input, Input, output} from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  Input,
+  output,
+  ViewEncapsulation
+} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {GenieTreeNode, GenieServiceRegistration} from '../../../../../models/genie-node.model';
 import {GenieResizableDirective} from '../../../../../shared/directives/resizable/resizable.directive';
@@ -15,6 +24,7 @@ import {OrgChartUtils} from '../org-chart-view/org-chart.utils';
   templateUrl: './tree-view.component.html',
   styleUrl: './tree-view.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class TreeViewComponent {
   readonly tree = input.required<GenieTreeNode[]>();

@@ -1,4 +1,13 @@
-import {ChangeDetectionStrategy, Component, ElementRef, HostListener, input, output, viewChild} from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  HostListener,
+  input,
+  output,
+  viewChild,
+  ViewEncapsulation
+} from '@angular/core';
 
 @Component({
   standalone: true,
@@ -6,7 +15,8 @@ import {ChangeDetectionStrategy, Component, ElementRef, HostListener, input, out
   imports: [],
   templateUrl: './modal.component.html',
   styleUrl: './modal.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class GenModalComponent {
   readonly title = input.required<string>();

@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, inject, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, inject, signal, ViewEncapsulation} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {GenModalComponent} from '../../../../shared/components/modal/modal.component';
 import {GenAdvancedFiltersConfigComponent} from './advanced-filters-config/advanced-filters-config.component';
@@ -14,7 +14,8 @@ import {GenFilterService} from '../../../../services/filter.service';
   ],
   templateUrl: './options-panel-filters.component.html',
   styleUrl: './options-panel-filters.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class GenOptionsPanelFiltersComponent {
 

@@ -8,7 +8,7 @@ import {
   NgZone,
   OnDestroy,
   viewChild,
-  signal, effect, untracked
+  signal, effect, untracked, ViewEncapsulation
 } from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {GenieServiceRegistration, GenieTreeNode} from '../../../../../models/genie-node.model';
@@ -36,6 +36,7 @@ import {ConstellationStateService} from './constellation-state.service';
   templateUrl: './constellation-view.component.html',
   styleUrl: './constellation-view.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   private registry = inject(GenieRegistryService);

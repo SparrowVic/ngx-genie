@@ -6,7 +6,7 @@ import {
   inject,
   Input,
   signal,
-  ViewChild
+  ViewChild, ViewEncapsulation
 } from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
@@ -32,6 +32,7 @@ type CategoryFilter = 'ALL' | 'memory' | 'architecture' | 'performance' | 'best-
   templateUrl: './diagnostics-view.component.html',
   styleUrl: './diagnostics-view.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class DiagnosticsViewComponent {
   private diagnostics = inject(GenieDiagnosticsService);

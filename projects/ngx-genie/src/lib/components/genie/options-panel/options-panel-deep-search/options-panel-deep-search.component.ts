@@ -6,7 +6,7 @@ import {
   input,
   output,
   signal,
-  viewChild
+  viewChild, ViewEncapsulation
 } from '@angular/core';
 import {MatchMode, SearchMode} from '../options-panel.models';
 import {GenieNode, GenieServiceRegistration} from '../../../../models/genie-node.model';
@@ -22,6 +22,7 @@ import {ANGULAR_INTERNALS} from '../../../../configs/angular-internals';
   templateUrl: './options-panel-deep-search.component.html',
   styleUrl: './options-panel-deep-search.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom,
   host: {
     '(document:click)': '_onClickOutside($event)'
   }

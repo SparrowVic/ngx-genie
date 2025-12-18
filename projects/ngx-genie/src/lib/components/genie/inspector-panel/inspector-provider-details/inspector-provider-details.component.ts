@@ -1,4 +1,14 @@
-import {ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, output, signal} from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  input,
+  output,
+  signal,
+  ViewEncapsulation
+} from '@angular/core';
 import {GenieServiceRegistration, GenieTreeNode} from '../../../../models/genie-node.model';
 import {JsonTreeComponent} from '../json-tree/json-tree.component';
 import {GenieResizableDirective} from '../../../../shared/directives/resizable/resizable.directive';
@@ -15,6 +25,7 @@ import {NgClass} from '@angular/common';
   templateUrl: './inspector-provider-details.component.html',
   styleUrl: './inspector-provider-details.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class InspectorProviderDetailsComponent {
   private el = inject(ElementRef);

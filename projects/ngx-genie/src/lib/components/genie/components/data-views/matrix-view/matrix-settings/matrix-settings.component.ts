@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, input, output, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, input, output, signal, ViewEncapsulation} from '@angular/core';
 import {CommonModule} from '@angular/common';
 
 export interface MatrixSettings {
@@ -13,6 +13,7 @@ export interface MatrixSettings {
   templateUrl: './matrix-settings.component.html',
   styleUrl: './matrix-settings.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class MatrixSettingsComponent {
   readonly settings = input.required<MatrixSettings>();

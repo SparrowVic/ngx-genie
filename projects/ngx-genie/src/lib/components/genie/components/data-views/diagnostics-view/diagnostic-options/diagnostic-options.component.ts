@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, input, output} from '@angular/core';
+import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {DiagnosticsConfig} from '../../../../../../services/genie-diagnostics.service';
 
@@ -10,7 +10,8 @@ import {DiagnosticsConfig} from '../../../../../../services/genie-diagnostics.se
   ],
   templateUrl: './diagnostic-options.component.html',
   styleUrl: './diagnostic-options.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class DiagnosticOptionsComponent {
   config = input.required<DiagnosticsConfig>();

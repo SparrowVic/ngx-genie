@@ -2,14 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  ElementRef,
   inject,
   input,
   signal,
-  ViewChild
+  ViewEncapsulation
 } from '@angular/core';
 import {GenieServiceRegistration} from '../../../../../../models/genie-node.model';
-import {NgIf, SlicePipe, UpperCasePipe} from '@angular/common';
+import {SlicePipe, UpperCasePipe} from '@angular/common';
 import {GenieExplorerStateService} from '../../../../explorer-state.service';
 
 @Component({
@@ -18,11 +17,11 @@ import {GenieExplorerStateService} from '../../../../explorer-state.service';
   imports: [
     UpperCasePipe,
     SlicePipe,
-    NgIf
   ],
   templateUrl: './tree-dependency-item.component.html',
   styleUrl: './tree-dependency-item.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class TreeDependencyItemComponent {
   private readonly state = inject(GenieExplorerStateService);

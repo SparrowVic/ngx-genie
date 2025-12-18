@@ -7,7 +7,7 @@ import {
   input,
   output,
   signal,
-  ViewChild
+  ViewChild, ViewEncapsulation
 } from '@angular/core';
 import {GenieTreeNode, GenieServiceRegistration} from '../../../models/genie-node.model';
 import {TreeViewComponent} from '../components/data-views/tree-view/tree-view.component';
@@ -36,6 +36,7 @@ export type GenieViewMode = 'tree' | 'org' | 'constellation' | 'matrix' | 'diagn
   templateUrl: './viewport.component.html',
   styleUrl: './viewport.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class ViewportComponent {
   @ViewChild('viewportContent') viewportRef!: ElementRef<HTMLElement>;

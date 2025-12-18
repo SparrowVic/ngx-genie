@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, signal, ViewEncapsulation} from '@angular/core';
 import {CommonModule} from '@angular/common';
 
 @Component({
@@ -7,7 +7,8 @@ import {CommonModule} from '@angular/common';
   imports: [CommonModule],
   templateUrl: './tree-legend.component.html',
   styleUrl: './tree-legend.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class TreeLegendComponent {
   isExpanded = signal(false);

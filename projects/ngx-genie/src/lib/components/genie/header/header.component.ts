@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, inject, input, output} from '@angular/core';
+import {ChangeDetectionStrategy, Component, inject, input, output, ViewEncapsulation} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
 import {GENIE_ICONS} from '../../../resources/icons/icons';
@@ -12,6 +12,7 @@ import {GENIE_ICONS} from '../../../resources/icons/icons';
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class HeaderComponent {
   private sanitizer = inject(DomSanitizer);

@@ -687,8 +687,9 @@ $c-framework: #d97706;
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
-  padding-right: 8px;
+  padding-right: 1rem;
   padding-bottom: 20px;
+  padding-left: 1rem;
   min-height: 0;
   @include custom-scrollbar;
 

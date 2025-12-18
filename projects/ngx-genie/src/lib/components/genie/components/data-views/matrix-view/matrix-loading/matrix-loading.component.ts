@@ -1,4 +1,14 @@
-import {ChangeDetectionStrategy, Component, effect, input, OnDestroy, OnInit, output, signal} from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  input,
+  OnDestroy,
+  OnInit,
+  output,
+  signal,
+  ViewEncapsulation
+} from '@angular/core';
 import {CommonModule} from '@angular/common';
 
 @Component({
@@ -8,6 +18,7 @@ import {CommonModule} from '@angular/common';
   templateUrl: './matrix-loading.component.html',
   styleUrl: './matrix-loading.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class MatrixLoadingComponent implements OnInit, OnDestroy {
   readonly isDataReady = input<boolean>(false);

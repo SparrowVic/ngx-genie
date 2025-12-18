@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, input, output} from '@angular/core';
+import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 
 @Component({
@@ -10,6 +10,7 @@ import {FormsModule} from '@angular/forms';
   templateUrl: './inspector-toolbar.component.html',
   styleUrl: './inspector-toolbar.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class InspectorToolbarComponent {
   search = input('');

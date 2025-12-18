@@ -6,7 +6,7 @@ import {
   inject,
   input,
   output,
-  signal,
+  signal, ViewEncapsulation,
 } from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
@@ -37,6 +37,7 @@ import {GenieFilterState} from '../options-panel/options-panel.models';
   templateUrl: './inspector-panel.component.html',
   styleUrl: './inspector-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class InspectorPanelComponent {
 

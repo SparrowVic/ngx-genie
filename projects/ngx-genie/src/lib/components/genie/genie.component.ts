@@ -7,7 +7,7 @@ import {
   ViewChild,
   effect,
   computed,
-  OnDestroy
+  OnDestroy, ViewEncapsulation
 } from '@angular/core';
 import {CommonModule, DOCUMENT} from '@angular/common';
 import {interval, Subscription} from 'rxjs';
@@ -53,6 +53,7 @@ interface GenieLayoutState {
   templateUrl: './genie.component.html',
   styleUrl: './genie.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class GenieComponent implements OnDestroy {
 

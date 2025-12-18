@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, input, output} from '@angular/core';
+import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} from '@angular/core';
 
 @Component({
   selector: 'lib-constellation-mode-switch',
@@ -7,6 +7,7 @@ import {ChangeDetectionStrategy, Component, input, output} from '@angular/core';
   templateUrl: './constellation-mode-switch.component.html',
   styleUrl: './constellation-mode-switch.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class ConstellationModeSwitchComponent {
   readonly active = input.required<boolean>();

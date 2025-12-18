@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, input, output} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, input, output, ViewEncapsulation} from '@angular/core';
 import {GenieServiceRegistration, GenieTreeNode} from '../../../../../../models/genie-node.model';
 import {TreeDependencyItemComponent} from '../tree-dependency-item/tree-dependency-item.component';
 import {NgIf} from '@angular/common';
@@ -12,6 +12,7 @@ import {NgIf} from '@angular/common';
   templateUrl: './tree-node.component.html',
   styleUrl: './tree-node.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class TreeNodeComponent {
   node = input.required<GenieTreeNode>();

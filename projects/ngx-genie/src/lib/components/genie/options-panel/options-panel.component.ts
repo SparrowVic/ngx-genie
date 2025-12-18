@@ -2,7 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   signal,
-  input, output, effect, untracked
+  input, output, effect, untracked, ViewEncapsulation
 } from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
@@ -41,6 +41,7 @@ import {GenOptionsPanelFiltersComponent} from './options-panel-filters/options-p
   templateUrl: './options-panel.component.html',
   styleUrl: './options-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class OptionsPanelComponent {
 

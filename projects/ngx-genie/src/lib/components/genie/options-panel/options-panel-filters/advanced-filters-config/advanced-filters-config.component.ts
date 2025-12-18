@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, inject, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject, signal, ViewEncapsulation} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {GenieDependencyType} from '../../../../../models/genie-node.model';
@@ -20,7 +20,8 @@ interface InventoryItem {
   imports: [CommonModule, FormsModule],
   templateUrl: './advanced-filters-config.component.html',
   styleUrl: './advanced-filters-config.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class GenAdvancedFiltersConfigComponent {
   private registry = inject(GenieRegistryService);

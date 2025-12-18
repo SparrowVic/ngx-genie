@@ -5,7 +5,7 @@ import {
   effect,
   input,
   signal,
-  isSignal
+  isSignal, ViewEncapsulation
 } from '@angular/core';
 import {CommonModule} from '@angular/common';
 
@@ -37,6 +37,7 @@ interface TreeItem {
   templateUrl: './json-tree.component.html',
   styleUrl: './json-tree.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class JsonTreeComponent {
 

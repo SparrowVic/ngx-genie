@@ -1,4 +1,13 @@
-import {ChangeDetectionStrategy, Component, computed, inject, input, OnDestroy, OnInit} from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  OnDestroy,
+  OnInit,
+  ViewEncapsulation
+} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {GenieTreeNode, GenieServiceRegistration} from '../../../../../models/genie-node.model';
 import {OrgChartLegendComponent} from './org-chart-legend/org-chart-legend.component';
@@ -18,6 +27,7 @@ import {OrgChartStateService} from './org-chart-state.service';
   templateUrl: './org-chart-view.component.html',
   styleUrl: './org-chart-view.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class OrgChartViewComponent implements OnInit, OnDestroy {
   private stateService = inject(OrgChartStateService);

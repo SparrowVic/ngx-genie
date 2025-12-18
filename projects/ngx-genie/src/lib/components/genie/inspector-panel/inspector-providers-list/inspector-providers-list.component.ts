@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, input, output} from '@angular/core';
+import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} from '@angular/core';
 import {SlicePipe} from '@angular/common';
 import {InspectorViewModel} from '../inspector-state.service';
 
@@ -11,6 +11,7 @@ import {InspectorViewModel} from '../inspector-state.service';
   templateUrl: './inspector-providers-list.component.html',
   styleUrl: './inspector-providers-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 
 })
 export class InspectorProvidersListComponent {

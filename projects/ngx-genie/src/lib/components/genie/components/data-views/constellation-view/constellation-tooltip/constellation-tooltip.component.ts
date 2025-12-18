@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, input} from '@angular/core';
+import {ChangeDetectionStrategy, Component, input, ViewEncapsulation} from '@angular/core';
 import {RenderNode} from '../constellation.models';
 
 @Component({
@@ -8,6 +8,7 @@ import {RenderNode} from '../constellation.models';
   templateUrl: './constellation-tooltip.component.html',
   styleUrl: './constellation-tooltip.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class ConstellationTooltipComponent {
   readonly node = input.required<RenderNode | null>();

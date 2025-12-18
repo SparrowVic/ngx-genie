@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, signal, ViewEncapsulation} from '@angular/core';
 import {CommonModule} from '@angular/common';
 
 @Component({
@@ -8,6 +8,7 @@ import {CommonModule} from '@angular/common';
   templateUrl: './org-chart-legend.component.html',
   styleUrl: './org-chart-legend.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class OrgChartLegendComponent {
   readonly isOpen = signal(false);

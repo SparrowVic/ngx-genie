@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, signal, ViewEncapsulation} from '@angular/core';
 import {CommonModule} from '@angular/common';
 
 @Component({
@@ -8,6 +8,7 @@ import {CommonModule} from '@angular/common';
   templateUrl: './constellation-legend.component.html',
   styleUrl: './constellation-legend.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class ConstellationLegendComponent {
   readonly isOpen = signal(false);

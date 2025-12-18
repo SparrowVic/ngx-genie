@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, input, output} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, input, output, ViewEncapsulation} from '@angular/core';
 import {OrgChartUtils} from '../org-chart.utils';
 import {GenieTreeNode, GenieServiceRegistration} from '../../../../../../models/genie-node.model';
 import {NgIf, NgFor, NgClass} from '@angular/common';
@@ -6,10 +6,11 @@ import {NgIf, NgFor, NgClass} from '@angular/common';
 @Component({
   selector: 'lib-org-chart-node',
   standalone: true,
-  imports: [NgIf, NgFor, NgClass],
+  imports: [],
   templateUrl: './org-chart-node.component.html',
   styleUrl: './org-chart-node.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class OrgChartNodeComponent {
 

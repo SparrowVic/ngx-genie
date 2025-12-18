@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, input, output} from '@angular/core';
+import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} from '@angular/core';
 
 @Component({
   selector: 'lib-options-panel-controls',
@@ -6,7 +6,8 @@ import {ChangeDetectionStrategy, Component, input, output} from '@angular/core';
   imports: [],
   templateUrl: './options-panel-controls.component.html',
   styleUrl: './options-panel-controls.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom
 })
 export class OptionsPanelControlsComponent {
 
