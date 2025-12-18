@@ -7,9 +7,11 @@ import {
   ViewChild,
   effect,
   computed,
-  OnDestroy, ViewEncapsulation
+  OnDestroy,
+  ViewEncapsulation,
+  PLATFORM_ID
 } from '@angular/core';
-import {CommonModule, DOCUMENT} from '@angular/common';
+import {CommonModule, DOCUMENT, isPlatformBrowser} from '@angular/common';
 import {interval, Subscription} from 'rxjs';
 
 import {GenieConfig} from '../../models/genie-config.model';
@@ -60,6 +62,8 @@ export class GenieComponent implements OnDestroy {
   readonly state = inject(GenieExplorerStateService);
   readonly config: GenieConfig = inject(GENIE_CONFIG);
   private readonly document = inject(DOCUMENT);
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly isBrowser = isPlatformBrowser(this.platformId);
 
   @ViewChild('windowRef') windowRef!: ElementRef<HTMLElement>;
 
@@ -98,7 +102,7 @@ export class GenieComponent implements OnDestroy {
   private _saveTimeout: any = null;
 
   constructor() {
-    if (this.config.enabled && this.config.hotkey) {
+    if (this.isBrowser && this.config.enabled && this.config.hotkey) {
       this._keyListener = (event: KeyboardEvent) => {
         if (event.key === this.config.hotkey) {
           event.preventDefault();
@@ -123,7 +127,7 @@ export class GenieComponent implements OnDestroy {
   }
 
   ngOnDestroy() {
-    if (this._keyListener) {
+    if (this.isBrowser && this._keyListener) {
       window.removeEventListener('keydown', this._keyListener);
     }
   }
@@ -154,6 +158,8 @@ export class GenieComponent implements OnDestroy {
   }
 
   logToConsole() {
+    if (!this.isBrowser) return;
+
     const svc = this.state.selectedService();
     if (svc?.instance) {
       console.log(`%c[Genie] Exported ${svc.label}:`, 'color: #3b82f6; font-weight: bold;', svc.instance);
@@ -269,6 +275,8 @@ export class GenieComponent implements OnDestroy {
   }
 
   private saveLayoutState() {
+    if (!this.isBrowser) return;
+
     const state: GenieLayoutState = {
       x: this.windowPosition().x,
       y: this.windowPosition().y,
@@ -299,6 +307,8 @@ export class GenieComponent implements OnDestroy {
       optionsCollapsed: false,
       inspectorCollapsed: false
     };
+
+    if (!this.isBrowser) return defaultState;
 
     try {
       const raw = localStorage.getItem(STORAGE_KEY_LAYOUT);
