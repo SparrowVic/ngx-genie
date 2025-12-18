@@ -30,7 +30,6 @@ export class GenAdvancedFiltersConfigComponent {
   highlightedTokens = signal<Set<string>>(new Set());
 
   newPattern = signal('');
-
   patternType = signal<'Exact' | 'Prefix' | 'Suffix' | 'Regex'>('Exact');
 
   activeRules = this.filterService.customRules;
@@ -43,26 +42,21 @@ export class GenAdvancedFiltersConfigComponent {
       if (map.has(svc.label)) {
         map.get(svc.label)!.usageCount++;
       } else {
-        const isVisible = !this.filterService.isInternal(svc.label);
-        let reason = '';
-        let matchType = '';
+        const status = this.filterService.checkFilterStatus(svc.label);
 
-        if (!isVisible) {
-          const rules = this.activeRules();
-          const match = rules.find(r => this.matchesRule(svc.label, r));
-          if (match) {
-            reason = match.value;
-            matchType = match.type;
-          } else {
-            reason = 'System';
-            matchType = 'System';
-          }
+        let reason = status.detail;
+        let matchType = status.reason;
+
+        if (status.reason === 'Rule' && status.rule) {
+          reason = status.rule.value;
+          // @ts-ignore
+          matchType = status.rule.type;
         }
 
         map.set(svc.label, {
           tokenName: svc.label,
           dependencyType: svc.dependencyType,
-          isVisible: isVisible,
+          isVisible: !status.hidden,
           usageCount: 1,
           filterReason: reason,
           matchType: matchType
@@ -100,20 +94,22 @@ export class GenAdvancedFiltersConfigComponent {
   }
 
   addPattern() {
-    if (!this.newPattern()) return;
+    const pattern = this.newPattern();
+    if (!pattern) return;
 
     const tokensBefore = new Set(this.publicList().map(i => i.tokenName));
 
     const rule: FilterRule = {
-      value: this.newPattern(),
+      value: pattern,
       type: this.patternType()
     };
 
     this.filterService.addRule(rule);
     this.newPattern.set('');
 
-    const currentPublic = new Set(this.publicList().map(i => i.tokenName));
-    const movedTokens = [...tokensBefore].filter(token => !currentPublic.has(token));
+    const movedTokens = [...tokensBefore].filter(token => {
+      return this.filterService.testRule(token, rule);
+    });
 
     if (movedTokens.length > 0) {
       this.triggerHighlight(movedTokens);
@@ -125,7 +121,7 @@ export class GenAdvancedFiltersConfigComponent {
   }
 
   resetDefaults() {
-    if (confirm('Reset configuration to defaults? This will clear custom patterns and moved items.')) {
+    if (confirm('Reset configuration to defaults? This will revert custom patterns to initial settings.')) {
       this.filterService.resetToDefaults();
     }
   }
@@ -134,6 +130,7 @@ export class GenAdvancedFiltersConfigComponent {
     this.highlightedTokens.set(new Set(tokens));
 
     setTimeout(() => {
+      if (tokens.length === 0) return;
       const firstToken = tokens[0];
 
       const selector = `[data-token="${firstToken.replace(/"/g, '\\"')}"]`;
@@ -147,24 +144,5 @@ export class GenAdvancedFiltersConfigComponent {
     setTimeout(() => {
       this.highlightedTokens.set(new Set());
     }, 2000);
-  }
-
-  private matchesRule(name: string, rule: FilterRule): boolean {
-    switch (rule.type) {
-      case 'Exact':
-        return name === rule.value;
-      case 'Prefix':
-        return name.startsWith(rule.value);
-      case 'Suffix':
-        return name.endsWith(rule.value);
-      case 'Regex':
-        try {
-          return new RegExp(rule.value).test(name);
-        } catch {
-          return false;
-        }
-      default:
-        return false;
-    }
   }
 }

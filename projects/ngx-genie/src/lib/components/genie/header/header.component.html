@@ -36,6 +36,14 @@
   </div>
 
   <div class="header-right">
+    <a [href]="repoUrl"
+       target="_blank"
+       rel="noopener noreferrer"
+       class="github-link"
+       title="View on GitHub"
+       [innerHTML]="githubIcon">
+    </a>
+
     <div class="window-controls">
       <button class="control-btn minimize" (click)="maximize.emit()">
         {{ isMaximized() ? '❐' : '□' }}

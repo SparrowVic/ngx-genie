@@ -5,9 +5,10 @@
   <div class="content-layer">
     <canvas #canvas
             class="main-canvas"
-            (click)="onCanvasClick($event)"
-            (mousemove)="onCanvasMouseMove($event)"
-            (mouseleave)="onCanvasMouseLeave()">
+            (mousedown)="onMouseDown($event)"
+            (window:mouseup)="onMouseUp($event)"
+            (mousemove)="onMouseMove($event)"
+            (mouseleave)="onMouseLeave()">
     </canvas>
   </div>
 

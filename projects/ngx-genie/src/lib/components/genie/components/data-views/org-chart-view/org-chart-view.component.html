@@ -1,8 +1,12 @@
-<div class="genie-chart-container">
+<div class="genie-chart-container"
+     (mousedown)="onMouseDown($event)"
+     (window:mouseup)="onMouseUp()"
+     (mousemove)="onMouseMove($event)"
+     (wheel)="onWheel($event)">
 
   <div class="genie-grid-bg"></div>
 
-  <div class="zoom-wrapper" [style.transform]="transformStyle()">
+  <div class="zoom-wrapper" [style.transform]="currentTransform">
     <div class="genie-chart-tree">
       <ul>
         @for (node of filteredTree(); track node.id) {

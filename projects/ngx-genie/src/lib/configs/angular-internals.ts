@@ -85,20 +85,32 @@ export const ANGULAR_INTERNAL_COMMON_PIPES = new Set([
 
 // (TODO) --- SERVICES  --- //
 export const ANGULAR_CORE_SYSTEM = new Set([
+  // Refs
   'ElementRef',
   'ChangeDetectorRef',
   'ViewContainerRef',
-  'Injector',
   'TemplateRef',
   'ViewRef',
-  'Renderer2',
-  'Compiler',
   'NgModuleRef',
-  'NoneEncapsulationDomRenderer',
-  'OutputEmitterRef',
   'ApplicationRef',
   'PlatformRef',
-  'NgZone'
+  'OutputEmitterRef',
+
+  // Core Mechanics
+  'Injector',
+  'NodeInjector',
+  'Renderer2',
+  'Compiler',
+  'NoneEncapsulationDomRenderer',
+  'NgZone',
+  'QueryList',
+  'EventEmitter',
+  'EventEmitter_',
+
+  // Internal properties / Dump keys
+  '_NgZone',
+  'EventEmitter_',
+  'NodeInjector'
 ]);
 
 export const ANGULAR_FRAMEWORK_SERVICES = new Set([
@@ -112,9 +124,30 @@ export const ANGULAR_FRAMEWORK_SERVICES = new Set([
   'TransferState'
 ].map(item => `_${item}`));
 
+// --- RXJS --- //
+export const ANGULAR_INTERNAL_RXJS = new Set([
+  'Observable2',
+  'Subject2',
+  'BehaviorSubject2',
+]);
+
+// --- NATIVE BROWSER / JS OBJECTS --- //
+export const NATIVE_JS_ENTITIES = new Set([
+  'HTMLElement',
+  'HTMLDocument',
+  'Function',
+  'Window',
+  'Document',
+  'Array',
+  'Object',
+  'Promise'
+]);
+
 export const ANGULAR_INTERNALS = new Set([
   ...ANGULAR_INTERNAL_DIRECTIVES,
   ...ANGULAR_INTERNAL_COMMON_PIPES,
   ...ANGULAR_CORE_SYSTEM,
-  ...ANGULAR_FRAMEWORK_SERVICES
+  ...ANGULAR_FRAMEWORK_SERVICES,
+  ...ANGULAR_INTERNAL_RXJS,
+  ...NATIVE_JS_ENTITIES
 ]);

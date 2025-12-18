@@ -15,7 +15,7 @@ import {OrdersServiceFour} from './dashboard/orders.service4';
 import {OrdersServiceFive} from './dashboard/orders.service5';
 import {OrdersServiceSix} from './dashboard/orders.service6';
 import {AsyncPipe, DatePipe, DecimalPipe, TitleCasePipe, UpperCasePipe} from '@angular/common';
-import {from, of} from 'rxjs';
+import {BehaviorSubject, from, of, Subject} from 'rxjs';
 import {GenieComponent} from 'genie';
 import {THEME_SIGNAL, ThemeConsumer} from './dashboard/theme-consumer/theme-consumer';
 import {Router} from '@angular/router';
@@ -78,6 +78,9 @@ export const CONFIG_SIGNAL = new InjectionToken<Signal<number>>('ConfigSignal');
 export class App {
   test1$ = of('test1');
   test2$ = from(['test1', 'test2', 'test3']);
+
+  subject1$ = new Subject<number>();
+  behSubject1$ = new BehaviorSubject<string>('behavior subject 1');
 
   er = inject(ElementRef);
   r = inject(Renderer2);

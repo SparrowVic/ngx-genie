@@ -20,7 +20,7 @@ export class ConstellationMapper {
     width: number,
     height: number,
     showComponentTree: boolean,
-    currentRenderNodes: Map<string, RenderNode>
+    currentPositions: Map<string, { x: number, y: number }>
   ): MappedGraphData {
 
     const filteredTree = this._applyDeepSearch(tree, filterState);
@@ -46,7 +46,7 @@ export class ConstellationMapper {
       if (processedIds.has(id)) return;
       processedIds.add(id);
 
-      const existing = currentRenderNodes.get(id);
+      const existing = currentPositions.get(id);
       const isRootComponent = node.id === rootComponentId;
 
       const renderNode: RenderNode = {
@@ -159,7 +159,7 @@ export class ConstellationMapper {
         }
         processedIds.add(id);
 
-        const existing = currentRenderNodes.get(id);
+        const existing = currentPositions.get(id);
         const depType = svc.dependencyType || 'Service';
         const isRootScope = svc.isRoot || svc.token?.['ɵprov']?.providedIn === 'root';
         const isUnused = !usedProviderIds.has(svc.id);

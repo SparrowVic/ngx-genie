@@ -7,9 +7,24 @@ export interface FilterRule {
   type: 'Exact' | 'Prefix' | 'Suffix' | 'Regex';
 }
 
+export interface FilterStatus {
+  hidden: boolean;
+  reason?: 'Manual' | 'Rule' | 'System';
+  rule?: FilterRule;
+  detail?: string;
+}
+
 const STORAGE_KEY = 'genie_filters_config';
 
+
+const DEFAULT_RULES: FilterRule[] = [
+  {value: '_Prime', type: 'Prefix'},
+  {value: '_Mat', type: 'Prefix'},
+];
+
 interface PersistedState {
+  appName: string;
+  lastUpdated: number;
   customRules: FilterRule[];
   manualHidden: string[];
   manualShown: string[];
@@ -21,16 +36,13 @@ interface PersistedState {
 })
 export class GenFilterService {
 
-
   readonly customRules = signal<FilterRule[]>([]);
 
   private readonly manualHidden = signal<Set<string>>(new Set());
   private readonly manualShown = signal<Set<string>>(new Set());
   private readonly typeOverrides = signal<Map<string, GenieDependencyType>>(new Map());
 
-
-  private cache = new Map<string, { hidden: boolean, reason?: string, detail?: string }>();
-
+  private cache = new Map<string, FilterStatus>();
 
   readonly configChanged = computed(() => {
     this.customRules();
@@ -50,37 +62,39 @@ export class GenFilterService {
   }
 
 
-  checkFilterStatus(tokenName: string): { hidden: boolean, reason?: 'Manual' | 'Rule' | 'System', detail?: string } {
+  checkFilterStatus(tokenName: string): FilterStatus {
     if (!tokenName) return {hidden: false};
 
-
     if (this.manualShown().has(tokenName)) {
-      return {hidden: false, reason: 'Manual'};
+      return {hidden: false, reason: 'Manual', detail: 'User Shown'};
     }
-
 
     if (this.manualHidden().has(tokenName)) {
       return {hidden: true, reason: 'Manual', detail: 'User Hidden'};
     }
 
-
     for (const rule of this.customRules()) {
-      if (this.matchesRule(tokenName, rule)) {
-        return {hidden: true, reason: 'Rule', detail: `${rule.type}: ${rule.value}`};
+      if (this.testRule(tokenName, rule)) {
+        return {
+          hidden: true,
+          reason: 'Rule',
+          rule: rule,
+          detail: rule.value
+        };
       }
     }
-
 
     if (ANGULAR_INTERNALS.has(tokenName)) {
       return {hidden: true, reason: 'System', detail: 'Angular Framework'};
     }
 
-
     return {hidden: false};
   }
 
   isInternal(tokenName: string): boolean {
-    if (this.cache.has(tokenName)) return this.cache.get(tokenName)!.hidden;
+    if (this.cache.has(tokenName)) {
+      return this.cache.get(tokenName)!.hidden;
+    }
     const res = this.checkFilterStatus(tokenName);
     this.cache.set(tokenName, res);
     return res.hidden;
@@ -90,9 +104,11 @@ export class GenFilterService {
     return this.typeOverrides().get(tokenName) || null;
   }
 
-
   addRule(rule: FilterRule) {
-    this.customRules.update(rules => [...rules, rule]);
+    this.customRules.update(rules => {
+      const exists = rules.some(r => r.type === rule.type && r.value === rule.value);
+      return exists ? rules : [...rules, rule];
+    });
   }
 
   removeRule(ruleValue: string) {
@@ -121,15 +137,13 @@ export class GenFilterService {
   }
 
   resetToDefaults() {
-    this.customRules.set([]);
+    this.customRules.set([...DEFAULT_RULES]);
     this.manualHidden.set(new Set());
     this.manualShown.set(new Set());
     this.typeOverrides.set(new Map());
-    localStorage.removeItem(STORAGE_KEY);
   }
 
-
-  private matchesRule(name: string, rule: FilterRule): boolean {
+  public testRule(name: string, rule: FilterRule): boolean {
     switch (rule.type) {
       case 'Exact':
         return name === rule.value;
@@ -150,6 +164,8 @@ export class GenFilterService {
 
   private saveToStorage() {
     const state: PersistedState = {
+      appName: document.title || 'Unknown Genie App',
+      lastUpdated: Date.now(),
       customRules: this.customRules(),
       manualHidden: Array.from(this.manualHidden()),
       manualShown: Array.from(this.manualShown()),
@@ -161,7 +177,12 @@ export class GenFilterService {
   private loadFromStorage() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
+
+      if (!raw) {
+        this.resetToDefaults();
+        return;
+      }
+
       const data: PersistedState = JSON.parse(raw);
 
       if (data.customRules) this.customRules.set(data.customRules);
@@ -170,7 +191,8 @@ export class GenFilterService {
       if (data.typeOverrides) this.typeOverrides.set(new Map(Object.entries(data.typeOverrides)));
 
     } catch (e) {
-      console.warn('[Genie] Filter load error', e);
+      console.warn('[Genie] Filter load error - resetting to defaults', e);
+      this.resetToDefaults();
     }
   }
 }

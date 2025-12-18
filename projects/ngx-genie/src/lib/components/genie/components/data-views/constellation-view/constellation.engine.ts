@@ -105,6 +105,10 @@ export class ConstellationEngine {
     this._viewTransform = transform;
   }
 
+  getViewTransform() {
+    return {...this._viewTransform};
+  }
+
   updatePhysics(repulsion: number) {
     if (this._worker) {
       this._worker.postMessage({

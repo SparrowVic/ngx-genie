@@ -16,7 +16,6 @@ import {
 } from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {
-  GenieNode,
   GenieServiceRegistration,
   GenieTreeNode
 } from '../../../../../models/genie-node.model';
@@ -39,7 +38,6 @@ import {BASE_CELL_SIZE, BASE_HEADER_HEIGHT, BASE_ROW_WIDTH, FONT_FAMILY, THEME} 
     MatrixLoadingComponent,
     MatrixLegendComponent
   ],
-  providers: [MatrixDataService],
   templateUrl: './matrix-view.component.html',
   styleUrl: './matrix-view.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -63,7 +61,10 @@ export class GenieMatrixViewComponent implements OnInit, AfterViewInit, OnDestro
   readonly scrollerRef = viewChild.required<ElementRef<HTMLDivElement>>('virtualScroller');
 
   readonly isWorkerDone = this.dataService.isWorkerDone;
-  private readonly isAnimationDone = signal(false);
+
+
+  private readonly isAnimationDone = signal(this.dataService.isWorkerDone());
+
   readonly isLoading = computed(() => !this.isWorkerDone() || !this.isAnimationDone());
 
   readonly settings = signal<MatrixSettings>({rain: true, animation: true});
@@ -108,6 +109,15 @@ export class GenieMatrixViewComponent implements OnInit, AfterViewInit, OnDestro
       if (this.isWorkerDone()) {
         untracked(() => {
           this.updateVirtualDimensions();
+
+          if (this.scrollerRef()) {
+            const {scrollX, scrollY} = this.dataService.viewState;
+            this.scrollerRef().nativeElement.scrollTo(scrollX, scrollY);
+
+            this.scrollX = scrollX;
+            this.scrollY = scrollY;
+          }
+
           if (this.viewWidth > 0) {
             this.rainRenderer.resize(
               this.viewWidth,
@@ -124,6 +134,8 @@ export class GenieMatrixViewComponent implements OnInit, AfterViewInit, OnDestro
 
   ngOnInit() {
     this.dataService.initWorker();
+
+    this.scale = this.dataService.viewState.scale;
   }
 
   ngAfterViewInit() {
@@ -135,6 +147,12 @@ export class GenieMatrixViewComponent implements OnInit, AfterViewInit, OnDestro
   ngOnDestroy() {
     if (this.animationId) cancelAnimationFrame(this.animationId);
     this.resizeObserver?.disconnect();
+
+    this.dataService.saveViewState({
+      scale: this.scale,
+      scrollX: this.scrollX,
+      scrollY: this.scrollY
+    });
   }
 
   onLoadingAnimationComplete() {
@@ -150,7 +168,10 @@ export class GenieMatrixViewComponent implements OnInit, AfterViewInit, OnDestro
     this.scale = 1.0;
     if (this.scrollerRef()) {
       this.scrollerRef().nativeElement.scrollTo(0, 0);
+      this.scrollX = 0;
+      this.scrollY = 0;
     }
+    this.updateVirtualDimensions();
   }
 
   onScroll(event: Event) {

@@ -4,7 +4,15 @@ import {GenieFilterState} from '../../../options-panel/options-panel.models';
 import {GenieTreeNode, GenieServiceRegistration} from '../../../../../models/genie-node.model';
 import {MatrixWorkerResult, ProcessedColumn, ProcessedRow, matrixWorkerFn} from './matrix.worker';
 
-@Injectable()
+export interface MatrixViewState {
+  scale: number;
+  scrollX: number;
+  scrollY: number;
+}
+
+@Injectable({
+  providedIn: 'root'
+})
 export class MatrixDataService implements OnDestroy {
   private readonly registry = inject(GenieRegistryService);
   private readonly ngZone = inject(NgZone);
@@ -17,6 +25,17 @@ export class MatrixDataService implements OnDestroy {
   readonly columns = signal<ProcessedColumn[]>([]);
   readonly totalRows = signal(0);
   readonly totalCols = signal(0);
+
+
+  private _viewState: MatrixViewState = {scale: 1.0, scrollX: 0, scrollY: 0};
+
+  get viewState() {
+    return this._viewState;
+  }
+
+  saveViewState(state: MatrixViewState) {
+    this._viewState = state;
+  }
 
   initWorker() {
     if (typeof Worker !== 'undefined' && !this.worker) {
