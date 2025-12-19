@@ -60,7 +60,6 @@ export class InspectorPanelComponent {
 
   readonly closeSelection = output<void>();
   readonly selectService = output<GenieServiceRegistration>();
-  readonly toggleLiveWatch = output<void>();
   readonly consoleLog = output<void>();
 
 

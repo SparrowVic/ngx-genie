@@ -8,8 +8,9 @@ import {
   NgZone,
   OnDestroy,
   viewChild,
-  signal, effect, untracked, ViewEncapsulation
+  signal, effect, untracked, ViewEncapsulation, PLATFORM_ID
 } from '@angular/core';
+import {isPlatformBrowser} from '@angular/common';
 
 import {GenieServiceRegistration, GenieTreeNode} from '../../../../../models/genie-node.model';
 import {GenieRegistryService} from '../../../../../services/genie-registry.service';
@@ -22,6 +23,8 @@ import {ConstellationEngine} from './constellation.engine';
 import {ConstellationMapper} from './constellation.mapper';
 import {GenieFilterState} from '../../../options-panel/options-panel.models';
 import {ConstellationStateService} from './constellation-state.service';
+
+const STORAGE_KEY_CONSTELLATION_MODE = 'genie_constellation_show_component_tree';
 
 @Component({
   selector: 'lib-constellation-view',
@@ -41,6 +44,8 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   private registry = inject(GenieRegistryService);
   private ngZone = inject(NgZone);
   private stateService = inject(ConstellationStateService);
+  private platformId = inject(PLATFORM_ID);
+  private isBrowser = isPlatformBrowser(this.platformId);
 
   readonly tree = input<GenieTreeNode[]>([]);
   readonly filterState = input<GenieFilterState | null>(null);
@@ -54,7 +59,7 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   readonly hoveredNode = signal<RenderNode | null>(null);
 
   readonly isPaused = signal(false);
-  readonly showComponentTree = signal(false);
+  readonly showComponentTree = signal(this.loadComponentTreeState());
   readonly animationsEnabled = signal(true);
   readonly repulsionValue = signal(400);
   readonly focusModeEnabled = signal(true);
@@ -81,6 +86,11 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
           this.updateGraphData();
         }
       });
+    });
+
+    effect(() => {
+      const showTree = this.showComponentTree();
+      this.saveComponentTreeState(showTree);
     });
   }
 
@@ -294,5 +304,24 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
       x: event.clientX - rect.left,
       y: event.clientY - rect.top - 20
     });
+  }
+
+  private loadComponentTreeState(): boolean {
+    if (!this.isBrowser) return false;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_CONSTELLATION_MODE);
+      return stored !== null ? stored === 'true' : false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  private saveComponentTreeState(showTree: boolean): void {
+    if (!this.isBrowser) return;
+    try {
+      localStorage.setItem(STORAGE_KEY_CONSTELLATION_MODE, String(showTree));
+    } catch (e) {
+      console.warn('Genie: Failed to save constellation mode state', e);
+    }
   }
 }

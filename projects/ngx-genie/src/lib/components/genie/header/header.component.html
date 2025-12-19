@@ -36,6 +36,16 @@
   </div>
 
   <div class="header-right">
+    <button
+      class="live-toggle"
+      [class.active]="isLiveWatch()"
+      [attr.aria-pressed]="isLiveWatch()"
+      (click)="toggleLiveWatch.emit()"
+      title="{{ isLiveWatch() ? 'Turn off live' : 'Turn on live' }}">
+      <span class="pulse-dot"></span>
+      <span class="label">{{ isLiveWatch() ? 'LIVE' : 'SNAP' }}</span>
+    </button>
+
     <a [href]="repoUrl"
        target="_blank"
        rel="noopener noreferrer"
