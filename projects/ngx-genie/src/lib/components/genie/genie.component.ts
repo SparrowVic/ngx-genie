@@ -7,9 +7,9 @@ import {
   ViewChild,
   effect,
   computed,
-  OnDestroy, ViewEncapsulation
+  OnDestroy, ViewEncapsulation, PLATFORM_ID
 } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
+import {DOCUMENT, isPlatformBrowser} from '@angular/common';
 import {interval, Subscription} from 'rxjs';
 
 import {GenieConfig} from '../../models/genie-config.model';
@@ -47,7 +47,7 @@ interface GenieLayoutState {
     ViewportComponent,
     OptionsPanelComponent,
     InspectorPanelComponent
-],
+  ],
   providers: [GenieExplorerStateService],
   templateUrl: './genie.component.html',
   styleUrl: './genie.component.scss',
@@ -59,10 +59,12 @@ export class GenieComponent implements OnDestroy {
   readonly state = inject(GenieExplorerStateService);
   readonly config: GenieConfig = inject(GENIE_CONFIG);
   private readonly document = inject(DOCUMENT);
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly isBrowser = isPlatformBrowser(this.platformId);
 
   @ViewChild('windowRef') windowRef!: ElementRef<HTMLElement>;
 
-  private readonly initialState = this.loadLayoutState();
+  private readonly initialState = this.isBrowser ? this.loadLayoutState() : this.getDefaultLayoutState();
 
   readonly visible = signal<boolean>(this.config.visibleOnStart);
 
@@ -97,7 +99,7 @@ export class GenieComponent implements OnDestroy {
   private _saveTimeout: any = null;
 
   constructor() {
-    if (this.config.enabled && this.config.hotkey) {
+    if (this.isBrowser && this.config.enabled && this.config.hotkey) {
       this._keyListener = (event: KeyboardEvent) => {
         if (event.key === this.config.hotkey) {
           event.preventDefault();
@@ -122,7 +124,7 @@ export class GenieComponent implements OnDestroy {
   }
 
   ngOnDestroy() {
-    if (this._keyListener) {
+    if (this.isBrowser && this._keyListener) {
       window.removeEventListener('keydown', this._keyListener);
     }
   }
@@ -153,6 +155,8 @@ export class GenieComponent implements OnDestroy {
   }
 
   logToConsole() {
+    if (!this.isBrowser) return;
+
     const svc = this.state.selectedService();
     if (svc?.instance) {
       console.log(`%c[Genie] Exported ${svc.label}:`, 'color: #3b82f6; font-weight: bold;', svc.instance);
@@ -268,6 +272,8 @@ export class GenieComponent implements OnDestroy {
   }
 
   private saveLayoutState() {
+    if (!this.isBrowser) return;
+
     const state: GenieLayoutState = {
       x: this.windowPosition().x,
       y: this.windowPosition().y,
@@ -287,6 +293,8 @@ export class GenieComponent implements OnDestroy {
   }
 
   private loadLayoutState(): GenieLayoutState {
+    if (!this.isBrowser) return this.getDefaultLayoutState();
+
     const defaultState: GenieLayoutState = {
       x: 40,
       y: 40,
@@ -309,5 +317,13 @@ export class GenieComponent implements OnDestroy {
     }
 
     return defaultState;
+  }
+
+  private getDefaultLayoutState(): GenieLayoutState {
+    return {
+      x: 40, y: 40, width: 1200, height: 800,
+      isMaximized: false, optionsWidth: 350, inspectorWidth: 400,
+      optionsCollapsed: false, inspectorCollapsed: false
+    };
   }
 }
