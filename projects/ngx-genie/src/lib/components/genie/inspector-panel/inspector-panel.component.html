@@ -100,8 +100,7 @@
         [state]="serviceState()"
         [path]="injectionPath()"
         [isLiveWatch]="isLiveWatch()"
-        (consoleLog)="consoleLog.emit()"
-        (toggleLive)="toggleLiveWatch.emit()">
+        (consoleLog)="consoleLog.emit()">
       </lib-inspector-provider-details>
     } @else {
       <div class="empty-details">

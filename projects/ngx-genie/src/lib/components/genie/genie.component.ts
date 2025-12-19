@@ -5,12 +5,10 @@ import {
   inject,
   signal,
   ViewChild,
-  effect,
   computed,
   OnDestroy, ViewEncapsulation, PLATFORM_ID
 } from '@angular/core';
 import {DOCUMENT, isPlatformBrowser} from '@angular/common';
-import {interval, Subscription} from 'rxjs';
 
 import {GenieConfig} from '../../models/genie-config.model';
 import {GENIE_CONFIG} from '../../tokens/genie-config.token';
@@ -93,7 +91,6 @@ export class GenieComponent implements OnDestroy {
   private _lastOptionsWidth = 250;
   private _lastInspectorWidth = 400;
   private readonly _COLLAPSED_WIDTH = 24;
-  private _liveSub: Subscription | null = null;
   private _keyListener: ((e: KeyboardEvent) => void) | null = null;
 
   private _saveTimeout: any = null;
@@ -108,19 +105,6 @@ export class GenieComponent implements OnDestroy {
       };
       window.addEventListener('keydown', this._keyListener);
     }
-
-    effect(() => {
-      if (this.state.isLiveWatch()) {
-        this._liveSub = interval(500).subscribe(() =>
-          this.state.refreshTrigger.update(v => v + 1)
-        );
-      } else {
-        if (this._liveSub) {
-          this._liveSub.unsubscribe();
-          this._liveSub = null;
-        }
-      }
-    });
   }
 
   ngOnDestroy() {

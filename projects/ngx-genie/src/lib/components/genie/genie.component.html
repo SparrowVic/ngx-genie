@@ -14,7 +14,9 @@
       [stats]="state.stats()"
       [searchQuery]="state.searchQuery()"
       [isMaximized]="isMaximized()"
+      [isLiveWatch]="state.isLiveWatch()"
       (searchQueryChange)="updateSearch($event)"
+      (toggleLiveWatch)="toggleLiveWatch()"
       (maximize)="toggleMaximize()"
       (close)="closeWindow()"
       (dragStart)="startWindowDrag($event)"
@@ -83,7 +85,6 @@
             [filterState]="state.filterState()"
             (closeSelection)="state.clearSelection()"
             (selectService)="state.selectedService.set($event)"
-            (toggleLiveWatch)="toggleLiveWatch()"
             (consoleLog)="logToConsole()">
           </lib-inspector-panel>
         </aside>

@@ -39,7 +39,6 @@ export class InspectorProviderDetailsComponent {
   snapshotHeight = signal(300);
 
   consoleLog = output<void>();
-  toggleLive = output<void>();
 
 
   readonly HEADER_HEIGHT = 34;
