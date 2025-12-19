@@ -16,7 +16,7 @@ import {DumpDirOne} from '../../directives/dump-dir-one';
 import {DumpDirTwoStd} from '../../directives/dump-dir-two-std';
 import {DumpPipeOnePipe} from '../../pipes/dump-pipe-one-pipe';
 import {DumpPipeTwoStdPipe} from '../../pipes/dump-pipe-two-std-pipe';
-import {NgIf} from '@angular/common';
+
 import {of} from 'rxjs';
 
 @Component({
@@ -24,47 +24,49 @@ import {of} from 'rxjs';
   selector: 'app-dashboard-shell',
   template: `
     <h2>Dashboard Shell</h2>
-
+    
     @if (true) {
       <div>TRUE IF TEST</div>
     }
-
-
-    <div *ngIf="true">ngIf TEST</div>
-
+    
+    
+    @if (true) {
+      <div>ngIf TEST</div>
+    }
+    
     <div class="row">
       <section>
         <h3>Orders</h3>
         <app-orders-list></app-orders-list>
       </section>
-
+    
       <section>
         <h3>Users</h3>
         <app-users-list></app-users-list>
       </section>
-
+    
       <section>
         <h3>Factory</h3>
         <app-factory></app-factory>
       </section>
-
+    
       <section>
         <h3 appDumpDirOne>Cars</h3>
         <app-cars></app-cars>
       </section>
-
+    
       <section>
         <h3>Colors {{ 'asd' | dumpPipeTwoStd }}</h3>
         <app-colors></app-colors>
       </section>
     </div>
-
-
+    
+    
     <app-colors></app-colors>
     <app-colors></app-colors>
     <app-colors></app-colors>
-  `,
-  imports: [OrdersListComponent, UsersListComponent, Factory, Cars, Colors, DumpPipeTwoStdPipe, DumpDirOne, NgIf],
+    `,
+  imports: [OrdersListComponent, UsersListComponent, Factory, Cars, Colors, DumpPipeTwoStdPipe, DumpDirOne],
   providers: [
     DashboardShellService,
     OrdersService,

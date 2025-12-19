@@ -7,7 +7,7 @@ import {
   signal,
   isSignal, ViewEncapsulation
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 
 type DataType =
   'string'
@@ -33,7 +33,7 @@ interface TreeItem {
 @Component({
   selector: 'lib-json-tree',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './json-tree.component.html',
   styleUrl: './json-tree.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

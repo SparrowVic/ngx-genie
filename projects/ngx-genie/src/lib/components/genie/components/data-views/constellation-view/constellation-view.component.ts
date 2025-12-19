@@ -10,7 +10,7 @@ import {
   viewChild,
   signal, effect, untracked, ViewEncapsulation
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {GenieServiceRegistration, GenieTreeNode} from '../../../../../models/genie-node.model';
 import {GenieRegistryService} from '../../../../../services/genie-registry.service';
 import {ConstellationModeSwitchComponent} from './constellation-mode-switch/constellation-mode-switch.component';
@@ -27,12 +27,11 @@ import {ConstellationStateService} from './constellation-state.service';
   selector: 'lib-constellation-view',
   standalone: true,
   imports: [
-    CommonModule,
     ConstellationModeSwitchComponent,
     ConstellationControlsComponent,
     ConstellationLegendComponent,
     ConstellationTooltipComponent
-  ],
+],
   templateUrl: './constellation-view.component.html',
   styleUrl: './constellation-view.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

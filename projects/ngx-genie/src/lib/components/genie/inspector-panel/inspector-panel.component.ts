@@ -8,7 +8,7 @@ import {
   output,
   signal, ViewEncapsulation,
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {FormsModule} from '@angular/forms';
 import {GenieResizableDirective} from '../../../shared/directives/resizable/resizable.directive';
 import {
@@ -26,13 +26,12 @@ import {GenieFilterState} from '../options-panel/options-panel.models';
   selector: 'lib-inspector-panel',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     GenieResizableDirective,
     InspectorToolbarComponent,
     InspectorProvidersListComponent,
     InspectorProviderDetailsComponent
-  ],
+],
   providers: [InspectorStateService],
   templateUrl: './inspector-panel.component.html',
   styleUrl: './inspector-panel.component.scss',

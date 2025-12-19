@@ -9,7 +9,7 @@ import {
   computed,
   OnDestroy, ViewEncapsulation
 } from '@angular/core';
-import {CommonModule, DOCUMENT} from '@angular/common';
+import { DOCUMENT } from '@angular/common';
 import {interval, Subscription} from 'rxjs';
 
 import {GenieConfig} from '../../models/genie-config.model';
@@ -42,13 +42,12 @@ interface GenieLayoutState {
   standalone: true,
   selector: 'ngx-genie',
   imports: [
-    CommonModule,
     GenieResizableDirective,
     HeaderComponent,
     ViewportComponent,
     OptionsPanelComponent,
-    InspectorPanelComponent,
-  ],
+    InspectorPanelComponent
+],
   providers: [GenieExplorerStateService],
   templateUrl: './genie.component.html',
   styleUrl: './genie.component.scss',

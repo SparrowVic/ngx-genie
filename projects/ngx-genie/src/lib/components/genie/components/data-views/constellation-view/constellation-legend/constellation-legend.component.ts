@@ -1,10 +1,10 @@
 import {ChangeDetectionStrategy, Component, signal, ViewEncapsulation} from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 
 @Component({
   selector: 'lib-constellation-legend',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './constellation-legend.component.html',
   styleUrl: './constellation-legend.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

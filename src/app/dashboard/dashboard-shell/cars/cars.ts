@@ -1,19 +1,20 @@
 import {Component} from '@angular/core';
-import {NgForOf, NgIf} from '@angular/common';
+
 import {interval, Subscription} from 'rxjs';
 
 @Component({
   standalone: true,
   selector: 'app-cars',
-  imports: [
-    NgForOf,
-    NgIf
-  ],
+  imports: [],
   template: `
     <p>cars works!</p>
-    <div *ngFor="let i of [1,1,1]">ngFor test</div>
-    <div *ngIf="true">ngIf test</div>
-  `
+    @for (i of [1,1,1]; track i) {
+      <div>ngFor test</div>
+    }
+    @if (true) {
+      <div>ngIf test</div>
+    }
+    `
 })
 export class Cars {
   // @ts-ignore

@@ -4,7 +4,7 @@ import {
   signal,
   input, output, effect, untracked, ViewEncapsulation
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {FormsModule} from '@angular/forms';
 import {GenieServiceRegistration, GenieNode} from '../../../models/genie-node.model';
 import {GenieFilterState, MatchMode, SearchMode} from './options-panel.models';
@@ -28,7 +28,6 @@ import {GenOptionsPanelFiltersComponent} from './options-panel-filters/options-p
   selector: 'lib-options-panel',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     OptionsPanelControlsComponent,
     OptionsPanelProviderTypesComponent,
@@ -36,8 +35,8 @@ import {GenOptionsPanelFiltersComponent} from './options-panel-filters/options-p
     OptionsPanelScopeLifetimeComponent,
     OptionsPanelComplexityFilterComponent,
     OptionsPanelDeepSearchComponent,
-    GenOptionsPanelFiltersComponent,
-  ],
+    GenOptionsPanelFiltersComponent
+],
   templateUrl: './options-panel.component.html',
   styleUrl: './options-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

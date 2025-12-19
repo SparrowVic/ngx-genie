@@ -1,6 +1,6 @@
 import {Component} from '@angular/core';
 import {Cars} from '../cars/cars';
-import {NgForOf} from '@angular/common';
+
 import {OrdersService} from '../../orders.service';
 import {OrdersServiceTwo} from '../../orders.service2';
 import {OrdersServiceThree} from '../../orders.service3';
@@ -9,16 +9,17 @@ import {OrdersServiceThree} from '../../orders.service3';
   standalone: true,
   selector: 'app-colors',
   imports: [
-    Cars,
-    NgForOf
-  ],
+    Cars
+],
   template: `
     <p>colors works!</p>
-
+    
     <app-cars></app-cars>
-
-    <div *ngFor="let i of [1,1,1]">ngFor test</div>
-  `
+    
+    @for (i of [1,1,1]; track i) {
+      <div>ngFor test</div>
+    }
+    `
 })
 export class Colors {
 
