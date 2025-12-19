@@ -70,10 +70,10 @@ export class InspectorPanelComponent {
 
   constructor() {
 
-    effect(() => this.state.nodeServices.set(this.nodeServices()), {allowSignalWrites: true});
-    effect(() => this.state.dependencies.set(this.dependencies()), {allowSignalWrites: true});
-    effect(() => this.state.selectedService.set(this.selectedService()), {allowSignalWrites: true});
-    effect(() => this.state.filterState.set(this.filterState()), {allowSignalWrites: true});
+    effect(() => this.state.nodeServices.set(this.nodeServices()));
+    effect(() => this.state.dependencies.set(this.dependencies()));
+    effect(() => this.state.selectedService.set(this.selectedService()));
+    effect(() => this.state.filterState.set(this.filterState()));
   }
 
 

@@ -77,7 +77,7 @@ export class ViewportComponent {
     effect(() => {
       this.viewMode();
       this.resetTransform();
-    }, {allowSignalWrites: true});
+    });
   }
 
   setMode(mode: GenieViewMode) {

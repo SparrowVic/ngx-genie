@@ -1,6 +1,7 @@
-import {Injectable, signal, effect, computed} from '@angular/core';
+import {Injectable, signal, effect, computed, inject, PLATFORM_ID} from '@angular/core';
 import {ANGULAR_INTERNALS} from '../configs/angular-internals';
 import {GenieDependencyType} from '../models/genie-node.model';
+import {isPlatformBrowser} from '@angular/common';
 
 export interface FilterRule {
   value: string;
@@ -35,6 +36,7 @@ interface PersistedState {
   providedIn: 'root'
 })
 export class GenFilterService {
+  private platformId = inject(PLATFORM_ID);
 
   readonly customRules = signal<FilterRule[]>([]);
 
@@ -163,6 +165,10 @@ export class GenFilterService {
   }
 
   private saveToStorage() {
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
+
     const state: PersistedState = {
       appName: document.title || 'Unknown Genie App',
       lastUpdated: Date.now(),
@@ -175,6 +181,11 @@ export class GenFilterService {
   }
 
   private loadFromStorage() {
+    if (!isPlatformBrowser(this.platformId)) {
+      this.resetToDefaults();
+      return;
+    }
+
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
 

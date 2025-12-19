@@ -97,7 +97,7 @@ export class OptionsPanelComponent {
           this._maxDeps.set(detectedMax);
         }
       });
-    }, {allowSignalWrites: true});
+    });
 
     effect(() => {
       const state: GenieFilterState = {

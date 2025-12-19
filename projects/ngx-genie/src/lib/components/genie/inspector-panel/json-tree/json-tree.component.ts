@@ -72,7 +72,7 @@ export class JsonTreeComponent {
       if (this.isRoot()) {
         this._expanded.set(true);
       }
-    }, {allowSignalWrites: true});
+    });
   }
 
   toggle() {
