@@ -1,26 +1,27 @@
-import {Routes} from '@angular/router';
-import {AppShellComponent} from './layout/app-shell';
-import {ArchitecturePageComponent} from './pages/architecture.page';
-import {DiagnosticsPageComponent} from './pages/diagnostics.page';
-import {GettingStartedPageComponent} from './pages/getting-started.page';
-import {InspectorPageComponent} from './pages/inspector.page';
-import {NotFoundPageComponent} from './pages/not-found.page';
-import {OverviewPageComponent} from './pages/overview.page';
-import {ViewsPageComponent} from './pages/views.page';
+import { Routes } from '@angular/router';
+import { NavComponent } from './layout/nav.component';
 
 export const routes: Routes = [
   {
     path: '',
-    component: AppShellComponent,
+    component: NavComponent,
     children: [
-      {path: '', pathMatch: 'full', redirectTo: 'overview'},
-      {path: 'overview', component: OverviewPageComponent},
-      {path: 'getting-started', component: GettingStartedPageComponent},
-      {path: 'views', component: ViewsPageComponent},
-      {path: 'inspector', component: InspectorPageComponent},
-      {path: 'diagnostics', component: DiagnosticsPageComponent},
-      {path: 'architecture', component: ArchitecturePageComponent},
-      {path: '**', component: NotFoundPageComponent}
+      {
+        path: '',
+        loadComponent: () => import('./pages/home.page').then(m => m.HomePage)
+      },
+      {
+        path: 'features',
+        loadComponent: () => import('./pages/features.page').then(m => m.FeaturesPage)
+      },
+      {
+        path: 'playground',
+        loadComponent: () => import('./pages/playground.page').then(m => m.PlaygroundPage)
+      },
+      {
+        path: 'docs',
+        loadComponent: () => import('./pages/docs.page').then(m => m.DocsPage)
+      }
     ]
   }
 ];
