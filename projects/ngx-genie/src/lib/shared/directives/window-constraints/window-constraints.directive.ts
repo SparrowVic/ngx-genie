@@ -1,4 +1,4 @@
-import {Directive, ElementRef, EventEmitter, inject, Input, Output, PLATFORM_ID} from '@angular/core';
+import {Directive, ElementRef, inject, input, output, PLATFORM_ID} from '@angular/core';
 import {DOCUMENT, isPlatformBrowser} from '@angular/common';
 
 export type WindowControlMode = 'drag' | 'resize';
@@ -44,35 +44,17 @@ export class GenieWindowConstraintsDirective {
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
 
-  /** Operation mode: 'drag' for moving window, 'resize' for changing size */
-  @Input() mode: WindowControlMode = 'drag';
+  readonly mode = input<WindowControlMode>('drag');
+  readonly windowPosition = input.required<WindowPosition>();
+  readonly windowSize = input.required<WindowSize>();
+  readonly isMaximized = input<boolean>(false);
+  readonly minVisibleMargin = input<number>(50);
+  readonly minWidth = input<number>(600);
+  readonly minHeight = input<number>(400);
 
-  /** Current window position */
-  @Input() windowPosition!: WindowPosition;
-
-  /** Current window size */
-  @Input() windowSize!: WindowSize;
-
-  /** Disable operations when window is maximized */
-  @Input() isMaximized = false;
-
-  /** Minimum pixels of window that must remain visible (for drag mode) */
-  @Input() minVisibleMargin = 50;
-
-  /** Minimum window width (for resize mode) */
-  @Input() minWidth = 600;
-
-  /** Minimum window height (for resize mode) */
-  @Input() minHeight = 400;
-
-  /** Emits new position when dragging (drag mode only) */
-  @Output() positionChange = new EventEmitter<WindowPosition>();
-
-  /** Emits new size when resizing (resize mode only) */
-  @Output() sizeChange = new EventEmitter<WindowSize>();
-
-  /** Emits when operation ends (both modes) */
-  @Output() operationEnd = new EventEmitter<void>();
+  readonly positionChange = output<WindowPosition>();
+  readonly sizeChange = output<WindowSize>();
+  readonly operationEnd = output<void>();
 
   constructor(private elementRef: ElementRef<HTMLElement>) {
     if (!this.isBrowser) return;
@@ -83,20 +65,18 @@ export class GenieWindowConstraintsDirective {
   }
 
   private onMouseDown(event: MouseEvent): void {
-    if (this.isMaximized) return;
+    if (this.isMaximized()) return;
 
-    // For drag mode, check if clicking on interactive elements
-    if (this.mode === 'drag') {
+    if (this.mode() === 'drag') {
       if ((event.target as HTMLElement).closest('button, input, a')) return;
     }
 
-    // For resize mode, prevent default and stop propagation
-    if (this.mode === 'resize') {
+    if (this.mode() === 'resize') {
       event.stopPropagation();
       event.preventDefault();
     }
 
-    if (this.mode === 'drag') {
+    if (this.mode() === 'drag') {
       this.startDrag(event);
     } else {
       this.startResize(event);
@@ -106,27 +86,25 @@ export class GenieWindowConstraintsDirective {
   private startDrag(event: MouseEvent): void {
     const startX = event.clientX;
     const startY = event.clientY;
-    const {x, y} = this.windowPosition;
+    const {x, y} = this.windowPosition();
 
     const mouseMoveHandler = (e: MouseEvent) => {
       const newX = x + (e.clientX - startX);
       const newY = y + (e.clientY - startY);
 
-      // Get viewport and window dimensions
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      const windowWidth = this.windowSize.width;
-      const windowHeight = this.windowSize.height;
+      const windowWidth = this.windowSize().width;
+      const windowHeight = this.windowSize().height;
 
-      // Constrain position to keep window within viewport
-      // At least minVisibleMargin pixels of window must be visible
+      const minMargin = this.minVisibleMargin();
       const constrainedX = Math.max(
-        this.minVisibleMargin - windowWidth, // Left boundary
-        Math.min(newX, viewportWidth - this.minVisibleMargin) // Right boundary
+        minMargin - windowWidth,
+        Math.min(newX, viewportWidth - minMargin)
       );
       const constrainedY = Math.max(
-        0, // Top boundary
-        Math.min(newY, viewportHeight - this.minVisibleMargin) // Bottom boundary
+        0,
+        Math.min(newY, viewportHeight - minMargin)
       );
 
       this.positionChange.emit({
@@ -148,19 +126,17 @@ export class GenieWindowConstraintsDirective {
   private startResize(event: MouseEvent): void {
     const startX = event.clientX;
     const startY = event.clientY;
-    const startW = this.windowSize.width;
-    const startH = this.windowSize.height;
+    const startW = this.windowSize().width;
+    const startH = this.windowSize().height;
 
     const mouseMoveHandler = (e: MouseEvent) => {
-      const newWidth = Math.max(this.minWidth, startW + (e.clientX - startX));
-      const newHeight = Math.max(this.minHeight, startH + (e.clientY - startY));
+      const newWidth = Math.max(this.minWidth(), startW + (e.clientX - startX));
+      const newHeight = Math.max(this.minHeight(), startH + (e.clientY - startY));
 
-      // Get viewport dimensions and current window position
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      const {x, y} = this.windowPosition;
+      const {x, y} = this.windowPosition();
 
-      // Constrain size to prevent window from extending beyond viewport
       const maxWidth = viewportWidth - x;
       const maxHeight = viewportHeight - y;
 

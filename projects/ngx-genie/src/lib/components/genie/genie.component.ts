@@ -9,17 +9,14 @@ import {
   OnDestroy, ViewEncapsulation, PLATFORM_ID
 } from '@angular/core';
 import {DOCUMENT, isPlatformBrowser} from '@angular/common';
-
 import {GenieConfig} from '../../models/genie-config.model';
 import {GENIE_CONFIG} from '../../tokens/genie-config.token';
 import {GenieResizableDirective} from '../../shared/directives/resizable/resizable.directive';
 import {GenieWindowConstraintsDirective} from '../../shared/directives/window-constraints/window-constraints.directive';
-
 import {HeaderComponent} from './header/header.component';
 import {GenieViewMode, ViewportComponent} from './viewport/viewport.component';
 import {OptionsPanelComponent} from './options-panel/options-panel.component';
 import {InspectorPanelComponent} from './inspector-panel/inspector-panel.component';
-
 import {GenieExplorerStateService} from './explorer-state.service';
 import {GenieFilterState} from './options-panel/options-panel.models';
 
@@ -160,11 +157,11 @@ export class GenieComponent implements OnDestroy {
   selectDependency = (s: any) => this.state.selectDependency(s);
   selectNode = (n: any) => this.state.selectNode(n);
 
-  onWindowPositionChange(position: {x: number; y: number}): void {
+  onWindowPositionChange(position: { x: number; y: number }): void {
     this.windowPosition.set(position);
   }
 
-  onWindowSizeChange(size: {width: number; height: number}): void {
+  onWindowSizeChange(size: { width: number; height: number }): void {
     this.windowSize.set(size);
   }
 
