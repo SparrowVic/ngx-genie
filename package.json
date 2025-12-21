@@ -7,7 +7,8 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "build:genie": "npm run gen:svg-to-ts --prefix projects/ngx-genie && ng build genie"
+    "build:genie": "npm run gen:svg-to-ts --prefix projects/ngx-genie && ng build genie",
+    "build:demo": "ng build ngx-genie-demo --configuration demo"
   },
   "prettier": {
     "printWidth": 100,

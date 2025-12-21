@@ -31,6 +31,13 @@
             ]
           },
           "configurations": {
+            "demo": {
+              "optimization": false,
+              "sourceMap": true,
+              "extractLicenses": false,
+              "namedChunks": true,
+              "outputHashing": "none"
+            },
             "production": {
               "budgets": [
                 {
