@@ -76,6 +76,10 @@ yarn add ngx-genie --dev
 
 ### Configuration
 
+GenieOS supports both **standalone** and **NgModule-based** Angular applications.
+
+#### Option 1: Standalone Applications (recommended)
+
 Add the provider to your application configuration (`app.config.ts`):
 
 ```ts
@@ -93,15 +97,43 @@ export const appConfig: ApplicationConfig = {
 };
 ```
 
+#### Option 2: NgModule-based Applications
+
+Import `GenieModule.forRoot()` in your root `AppModule`:
+
+```ts
+import {NgModule} from '@angular/core';
+import {BrowserModule} from '@angular/platform-browser';
+import {GenieModule} from 'ngx-genie';
+
+import {AppComponent} from './app.component';
+
+@NgModule({
+  declarations: [AppComponent],
+  imports: [
+    BrowserModule,
+    GenieModule.forRoot({
+      hotkey: 'F1',          // default: F1
+      enabled: true,         // default: true
+      visibleOnStart: false  // default: true
+    })
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule {}
+```
+
+---
+
 ## 🧩 Adding the panel component (`<ngx-genie />`)
 
 Configuring providers alone is **not sufficient** to display the GenieOS interface.
 
 To render the debugger panel in the application, you must add the **`<ngx-genie />`** component to the component tree, typically in the **`AppComponent`**.
 
-### Example: `app.component.ts`
+### Standalone Components
 
-If your application uses **Standalone Components**, import the GenieOS component directly:
+If your application uses **Standalone Components**, import the `GenieComponent` directly:
 
 ```ts
 import {Component} from '@angular/core';
@@ -113,11 +145,25 @@ import {GenieComponent} from 'ngx-genie';
   imports: [GenieComponent],
   templateUrl: './app.component.html'
 })
-export class AppComponent {
-}
+export class AppComponent {}
 ```
 
-### Example: `app.component.html`
+### NgModule-based Components
+
+If you're using `GenieModule.forRoot()`, the component is already available in your module. 
+Simply add it to your template:
+
+```ts
+import {Component} from '@angular/core';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html'
+})
+export class AppComponent {}
+```
+
+### Template (`app.component.html`)
 
 Add the GenieOS component anywhere in the template (recommended at the end):
 

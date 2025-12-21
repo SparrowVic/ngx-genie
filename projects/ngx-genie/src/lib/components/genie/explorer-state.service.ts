@@ -1,4 +1,5 @@
-import {computed, inject, Injectable, signal} from '@angular/core';
+import {computed, effect, inject, Injectable, signal, DestroyRef, PLATFORM_ID, isSignal, untracked} from '@angular/core';
+import {isPlatformBrowser} from '@angular/common';
 import {GenieRegistryService} from '../../services/genie-registry.service';
 import {GenieServiceRegistration, GenieTreeNode} from '../../models/genie-node.model';
 import {buildGenieTree} from '../../utils/genie-tree.util';
@@ -6,9 +7,15 @@ import {GenieFilterState} from './options-panel/options-panel.models';
 
 export type GenieViewType = 'tree' | 'org' | 'matrix' | 'constellation' | 'diagnostics';
 
+const STORAGE_KEY_LIVE_WATCH = 'genie_live_watch_enabled';
+
 @Injectable()
 export class GenieExplorerStateService {
   private readonly registry = inject(GenieRegistryService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly isBrowser = isPlatformBrowser(this.platformId);
+  private liveTimer: any = null;
 
   readonly nodes = computed(() => this.registry.nodes());
   readonly services = computed(() => this.registry.services());
@@ -61,7 +68,7 @@ export class GenieExplorerStateService {
   readonly selectedService = signal<GenieServiceRegistration | null>(null);
 
   readonly searchQuery = signal<string>('');
-  readonly isLiveWatch = signal<boolean>(false);
+  readonly isLiveWatch = signal<boolean>(this._loadLiveWatchState());
   readonly isDeepFocusMode = signal<boolean>(false);
   readonly refreshTrigger = signal<number>(0);
 
@@ -102,6 +109,48 @@ export class GenieExplorerStateService {
 
   readonly expandedIds = signal<Set<number>>(new Set<number>());
 
+  constructor() {
+    effect(() => {
+      const svc = this.selectedService();
+      if (!svc || !svc.instance) {
+        this._snapshotCache.set({error: 'No instance available'});
+        return;
+      }
+      this._snapshotCache.set(this._safeScan(svc.instance));
+    });
+
+    effect(() => {
+      this.refreshTrigger();
+      if (!this.isLiveWatch()) return;
+      const svc = this.selectedService();
+      if (!svc || !svc.instance) return;
+      this._snapshotCache.set(this._safeScan(svc.instance));
+    });
+
+    effect(() => {
+      if (this.isLiveWatch()) {
+        if (this.liveTimer) clearInterval(this.liveTimer);
+        this.liveTimer = setInterval(() => {
+          this.refreshTrigger.update(v => v + 1);
+        }, 500);
+      } else {
+        if (this.liveTimer) {
+          clearInterval(this.liveTimer);
+          this.liveTimer = null;
+        }
+      }
+    });
+
+    effect(() => {
+      const isLive = this.isLiveWatch();
+      this._saveLiveWatchState(isLive);
+    });
+
+    this.destroyRef.onDestroy(() => {
+      if (this.liveTimer) clearInterval(this.liveTimer);
+    });
+  }
+
   readonly filteredTree = computed<GenieTreeNode[]>(() => {
     return this._calculateFilteredTree(
       this.rawTree(),
@@ -124,12 +173,9 @@ export class GenieExplorerStateService {
 
   readonly inspectorInjectionPath = computed(() => this._getNodePathForSelectedService());
 
-  readonly selectedServiceState = computed(() => {
-    const svc = this.selectedService();
-    this.refreshTrigger();
-    if (!svc || !svc.instance) return {error: 'No instance available'};
-    return this._safeScan(svc.instance);
-  });
+  private readonly _snapshotCache = signal<any>({error: 'No instance available'});
+
+  readonly selectedServiceState = computed(() => this._snapshotCache());
 
   readonly maxNodeDeps = computed(() => {
     const nodes = this.nodes();
@@ -363,7 +409,12 @@ export class GenieExplorerStateService {
     for (const key in obj) {
       if (key.startsWith('__') || key.startsWith('ng') || key.startsWith('ɵ')) continue;
       try {
-        result[key] = obj[key];
+        const value = obj[key];
+        if (isSignal(value)) {
+          result[key] = untracked(() => value());
+        } else {
+          result[key] = value;
+        }
       } catch (e) {
         result[key] = '[Access Error]';
       }
@@ -397,5 +448,24 @@ export class GenieExplorerStateService {
       return null;
     }
     return find(this.rawTree());
+  }
+
+  private _loadLiveWatchState(): boolean {
+    if (!this.isBrowser) return true;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_LIVE_WATCH);
+      return stored !== null ? stored === 'true' : true;
+    } catch (e) {
+      return true;
+    }
+  }
+
+  private _saveLiveWatchState(isLive: boolean): void {
+    if (!this.isBrowser) return;
+    try {
+      localStorage.setItem(STORAGE_KEY_LIVE_WATCH, String(isLive));
+    } catch (e) {
+      console.warn('Genie: Failed to save live watch state', e);
+    }
   }
 }

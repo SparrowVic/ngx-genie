@@ -20,8 +20,10 @@ export class HeaderComponent {
   stats = input.required<{ nodes: number; services: number }>();
   searchQuery = input.required<string>();
   isMaximized = input.required<boolean>();
+  isLiveWatch = input.required<boolean>();
 
   searchQueryChange = output<string>();
+  toggleLiveWatch = output<void>();
   maximize = output<void>();
   close = output<void>();
   dragStart = output<MouseEvent>();

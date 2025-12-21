@@ -8,7 +8,7 @@ import {
   output,
   ViewEncapsulation
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {GenieTreeNode, GenieServiceRegistration} from '../../../../../models/genie-node.model';
 import {GenieResizableDirective} from '../../../../../shared/directives/resizable/resizable.directive';
 import {TreeNodeComponent} from './tree-node/tree-node.component';
@@ -19,7 +19,7 @@ import {OrgChartUtils} from '../org-chart-view/org-chart.utils';
 @Component({
   selector: 'lib-tree-view',
   standalone: true,
-  imports: [CommonModule, TreeNodeComponent, TreeLegendComponent, GenieResizableDirective],
+  imports: [TreeNodeComponent, TreeLegendComponent, GenieResizableDirective],
   providers: [GenieResizableDirective],
   templateUrl: './tree-view.component.html',
   styleUrl: './tree-view.component.scss',

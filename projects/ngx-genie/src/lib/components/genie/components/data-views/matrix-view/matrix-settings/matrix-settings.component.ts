@@ -1,5 +1,5 @@
 import {ChangeDetectionStrategy, Component, input, output, signal, ViewEncapsulation} from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 
 export interface MatrixSettings {
   rain: boolean;
@@ -9,7 +9,7 @@ export interface MatrixSettings {
 @Component({
   selector: 'lib-matrix-settings',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './matrix-settings.component.html',
   styleUrl: './matrix-settings.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,11 +1,11 @@
 import {ChangeDetectionStrategy, Component, input, output, signal, ViewEncapsulation} from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {FormsModule} from '@angular/forms';
 
 @Component({
   selector: 'lib-constellation-controls',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './constellation-controls.component.html',
   styleUrl: './constellation-controls.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,7 +1,7 @@
 import {ChangeDetectionStrategy, Component, computed, input, output, ViewEncapsulation} from '@angular/core';
 import {OrgChartUtils} from '../org-chart.utils';
 import {GenieTreeNode, GenieServiceRegistration} from '../../../../../../models/genie-node.model';
-import {NgIf, NgFor, NgClass} from '@angular/common';
+import { NgClass } from '@angular/common';
 
 @Component({
   selector: 'lib-org-chart-node',

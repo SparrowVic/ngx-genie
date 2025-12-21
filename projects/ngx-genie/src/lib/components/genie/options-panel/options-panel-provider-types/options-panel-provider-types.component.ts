@@ -1,14 +1,13 @@
 import {ChangeDetectionStrategy, Component, input, output, signal, ViewEncapsulation} from '@angular/core';
 import {FormsModule} from '@angular/forms';
-import {CommonModule} from '@angular/common';
+
 
 @Component({
   selector: 'lib-options-panel-provider-types',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule
-  ],
+],
   templateUrl: './options-panel-provider-types.component.html',
   styleUrl: './options-panel-provider-types.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
