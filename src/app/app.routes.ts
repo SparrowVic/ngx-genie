@@ -1,5 +1,5 @@
-import { Routes } from '@angular/router';
-import { NavComponent } from './layout/nav.component';
+import {Routes} from '@angular/router';
+import {NavComponent} from './layout/nav.component';
 
 export const routes: Routes = [
   {
@@ -8,19 +8,19 @@ export const routes: Routes = [
     children: [
       {
         path: '',
-        loadComponent: () => import('./pages/home.page').then(m => m.HomePage)
+        loadComponent: () => import('./pages/home-page').then(m => m.HomePage)
       },
       {
         path: 'features',
-        loadComponent: () => import('./pages/features.page').then(m => m.FeaturesPage)
+        loadComponent: () => import('./pages/features-page').then(m => m.FeaturesPage)
       },
       {
         path: 'playground',
-        loadComponent: () => import('./pages/playground.page').then(m => m.PlaygroundPage)
+        loadComponent: () => import('./pages/playground-page').then(m => m.PlaygroundPage)
       },
       {
         path: 'docs',
-        loadComponent: () => import('./pages/docs.page').then(m => m.DocsPage)
+        loadComponent: () => import('./pages/docs-page').then(m => m.DocsPage)
       }
     ]
   }
