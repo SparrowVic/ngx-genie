@@ -11,15 +11,20 @@
     <div class="window-glow"></div>
     <div class="window-border"></div>
     <lib-header
+      genieWindowConstraints
+      mode="drag"
+      [windowPosition]="windowPosition()"
+      [windowSize]="windowSize()"
+      [isMaximized]="isMaximized()"
+      (positionChange)="onWindowPositionChange($event)"
+      (operationEnd)="onWindowOperationEnd()"
       [stats]="state.stats()"
       [searchQuery]="state.searchQuery()"
-      [isMaximized]="isMaximized()"
       [isLiveWatch]="state.isLiveWatch()"
       (searchQueryChange)="updateSearch($event)"
       (toggleLiveWatch)="toggleLiveWatch()"
       (maximize)="toggleMaximize()"
       (close)="closeWindow()"
-      (dragStart)="startWindowDrag($event)"
     ></lib-header>
     <div class="genie-body" [style.grid-template-columns]="gridTemplate()">
       @if (showOptionsPanel()) {
@@ -90,7 +95,14 @@
         </aside>
       }
     </div>
-    <div class="resize-handle" (mousedown)="startWindowResize($event)">
+    <div class="resize-handle"
+      genieWindowConstraints
+      mode="resize"
+      [windowPosition]="windowPosition()"
+      [windowSize]="windowSize()"
+      [isMaximized]="isMaximized()"
+      (sizeChange)="onWindowSizeChange($event)"
+      (operationEnd)="onWindowOperationEnd()">
       <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
         <path d="M22 22v-20l-20 20h20z" opacity="0.5"/>
       </svg>

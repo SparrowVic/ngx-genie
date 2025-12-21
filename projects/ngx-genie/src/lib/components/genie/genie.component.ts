@@ -13,6 +13,7 @@ import {DOCUMENT, isPlatformBrowser} from '@angular/common';
 import {GenieConfig} from '../../models/genie-config.model';
 import {GENIE_CONFIG} from '../../tokens/genie-config.token';
 import {GenieResizableDirective} from '../../shared/directives/resizable/resizable.directive';
+import {GenieWindowConstraintsDirective} from '../../shared/directives/window-constraints/window-constraints.directive';
 
 import {HeaderComponent} from './header/header.component';
 import {GenieViewMode, ViewportComponent} from './viewport/viewport.component';
@@ -41,6 +42,7 @@ interface GenieLayoutState {
   selector: 'ngx-genie',
   imports: [
     GenieResizableDirective,
+    GenieWindowConstraintsDirective,
     HeaderComponent,
     ViewportComponent,
     OptionsPanelComponent,
@@ -158,56 +160,16 @@ export class GenieComponent implements OnDestroy {
   selectDependency = (s: any) => this.state.selectDependency(s);
   selectNode = (n: any) => this.state.selectNode(n);
 
-  startWindowDrag(event: MouseEvent): void {
-    if (this.isMaximized()) return;
-
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const {x, y} = this.windowPosition();
-
-    const mouseMoveHandler = (e: MouseEvent) => {
-      this.windowPosition.set({
-        x: x + (e.clientX - startX),
-        y: y + (e.clientY - startY)
-      });
-    };
-
-    const mouseUpHandler = () => {
-      this.document.removeEventListener('mousemove', mouseMoveHandler);
-      this.document.removeEventListener('mouseup', mouseUpHandler);
-      this.saveLayoutState();
-    };
-
-    this.document.addEventListener('mousemove', mouseMoveHandler);
-    this.document.addEventListener('mouseup', mouseUpHandler);
+  onWindowPositionChange(position: {x: number; y: number}): void {
+    this.windowPosition.set(position);
   }
 
-  startWindowResize(event: MouseEvent): void {
-    if (this.isMaximized()) return;
-    event.stopPropagation();
-    event.preventDefault();
+  onWindowSizeChange(size: {width: number; height: number}): void {
+    this.windowSize.set(size);
+  }
 
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const rect = this.windowRef.nativeElement.getBoundingClientRect();
-    const startW = rect.width;
-    const startH = rect.height;
-
-    const mouseMoveHandler = (e: MouseEvent) => {
-      this.windowSize.set({
-        width: Math.max(600, startW + (e.clientX - startX)),
-        height: Math.max(400, startH + (e.clientY - startY))
-      });
-    };
-
-    const mouseUpHandler = () => {
-      this.document.removeEventListener('mousemove', mouseMoveHandler);
-      this.document.removeEventListener('mouseup', mouseUpHandler);
-      this.saveLayoutState();
-    };
-
-    this.document.addEventListener('mousemove', mouseMoveHandler);
-    this.document.addEventListener('mouseup', mouseUpHandler);
+  onWindowOperationEnd(): void {
+    this.saveLayoutState();
   }
 
   onOptionsPanelResize(delta: number): void {
