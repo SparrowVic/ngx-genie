@@ -7,7 +7,8 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "build:genie": "npm run gen:svg-to-ts --prefix projects/ngx-genie && ng build genie"
+    "build:genie": "npm run gen:svg-to-ts --prefix projects/ngx-genie && ng build genie",
+    "build:demo": "ng build ngx-genie-demo --configuration demo"
   },
   "prettier": {
     "printWidth": 100,
@@ -23,19 +24,37 @@
   },
   "private": true,
   "dependencies": {
+<<<<<<< HEAD
     "@angular/common": "^20.0.0",
     "@angular/compiler": "^20.0.0",
     "@angular/core": "^20.0.0",
     "@angular/forms": "^20.0.0",
     "@angular/platform-browser": "^20.0.0",
     "@angular/router": "^20.0.0",
+=======
+    "@angular/common": "^21.0.6",
+    "@angular/compiler": "^21.0.6",
+    "@angular/core": "^21.0.6",
+    "@angular/forms": "^21.0.6",
+    "@angular/platform-browser": "^21.0.6",
+    "@angular/router": "^21.0.6",
+    "@primeuix/themes": "^2.0.2",
+    "primeicons": "^7.0.0",
+    "primeng": "^21.0.2",
+>>>>>>> main
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
+<<<<<<< HEAD
     "@angular/build": "^20.0.0",
     "@angular/cli": "^20.0.0",
     "@angular/compiler-cli": "^20.0.0",
+=======
+    "@angular/build": "^21.0.4",
+    "@angular/cli": "^21.0.4",
+    "@angular/compiler-cli": "^21.0.6",
+>>>>>>> main
     "@types/jasmine": "~5.1.0",
     "jasmine-core": "~5.9.0",
     "karma": "~6.4.0",
@@ -43,7 +62,11 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
+<<<<<<< HEAD
     "ng-packagr": "^20.0.0",
+=======
+    "ng-packagr": "^21.0.1",
+>>>>>>> main
     "typescript": "~5.9.2"
   }
 }

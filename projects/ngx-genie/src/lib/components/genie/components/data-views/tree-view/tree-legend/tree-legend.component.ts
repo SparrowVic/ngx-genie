@@ -1,10 +1,10 @@
 import {ChangeDetectionStrategy, Component, signal, ViewEncapsulation} from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 
 @Component({
   selector: 'lib-tree-legend',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './tree-legend.component.html',
   styleUrl: './tree-legend.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -14,7 +14,7 @@ import {
   untracked,
   viewChild, ViewEncapsulation
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {
   GenieServiceRegistration,
   GenieTreeNode
@@ -33,11 +33,10 @@ import {BASE_CELL_SIZE, BASE_HEADER_HEIGHT, BASE_ROW_WIDTH, FONT_FAMILY, THEME} 
   selector: 'gen-matrix-view',
   standalone: true,
   imports: [
-    CommonModule,
     MatrixSettingsComponent,
     MatrixLoadingComponent,
     MatrixLegendComponent
-  ],
+],
   templateUrl: './matrix-view.component.html',
   styleUrl: './matrix-view.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
