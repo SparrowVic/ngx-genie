@@ -18,7 +18,12 @@ import {ConstellationModeSwitchComponent} from './constellation-mode-switch/cons
 import {ConstellationControlsComponent} from './constellation-controls/constellation-controls.component';
 import {ConstellationLegendComponent} from './constellation-legend/constellation-legend.component';
 import {ConstellationTooltipComponent} from './constellation-tooltip/constellation-tooltip.component';
-import {ConstellationGraphStats, ConstellationLinkRenderMode, RenderNode} from './constellation.models';
+import {
+  ConstellationGraphStats,
+  ConstellationLayoutStrategy,
+  ConstellationLinkRenderMode,
+  RenderNode
+} from './constellation.models';
 import {ConstellationEngine} from './constellation.engine';
 import {ConstellationMapper} from './constellation.mapper';
 import {GenieFilterState} from '../../../options-panel/options-panel.models';
@@ -26,6 +31,7 @@ import {ConstellationStateService} from './constellation-state.service';
 
 const STORAGE_KEY_CONSTELLATION_MODE = 'genie_constellation_show_component_tree';
 const STORAGE_KEY_CONSTELLATION_LINK_MODE = 'genie_constellation_link_render_mode';
+const STORAGE_KEY_CONSTELLATION_LAYOUT_STRATEGY = 'genie_constellation_layout_strategy';
 const STORAGE_KEY_CONSTELLATION_AUTO_OPTIMIZE = 'genie_constellation_auto_optimize';
 const LARGE_GRAPH_HOVER_THROTTLE_MS = 48;
 const LARGE_GRAPH_HOVER_NODE_THRESHOLD = 1500;
@@ -71,6 +77,7 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   readonly focusModeEnabled = signal(true);
   readonly showControlsPanel = signal(true);
   readonly linkRenderMode = signal<ConstellationLinkRenderMode>(this.loadLinkRenderMode());
+  readonly layoutStrategy = signal<ConstellationLayoutStrategy>(this.loadLayoutStrategy());
   readonly autoOptimizeEnabled = signal(this.loadAutoOptimizeState());
 
   readonly tooltipPos = signal({x: 0, y: 0});
@@ -93,6 +100,7 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
       this.tree();
       this.filterState();
       this.showComponentTree();
+      this.layoutStrategy();
 
       untracked(() => {
         if (this.engine) {
@@ -110,6 +118,11 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
       const mode = this.linkRenderMode();
       this.saveLinkRenderMode(mode);
       untracked(() => this.engine?.setLinkRenderMode(mode));
+    });
+
+    effect(() => {
+      const strategy = this.layoutStrategy();
+      this.saveLayoutStrategy(strategy);
     });
 
     effect(() => {
@@ -293,6 +306,11 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
     this.engine?.setLinkRenderMode(mode);
   }
 
+  updateLayoutStrategy(strategy: ConstellationLayoutStrategy) {
+    this.layoutStrategy.set(strategy);
+    this.scheduleGraphDataUpdate();
+  }
+
   toggleAutoOptimize() {
     this.autoOptimizeEnabled.update(v => !v);
     if (!this.autoOptimizeEnabled()) return;
@@ -401,7 +419,8 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
       width,
       height,
       this.showComponentTree(),
-      positionsSource
+      positionsSource,
+      this.layoutStrategy()
     );
 
     this.graphStats.set(data.stats);
@@ -412,7 +431,7 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
 
   private applyAutoOptimizer(stats: ConstellationGraphStats): void {
     if (!this.autoOptimizeEnabled() || !this.engine) return;
-    if (!stats.isHuge && stats.layoutMode !== 'atlas') return;
+    if (!stats.isHuge && stats.layoutMode === 'force') return;
 
     if (this.linkRenderMode() === 'all') {
       this.linkRenderMode.set('adaptive');
@@ -455,6 +474,17 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
     }
   }
 
+  private loadLayoutStrategy(): ConstellationLayoutStrategy {
+    if (!this.isBrowser) return 'auto';
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_CONSTELLATION_LAYOUT_STRATEGY);
+      if (stored === 'auto' || stored === 'atlas' || stored === 'organic') return stored;
+      return 'auto';
+    } catch (e) {
+      return 'auto';
+    }
+  }
+
   private loadAutoOptimizeState(): boolean {
     if (!this.isBrowser) return true;
     try {
@@ -480,6 +510,15 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
       localStorage.setItem(STORAGE_KEY_CONSTELLATION_LINK_MODE, mode);
     } catch (e) {
       console.warn('Genie: Failed to save constellation link mode state', e);
+    }
+  }
+
+  private saveLayoutStrategy(strategy: ConstellationLayoutStrategy): void {
+    if (!this.isBrowser) return;
+    try {
+      localStorage.setItem(STORAGE_KEY_CONSTELLATION_LAYOUT_STRATEGY, strategy);
+    } catch (e) {
+      console.warn('Genie: Failed to save constellation layout state', e);
     }
   }
 

@@ -1,6 +1,12 @@
 import {GenieServiceRegistration, GenieTreeNode} from '../../../../../models/genie-node.model';
 import {GenieRegistryService} from '../../../../../services/genie-registry.service';
-import {CONSTELLATION_THEME, ConstellationGraphStats, RenderLink, RenderNode} from './constellation.models';
+import {
+  CONSTELLATION_THEME,
+  ConstellationGraphStats,
+  ConstellationLayoutStrategy,
+  RenderLink,
+  RenderNode
+} from './constellation.models';
 import {WorkerLink, WorkerNode} from './constellation.worker';
 import {GenieFilterState} from '../../../options-panel/options-panel.models';
 
@@ -20,6 +26,9 @@ const ATLAS_MIN_CELL_SIZE = 420;
 const ATLAS_SERVICE_NODE_SPACING = 28;
 const ATLAS_RING_GAP = 38;
 const ATLAS_FIRST_RING_RADIUS = 76;
+const ORGANIC_INJECTOR_SPACING = 260;
+const ORGANIC_SERVICE_SPACING = 34;
+const ORGANIC_FIRST_SERVICE_RADIUS = 88;
 
 export interface MappedGraphData {
   workerNodes: WorkerNode[];
@@ -38,7 +47,8 @@ export class ConstellationMapper {
     width: number,
     height: number,
     showComponentTree: boolean,
-    currentPositions: Map<string, { x: number, y: number }>
+    currentPositions: Map<string, { x: number, y: number }>,
+    layoutStrategy: ConstellationLayoutStrategy = 'auto'
   ): MappedGraphData {
 
     const filteredTree = this._applyDeepSearch(tree, filterState);
@@ -77,14 +87,18 @@ export class ConstellationMapper {
     const estimatedLinkCount = providerLinkEstimate
       + visibleDependencyLinks
       + (showComponentTree ? Math.max(0, visibleTreeNodes.length - 1) : 0);
-    const useAtlasLayout = estimatedNodeCount > ATLAS_LAYOUT_NODE_THRESHOLD
+    const shouldUseStaticLayout = estimatedNodeCount > ATLAS_LAYOUT_NODE_THRESHOLD
       || estimatedLinkCount > ATLAS_LAYOUT_LINK_THRESHOLD
       || maxServicesPerNode > 250;
+    const useOrganicLayout = layoutStrategy === 'organic';
+    const useAtlasLayout = layoutStrategy === 'atlas'
+      || (layoutStrategy === 'auto' && shouldUseStaticLayout);
+    const useStaticLayout = useAtlasLayout || useOrganicLayout;
     const renderServicesByNodeId = new Map<number, GenieServiceRegistration[]>();
-    let remainingServiceRenderBudget = useAtlasLayout ? ATLAS_MAX_RENDERED_SERVICE_NODES : Number.POSITIVE_INFINITY;
+    let remainingServiceRenderBudget = useStaticLayout ? ATLAS_MAX_RENDERED_SERVICE_NODES : Number.POSITIVE_INFINITY;
     for (const node of visibleTreeNodes) {
       const services = servicesByNodeId.get(node.id) ?? [];
-      const renderServices = useAtlasLayout
+      const renderServices = useStaticLayout
         ? this._selectAtlasServicesForRender(services, remainingServiceRenderBudget)
         : services;
       renderServicesByNodeId.set(node.id, renderServices);
@@ -128,8 +142,12 @@ export class ConstellationMapper {
 
     const centerX = width / 2;
     const centerY = height / 2;
-    const atlasLayout = useAtlasLayout
-      ? this._createAtlasLayout(visibleTreeNodes, renderServicesByNodeId, centerX, centerY)
+    const staticLayout = useStaticLayout
+      ? (
+        useOrganicLayout
+          ? this._createOrganicLayout(visibleTreeNodes, renderServicesByNodeId, centerX, centerY)
+          : this._createAtlasLayout(visibleTreeNodes, renderServicesByNodeId, centerX, centerY)
+      )
       : null;
     let positionIndex = 0;
     const nextInitialPosition = (existing?: { x: number, y: number }) => {
@@ -153,7 +171,7 @@ export class ConstellationMapper {
       if (processedIds.has(id)) return;
       processedIds.add(id);
 
-      const position = atlasLayout?.injectorPositions.get(node.id)
+      const position = staticLayout?.injectorPositions.get(node.id)
         ?? nextInitialPosition(currentPositions.get(id));
       const isRootComponent = node.id === rootComponentId;
 
@@ -183,7 +201,7 @@ export class ConstellationMapper {
         y: renderNode.y,
         vx: 0, vy: 0,
         mass: isRootComponent ? 35 : 20,
-        fixed: useAtlasLayout,
+        fixed: useStaticLayout,
         type: 'injector'
       });
     });
@@ -196,7 +214,7 @@ export class ConstellationMapper {
             for (const child of node.children) {
               if (visibleNodeIds.has(node.id) && visibleNodeIds.has(child.id)) {
                 const uniqueId = `inj-${node.id}_inj-${child.id}_component-child`;
-                const shouldRender = !useAtlasLayout
+                const shouldRender = !useStaticLayout
                   || renderedComponentLinks < ATLAS_MAX_RENDERED_COMPONENT_LINKS
                   || this._stableHash(uniqueId) % 19 === 0;
                 addRenderLink('inj-' + node.id, 'inj-' + child.id, 'component-child', shouldRender);
@@ -222,7 +240,7 @@ export class ConstellationMapper {
 
         if (processedIds.has(id)) {
           const uniqueId = `${parentId}_${id}_provider`;
-          const shouldRender = !useAtlasLayout
+          const shouldRender = !useStaticLayout
             || renderedProviderLinks < ATLAS_MAX_RENDERED_PROVIDER_LINKS
             || this._stableHash(uniqueId) % 23 === 0;
           addRenderLink(parentId, id, 'provider', shouldRender);
@@ -231,7 +249,7 @@ export class ConstellationMapper {
         processedIds.add(id);
         renderedServiceIds.add(svc.id);
 
-        const position = atlasLayout?.servicePositions.get(svc.id)
+        const position = staticLayout?.servicePositions.get(svc.id)
           ?? nextInitialPosition(currentPositions.get(id));
         const depType = svc.dependencyType || 'Service';
         const isRootScope = svc.isRoot || svc.token?.['ɵprov']?.providedIn === 'root';
@@ -274,19 +292,19 @@ export class ConstellationMapper {
           y: renderNode.y,
           vx: 0, vy: 0,
           mass: 5,
-          fixed: useAtlasLayout,
+          fixed: useStaticLayout,
           type: 'service'
         });
 
         const uniqueId = `${parentId}_${id}_provider`;
-        const shouldRender = !useAtlasLayout
+        const shouldRender = !useStaticLayout
           || renderedProviderLinks < ATLAS_MAX_RENDERED_PROVIDER_LINKS
           || this._stableHash(uniqueId) % 23 === 0;
         addRenderLink(parentId, id, 'provider', shouldRender);
       });
     });
 
-    const dependencyRenderStride = useAtlasLayout
+    const dependencyRenderStride = useStaticLayout
       ? Math.max(1, Math.ceil(Math.max(visibleDependencyLinks, 1) / ATLAS_MAX_RENDERED_DEPENDENCY_LINKS))
       : 1;
     let seenDependencyLinks = 0;
@@ -301,7 +319,7 @@ export class ConstellationMapper {
         }
         const uniqueId = `${sourceId}_${targetId}_dependency`;
         seenDependencyLinks++;
-        const shouldRender = !useAtlasLayout
+        const shouldRender = !useStaticLayout
           || renderedDependencyLinks < 2500
           || (
             renderedDependencyLinks < ATLAS_MAX_RENDERED_DEPENDENCY_LINKS
@@ -311,7 +329,7 @@ export class ConstellationMapper {
       }
     });
 
-    const workerLinks = useAtlasLayout ? [] : this._selectSimulationLinks(renderLinks, workerNodes.length);
+    const workerLinks = useStaticLayout ? [] : this._selectSimulationLinks(renderLinks, workerNodes.length);
     const totalLinks = providerLinks + dependencyLinks + componentLinks;
     const stats: ConstellationGraphStats = {
       nodes: estimatedNodeCount,
@@ -324,7 +342,7 @@ export class ConstellationMapper {
       simulationLinks: workerLinks.length,
       hiddenSimulationLinks: Math.max(0, renderLinks.length - workerLinks.length),
       isHuge: workerNodes.length > HUGE_GRAPH_NODE_THRESHOLD || totalLinks > HUGE_GRAPH_LINK_THRESHOLD,
-      layoutMode: useAtlasLayout ? 'atlas' : 'force'
+      layoutMode: useOrganicLayout ? 'organic' : useAtlasLayout ? 'atlas' : 'force'
     };
 
     return {workerNodes, workerLinks, renderNodes: nextRenderNodes, renderLinks, stats};
@@ -503,6 +521,76 @@ export class ConstellationMapper {
     });
 
     return {injectorPositions, servicePositions};
+  }
+
+  private static _createOrganicLayout(
+    nodes: GenieTreeNode[],
+    servicesByNodeId: Map<number, GenieServiceRegistration[]>,
+    centerX: number,
+    centerY: number
+  ): {
+    injectorPositions: Map<number, { x: number; y: number }>;
+    servicePositions: Map<number, { x: number; y: number }>;
+  } {
+    const injectorPositions = new Map<number, { x: number; y: number }>();
+    const servicePositions = new Map<number, { x: number; y: number }>();
+
+    nodes.forEach((node, index) => {
+      const position = this._organicInjectorPosition(centerX, centerY, index, node.id);
+      injectorPositions.set(node.id, position);
+
+      const services = servicesByNodeId.get(node.id) ?? [];
+      services.forEach((service, serviceIndex) => {
+        if (servicePositions.has(service.id)) return;
+        servicePositions.set(
+          service.id,
+          this._organicServicePosition(position, serviceIndex, service.id)
+        );
+      });
+    });
+
+    return {injectorPositions, servicePositions};
+  }
+
+  private static _organicInjectorPosition(
+    centerX: number,
+    centerY: number,
+    index: number,
+    nodeId: number
+  ): { x: number; y: number } {
+    if (index === 0) return {x: centerX, y: centerY};
+
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+    const hash = this._stableHash(String(nodeId));
+    const angle = index * goldenAngle + (hash % 1000) / 1000 * 0.38;
+    const radius = Math.sqrt(index) * ORGANIC_INJECTOR_SPACING + 160 + (hash % 90);
+    const wobbleA = Math.sin(index * 0.41 + hash * 0.0001) * 70;
+    const wobbleB = Math.cos(index * 0.27 + hash * 0.0002) * 70;
+
+    return {
+      x: centerX + Math.cos(angle) * radius + wobbleA,
+      y: centerY + Math.sin(angle) * radius * 0.82 + wobbleB
+    };
+  }
+
+  private static _organicServicePosition(
+    parent: { x: number; y: number },
+    index: number,
+    serviceId: number
+  ): { x: number; y: number } {
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+    const hash = this._stableHash(String(serviceId));
+    const angle = index * goldenAngle + (hash % 1000) / 1000 * Math.PI * 2;
+    const radius = ORGANIC_FIRST_SERVICE_RADIUS
+      + Math.sqrt(index) * ORGANIC_SERVICE_SPACING
+      + (hash % 26);
+    const wobbleA = Math.sin(hash * 0.003 + index * 0.73) * 10;
+    const wobbleB = Math.cos(hash * 0.002 + index * 0.59) * 10;
+
+    return {
+      x: parent.x + Math.cos(angle) * radius + wobbleA,
+      y: parent.y + Math.sin(angle) * radius + wobbleB
+    };
   }
 
   private static _estimateAtlasClusterRadius(serviceCount: number): number {

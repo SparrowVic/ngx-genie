@@ -21,8 +21,8 @@
           <span class="stat-label">LINKS</span>
         </div>
         <div>
-          <span class="stat-val">{{ stats.layoutMode === 'atlas' ? 'ATLAS' : formatCount(stats.simulationLinks) }}</span>
-          <span class="stat-label">{{ stats.layoutMode === 'atlas' ? 'FLOW' : 'SIM' }}</span>
+          <span class="stat-val">{{ layoutModeValue(stats) }}</span>
+          <span class="stat-label">{{ stats.layoutMode !== 'force' ? 'LAYOUT' : 'SIM' }}</span>
         </div>
       </div>
     }
@@ -77,6 +77,24 @@
         <button type="button"
                 [class.active]="linkRenderMode() === 'all'"
                 (click)="linkModeChange.emit('all')">ALL</button>
+      </div>
+    </div>
+
+    <div class="control-row vertical">
+      <div class="row-top">
+        <span class="label">LAYOUT</span>
+        <span class="val">{{ layoutStrategyLabel(layoutStrategy()) }}</span>
+      </div>
+      <div class="segmented">
+        <button type="button"
+                [class.active]="layoutStrategy() === 'auto'"
+                (click)="layoutStrategyChange.emit('auto')">AUTO</button>
+        <button type="button"
+                [class.active]="layoutStrategy() === 'atlas'"
+                (click)="layoutStrategyChange.emit('atlas')">GRID</button>
+        <button type="button"
+                [class.active]="layoutStrategy() === 'organic'"
+                (click)="layoutStrategyChange.emit('organic')">FLOW</button>
       </div>
     </div>
 

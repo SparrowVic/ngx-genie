@@ -1,7 +1,11 @@
 import {ChangeDetectionStrategy, Component, input, output, signal, ViewEncapsulation} from '@angular/core';
 
 import {FormsModule} from '@angular/forms';
-import {ConstellationGraphStats, ConstellationLinkRenderMode} from '../constellation.models';
+import {
+  ConstellationGraphStats,
+  ConstellationLayoutStrategy,
+  ConstellationLinkRenderMode
+} from '../constellation.models';
 
 @Component({
   selector: 'lib-constellation-controls',
@@ -19,6 +23,7 @@ export class ConstellationControlsComponent {
   focusModeEnabled = input<boolean>(true);
   repulsionValue = input<number>(400);
   linkRenderMode = input<ConstellationLinkRenderMode>('adaptive');
+  layoutStrategy = input<ConstellationLayoutStrategy>('auto');
   autoOptimizeEnabled = input<boolean>(true);
   graphStats = input<ConstellationGraphStats | null>(null);
   pinnedNodeLabel = input<string | null>(null);
@@ -29,6 +34,7 @@ export class ConstellationControlsComponent {
   toggleFocus = output<void>();
   toggleAutoOptimize = output<void>();
   linkModeChange = output<ConstellationLinkRenderMode>();
+  layoutStrategyChange = output<ConstellationLayoutStrategy>();
   clearPin = output<void>();
   resetLayout = output<void>();
   repulsionChange = output<number>();
@@ -42,5 +48,17 @@ export class ConstellationControlsComponent {
     if (value >= 10_000) return `${Math.round(value / 1000)}k`;
     if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
     return String(value);
+  }
+
+  protected layoutStrategyLabel(strategy: ConstellationLayoutStrategy): string {
+    if (strategy === 'atlas') return 'GRID';
+    if (strategy === 'organic') return 'FLOW';
+    return 'AUTO';
+  }
+
+  protected layoutModeValue(stats: ConstellationGraphStats): string {
+    if (stats.layoutMode === 'force') return this.formatCount(stats.simulationLinks);
+    if (stats.layoutMode === 'atlas') return 'GRID';
+    return 'FLOW';
   }
 }

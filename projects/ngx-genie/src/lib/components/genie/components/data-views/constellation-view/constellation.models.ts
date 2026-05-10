@@ -55,6 +55,8 @@ export interface RenderLink {
 }
 
 export type ConstellationLinkRenderMode = 'adaptive' | 'focused' | 'all';
+export type ConstellationLayoutStrategy = 'auto' | 'atlas' | 'organic';
+export type ConstellationLayoutMode = 'force' | 'atlas' | 'organic';
 
 export interface ConstellationGraphStats {
   nodes: number;
@@ -67,7 +69,7 @@ export interface ConstellationGraphStats {
   simulationLinks: number;
   hiddenSimulationLinks: number;
   isHuge: boolean;
-  layoutMode: 'force' | 'atlas';
+  layoutMode: ConstellationLayoutMode;
 }
 
 export interface LinkAnimState {

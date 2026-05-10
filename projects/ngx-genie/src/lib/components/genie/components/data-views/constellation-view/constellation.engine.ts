@@ -80,7 +80,7 @@ export class ConstellationEngine {
         }
         if (this._shouldRenderFrame()) {
           this._renderFrame();
-          if (this._graphStats?.layoutMode === 'atlas') this._renderDirty = false;
+          if (this._isStaticLayout()) this._renderDirty = false;
         }
         this._animationFrameId = requestAnimationFrame(loop);
       };
@@ -190,7 +190,7 @@ export class ConstellationEngine {
   }
 
   resetEntropy() {
-    if (this._graphStats?.layoutMode === 'atlas') return;
+    if (this._isStaticLayout()) return;
     if (this._worker) this._worker.postMessage({type: 'RESET_ENTROPY'});
   }
 
@@ -239,6 +239,10 @@ export class ConstellationEngine {
 
   private _getActiveFocusNode(): RenderNode | null {
     return this.hoveredNode ?? this.pinnedNode;
+  }
+
+  private _isStaticLayout(): boolean {
+    return this._graphStats?.layoutMode === 'atlas' || this._graphStats?.layoutMode === 'organic';
   }
 
   private _initWorker() {
@@ -312,7 +316,7 @@ export class ConstellationEngine {
 
   private _rebuildNodeSpatialIndex(): void {
     this._nodeSpatialIndex.clear();
-    if (this._graphStats?.layoutMode !== 'atlas') return;
+    if (!this._isStaticLayout()) return;
 
     for (const node of this._renderNodes.values()) {
       const key = this._spatialKeyForPoint(node.x, node.y);
@@ -330,7 +334,7 @@ export class ConstellationEngine {
   }
 
   private _getHitTestCandidates(worldX: number, worldY: number): Iterable<RenderNode> {
-    if (this._graphStats?.layoutMode !== 'atlas') return this._renderNodes.values();
+    if (!this._isStaticLayout()) return this._renderNodes.values();
 
     const cellX = Math.floor(worldX / ATLAS_SPATIAL_CELL_SIZE);
     const cellY = Math.floor(worldY / ATLAS_SPATIAL_CELL_SIZE);
@@ -347,7 +351,7 @@ export class ConstellationEngine {
   }
 
   private _getRenderableNodes(bounds: ViewBounds, zoom: number): RenderNode[] {
-    if (this._graphStats?.layoutMode !== 'atlas') {
+    if (!this._isStaticLayout()) {
       const nodes: RenderNode[] = [];
       for (const node of this._renderNodes.values()) {
         if (this._isNodeInBounds(node, bounds)) nodes.push(node);
@@ -404,16 +408,16 @@ export class ConstellationEngine {
   }
 
   private _shouldRenderFrame(): boolean {
-    if (this._graphStats?.layoutMode !== 'atlas') return true;
+    if (!this._isStaticLayout()) return true;
     return this._renderDirty;
   }
 
   private _shouldAnimateVisuals(): boolean {
-    return this.animationsEnabled && this._graphStats?.layoutMode !== 'atlas';
+    return this.animationsEnabled && !this._isStaticLayout();
   }
 
   private _canDispatchPhysicsTick(now: number): boolean {
-    if (this._graphStats?.layoutMode === 'atlas') return false;
+    if (this._isStaticLayout()) return false;
     if (this._physicsTickPending) return false;
     const interval = this._getPhysicsTickInterval();
     return now - this._lastPhysicsTickAt >= interval;
@@ -443,7 +447,7 @@ export class ConstellationEngine {
   }
 
   private _isHugeGraph(): boolean {
-    return this._graphStats?.layoutMode === 'atlas'
+    return this._isStaticLayout()
       || !!this._graphStats?.isHuge
       || this._renderNodes.size > 3500
       || this._renderLinks.length > 12000;
@@ -497,7 +501,7 @@ export class ConstellationEngine {
 
     const activeFocusNode = this._getActiveFocusNode();
     const targetFocusLevel = (this.focusModeEnabled && activeFocusNode) ? 1.0 : 0.0;
-    this._currentFocusLevel = this._graphStats?.layoutMode === 'atlas'
+    this._currentFocusLevel = this._isStaticLayout()
       ? targetFocusLevel
       : this._lerp(this._currentFocusLevel, targetFocusLevel, 0.05);
     if (this._currentFocusLevel < 0.001) this._currentFocusLevel = 0;
