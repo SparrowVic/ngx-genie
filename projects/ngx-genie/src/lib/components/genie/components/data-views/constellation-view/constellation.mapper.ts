@@ -36,7 +36,20 @@ export class ConstellationMapper {
 
     const centerX = width / 2;
     const centerY = height / 2;
-    const randomPos = (base: number) => base + (Math.random() - 0.5) * 150;
+    let positionIndex = 0;
+    const nextInitialPosition = (existing?: { x: number, y: number }) => {
+      if (existing) return existing;
+
+      const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+      const index = positionIndex++;
+      const radius = 40 + Math.sqrt(index) * 26;
+      const angle = index * goldenAngle;
+
+      return {
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius
+      };
+    };
     const rootComponentId = visibleTreeNodes.length > 0 ? visibleTreeNodes[0].id : -1;
 
     visibleTreeNodes.forEach(node => {
@@ -46,13 +59,13 @@ export class ConstellationMapper {
       if (processedIds.has(id)) return;
       processedIds.add(id);
 
-      const existing = currentPositions.get(id);
+      const position = nextInitialPosition(currentPositions.get(id));
       const isRootComponent = node.id === rootComponentId;
 
       const renderNode: RenderNode = {
         id,
-        x: existing ? existing.x : randomPos(centerX),
-        y: existing ? existing.y : randomPos(centerY),
+        x: position.x,
+        y: position.y,
         type: 'injector',
         data: node,
         radius: isRootComponent ? 22 : 16,
@@ -159,7 +172,7 @@ export class ConstellationMapper {
         }
         processedIds.add(id);
 
-        const existing = currentPositions.get(id);
+        const position = nextInitialPosition(currentPositions.get(id));
         const depType = svc.dependencyType || 'Service';
         const isRootScope = svc.isRoot || svc.token?.['ɵprov']?.providedIn === 'root';
         const isUnused = !usedProviderIds.has(svc.id);
@@ -176,8 +189,8 @@ export class ConstellationMapper {
 
         const renderNode: RenderNode = {
           id,
-          x: existing ? existing.x : randomPos(centerX),
-          y: existing ? existing.y : randomPos(centerY),
+          x: position.x,
+          y: position.y,
           type: 'service',
           data: svc,
           radius: isRootScope ? 10 : 8,

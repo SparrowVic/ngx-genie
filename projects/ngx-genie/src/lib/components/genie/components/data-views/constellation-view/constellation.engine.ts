@@ -2,6 +2,13 @@ import {NgZone} from '@angular/core';
 import {CONSTELLATION_THEME, LinkAnimState, RenderLink, RenderNode} from './constellation.models';
 import {constellationWorkerBody} from './constellation.worker';
 
+interface ViewBounds {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
 export class ConstellationEngine {
   private readonly _ctx: CanvasRenderingContext2D;
   private _worker: Worker | null = null;
@@ -20,6 +27,8 @@ export class ConstellationEngine {
 
   private _focusedNodeIds = new Set<string>();
   private _currentFocusLevel = 0;
+  private _physicsTickPending = false;
+  private _lastPhysicsTickAt = 0;
 
 
   private _unusedPattern: CanvasPattern | null = null;
@@ -43,7 +52,10 @@ export class ConstellationEngine {
     this._zone.runOutsideAngular(() => {
       const loop = () => {
         if (this._destroyed) return;
-        if (this._worker && !this.isPaused) {
+        const now = performance.now();
+        if (this._worker && !this.isPaused && this._canDispatchPhysicsTick(now)) {
+          this._physicsTickPending = true;
+          this._lastPhysicsTickAt = now;
           this._worker.postMessage({type: 'TICK'});
         }
         this._renderFrame();
@@ -77,10 +89,15 @@ export class ConstellationEngine {
   updateGraphData(nodes: any[], links: any[], renderNodes: Map<string, RenderNode>, renderLinks: RenderLink[]) {
     this._renderNodes = renderNodes;
     this._renderLinks = renderLinks;
+    this._physicsTickPending = false;
 
-    const currentLinkIds = new Set(renderLinks.map(l => l.uniqueId));
-    for (const id of this._linkAnimStates.keys()) {
-      if (!currentLinkIds.has(id)) this._linkAnimStates.delete(id);
+    if (renderLinks.length > this._getAnimatedLinkLimit()) {
+      this._linkAnimStates.clear();
+    } else {
+      const currentLinkIds = new Set(renderLinks.map(l => l.uniqueId));
+      for (const id of this._linkAnimStates.keys()) {
+        if (!currentLinkIds.has(id)) this._linkAnimStates.delete(id);
+      }
     }
 
     if (this._worker) {
@@ -172,8 +189,12 @@ export class ConstellationEngine {
         this._worker = new Worker(this._workerObjUrl);
         this._worker.onmessage = ({data}) => {
           if (data.type === 'TICK_RESULT') {
+            this._physicsTickPending = false;
             this._onTickPositionsUpdate(data.positions);
           }
+        };
+        this._worker.onerror = () => {
+          this._physicsTickPending = false;
         };
       } catch (e) {
         console.error('[Engine] Worker init failed', e);
@@ -211,6 +232,58 @@ export class ConstellationEngine {
     return start * (1 - t) + end * t;
   }
 
+  private _canDispatchPhysicsTick(now: number): boolean {
+    if (this._physicsTickPending) return false;
+    const interval = this._getPhysicsTickInterval();
+    return now - this._lastPhysicsTickAt >= interval;
+  }
+
+  private _getPhysicsTickInterval(): number {
+    const count = this._renderNodes.size;
+    if (count > 6000) return 120;
+    if (count > 3000) return 80;
+    if (count > 1200) return 48;
+    if (count > 500) return 32;
+    return 16;
+  }
+
+  private _getAnimatedLinkLimit(): number {
+    return 2000;
+  }
+
+  private _shouldRenderLabels(zoom: number, minZoom: number): boolean {
+    const count = this._renderNodes.size;
+    if (count > 3000) return zoom > minZoom + 1.1;
+    if (count > 1000) return zoom > minZoom + 0.55;
+    return zoom > minZoom;
+  }
+
+  private _getViewBounds(tx: number, ty: number, zoom: number, width: number, height: number): ViewBounds {
+    const safeZoom = Math.max(zoom, 0.001);
+    const margin = 120 / safeZoom;
+    return {
+      left: (-tx / safeZoom) - margin,
+      right: ((width - tx) / safeZoom) + margin,
+      top: (-ty / safeZoom) - margin,
+      bottom: ((height - ty) / safeZoom) + margin
+    };
+  }
+
+  private _isNodeInBounds(node: RenderNode, bounds: ViewBounds): boolean {
+    const radius = node.radius + 40;
+    return node.x + radius >= bounds.left
+      && node.x - radius <= bounds.right
+      && node.y + radius >= bounds.top
+      && node.y - radius <= bounds.bottom;
+  }
+
+  private _isLinkInBounds(source: RenderNode, target: RenderNode, bounds: ViewBounds): boolean {
+    return Math.max(source.x, target.x) >= bounds.left
+      && Math.min(source.x, target.x) <= bounds.right
+      && Math.max(source.y, target.y) >= bounds.top
+      && Math.min(source.y, target.y) <= bounds.bottom;
+  }
+
   private _renderFrame() {
     if (!this._ctx) return;
     const _ctx = this._ctx;
@@ -224,6 +297,7 @@ export class ConstellationEngine {
 
     _ctx.scale(dpi, dpi);
     const {x: tx, y: ty, k: zoom} = this._viewTransform;
+    const bounds = this._getViewBounds(tx, ty, zoom, _width, _height);
 
     this._drawGrid(_ctx, _width, _height, tx, ty, zoom);
 
@@ -237,18 +311,20 @@ export class ConstellationEngine {
 
     _ctx.lineCap = 'round';
     for (const link of this._renderLinks) {
-      this._drawLink(_ctx, link, zoom, isFocusActive, time);
+      this._drawLink(_ctx, link, zoom, isFocusActive, time, bounds);
     }
 
     for (const node of this._renderNodes.values()) {
+      if (!this._isNodeInBounds(node, bounds)) continue;
       this._drawNode(_ctx, node, zoom, isFocusActive, time);
     }
   }
 
-  private _drawLink(_ctx: CanvasRenderingContext2D, link: RenderLink, zoom: number, isFocusActive: boolean, time: number) {
+  private _drawLink(_ctx: CanvasRenderingContext2D, link: RenderLink, zoom: number, isFocusActive: boolean, time: number, bounds: ViewBounds) {
     const source = this._renderNodes.get(link.sourceId);
     const target = this._renderNodes.get(link.targetId);
     if (!source || !target) return;
+    if (!this._isLinkInBounds(source, target, bounds)) return;
 
     let linkOpacity = 0.6;
     if (isFocusActive) {
@@ -297,7 +373,7 @@ export class ConstellationEngine {
         _ctx.lineWidth = 2 / zoom;
         _ctx.stroke();
 
-        if (this.animationsEnabled && linkOpacity > 0.3) {
+        if (this.animationsEnabled && this._renderLinks.length <= this._getAnimatedLinkLimit() && linkOpacity > 0.3) {
           _ctx.globalAlpha = linkOpacity;
           this._drawEnergy(_ctx, link, source, target, color, time, zoom);
         }
@@ -443,7 +519,7 @@ export class ConstellationEngine {
       _ctx.stroke();
     }
 
-    if (isHighlight || zoom > 0.6) this._drawLabel(_ctx, node, y + radius + 12 / zoom, zoom, isHighlight);
+    if (isHighlight || this._shouldRenderLabels(zoom, 0.6)) this._drawLabel(_ctx, node, y + radius + 12 / zoom, zoom, isHighlight);
   }
 
   private _drawDiamond(_ctx: CanvasRenderingContext2D, node: RenderNode, zoom: number, isHighlight: boolean, time: number, isFramework: boolean, isUnused: boolean) {
@@ -498,7 +574,7 @@ export class ConstellationEngine {
 
     _ctx.shadowBlur = 0;
 
-    if (isHighlight || zoom > 0.8) this._drawLabel(_ctx, node, y + radius + 10 / zoom, zoom, isHighlight);
+    if (isHighlight || this._shouldRenderLabels(zoom, 0.8)) this._drawLabel(_ctx, node, y + radius + 10 / zoom, zoom, isHighlight);
   }
 
   private _drawLabel(_ctx: CanvasRenderingContext2D, node: RenderNode, yPos: number, zoom: number, isHighlight: boolean) {
@@ -512,7 +588,7 @@ export class ConstellationEngine {
   }
 
   private _drawGrid(_ctx: CanvasRenderingContext2D, w: number, h: number, tx: number, ty: number, zoom: number) {
-    const gridSize = 100 * zoom;
+    const gridSize = Math.max(25, 100 * zoom);
     const offsetX = (tx % gridSize);
     const offsetY = (ty % gridSize);
 

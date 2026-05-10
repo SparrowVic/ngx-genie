@@ -31,8 +31,12 @@ export function constellationWorkerBody() {
 
 
   let repulsion = 400;
+  let nodeMap = new Map<string, any>();
 
   const CENTER_PULL = 0.003;
+  const SPATIAL_CELL_SIZE = 220;
+  const SPATIAL_GRID_THRESHOLD = 350;
+  const MAX_REPULSION_NEIGHBORS = 128;
 
 
   const LINK_DIST_PROVIDER = 55;
@@ -47,6 +51,85 @@ export function constellationWorkerBody() {
 
   const DAMPING = 0.75;
   const MAX_VEL = 9.0;
+
+  const rebuildNodeMap = () => {
+    nodeMap = new Map<string, any>();
+    for (let i = 0; i < nodes.length; i++) {
+      nodeMap.set(nodes[i].id, nodes[i]);
+    }
+  };
+
+  const applyRepulsionPair = (a: any, b: any) => {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const distSq = dx * dx + dy * dy || 0.1;
+    const dist = Math.sqrt(distSq);
+
+    const force = (repulsion * (a.mass + b.mass)) / (distSq + 100);
+    const fx = (dx / dist) * force;
+    const fy = (dy / dist) * force;
+
+    if (!a.fixed) {
+      a.vx -= fx / a.mass;
+      a.vy -= fy / a.mass;
+    }
+    if (!b.fixed) {
+      b.vx += fx / b.mass;
+      b.vy += fy / b.mass;
+    }
+  };
+
+  const applyFullRepulsion = (nodeCount: number) => {
+    for (let i = 0; i < nodeCount; i++) {
+      for (let j = i + 1; j < nodeCount; j++) {
+        applyRepulsionPair(nodes[i], nodes[j]);
+      }
+    }
+  };
+
+  const applySpatialRepulsion = (nodeCount: number) => {
+    const grid = new Map<string, any[]>();
+
+    for (let i = 0; i < nodeCount; i++) {
+      const node = nodes[i];
+      node._gridIndex = i;
+      node._cellX = Math.floor(node.x / SPATIAL_CELL_SIZE);
+      node._cellY = Math.floor(node.y / SPATIAL_CELL_SIZE);
+      const key = node._cellX + ':' + node._cellY;
+      let cell = grid.get(key);
+      if (!cell) {
+        cell = [];
+        grid.set(key, cell);
+      }
+      cell.push(node);
+    }
+
+    for (let i = 0; i < nodeCount; i++) {
+      const a = nodes[i];
+      let checkedNeighbors = 0;
+
+      for (let gx = a._cellX - 1; gx <= a._cellX + 1; gx++) {
+        if (checkedNeighbors >= MAX_REPULSION_NEIGHBORS) break;
+
+        for (let gy = a._cellY - 1; gy <= a._cellY + 1; gy++) {
+          if (checkedNeighbors >= MAX_REPULSION_NEIGHBORS) break;
+
+          const cell = grid.get(gx + ':' + gy);
+          if (!cell) continue;
+
+          for (let c = 0; c < cell.length; c++) {
+            const b = cell[c];
+            if (b._gridIndex <= i) continue;
+
+            applyRepulsionPair(a, b);
+            checkedNeighbors++;
+
+            if (checkedNeighbors >= MAX_REPULSION_NEIGHBORS) break;
+          }
+        }
+      }
+    }
+  };
 
   const calculatePhysics = () => {
     const centerX = width / 2;
@@ -63,34 +146,10 @@ export function constellationWorkerBody() {
     }
 
 
-    for (let i = 0; i < nodeCount; i++) {
-      for (let j = i + 1; j < nodeCount; j++) {
-        const a = nodes[i];
-        const b = nodes[j];
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        let distSq = dx * dx + dy * dy || 0.1;
-        const dist = Math.sqrt(distSq);
-
-        const force = (repulsion * (a.mass + b.mass)) / (distSq + 100);
-        const fx = (dx / dist) * force;
-        const fy = (dy / dist) * force;
-
-        if (!a.fixed) {
-          a.vx -= fx / a.mass;
-          a.vy -= fy / a.mass;
-        }
-        if (!b.fixed) {
-          b.vx += fx / b.mass;
-          b.vy += fy / b.mass;
-        }
-      }
-    }
-
-
-    const nodeMap = new Map();
-    for (let i = 0; i < nodes.length; i++) {
-      nodeMap.set(nodes[i].id, nodes[i]);
+    if (nodeCount <= SPATIAL_GRID_THRESHOLD) {
+      applyFullRepulsion(nodeCount);
+    } else {
+      applySpatialRepulsion(nodeCount);
     }
 
     for (const link of links) {
@@ -172,6 +231,7 @@ export function constellationWorkerBody() {
           return n;
         });
         links = newLinks;
+        rebuildNodeMap();
         break;
 
       case 'UPDATE_PHYSICS':
