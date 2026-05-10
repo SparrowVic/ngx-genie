@@ -94,6 +94,12 @@ export class ViewportComponent {
     this.uiScale.update(z => Math.max(z - 0.1, 0.5));
   }
 
+  protected setVisualScale(value: number | string) {
+    const nextScale = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(nextScale)) return;
+    this.visualScale.set(Math.max(0.0005, Math.min(nextScale, 8.0)));
+  }
+
   private resetTransform() {
     this.panX.set(0);
     this.panY.set(0);
@@ -108,7 +114,7 @@ export class ViewportComponent {
     const currentScale = this.visualScale();
     const zoomFactor = 0.1;
     const delta = event.deltaY > 0 ? -1 : 1;
-    let newScale = Math.max(0.1, Math.min(currentScale + (delta * zoomFactor * currentScale), 10.0));
+    let newScale = Math.max(0.0005, Math.min(currentScale + (delta * zoomFactor * currentScale), 8.0));
 
     if (this.viewportRef) {
       const rect = this.viewportRef.nativeElement.getBoundingClientRect();

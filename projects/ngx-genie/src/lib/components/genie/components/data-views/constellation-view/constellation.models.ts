@@ -42,6 +42,8 @@ export interface RenderNode {
     label: string;
     subLabel?: string;
     isUnused?: boolean;
+    importance?: number;
+    clusterSize?: number;
   };
   angle?: number;
   pulseOffset?: number;

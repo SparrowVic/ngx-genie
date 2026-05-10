@@ -29,6 +29,7 @@ const ATLAS_FIRST_RING_RADIUS = 76;
 const ORGANIC_INJECTOR_SPACING = 260;
 const ORGANIC_SERVICE_SPACING = 34;
 const ORGANIC_FIRST_SERVICE_RADIUS = 88;
+const ORGANIC_MAX_CLUSTER_SPACING_BOOST = 220;
 
 export interface MappedGraphData {
   workerNodes: WorkerNode[];
@@ -77,9 +78,13 @@ export class ConstellationMapper {
     }
 
     let visibleDependencyLinks = 0;
+    const dependencyCountByNodeId = new Map<number, number>();
+    const dependencyCountByProviderId = new Map<number, number>();
     allDeps.forEach(dep => {
       if (visibleNodeIds.has(dep.consumerNodeId) && dep.providerId && visibleServiceIds.has(dep.providerId)) {
         visibleDependencyLinks++;
+        dependencyCountByNodeId.set(dep.consumerNodeId, (dependencyCountByNodeId.get(dep.consumerNodeId) ?? 0) + 1);
+        dependencyCountByProviderId.set(dep.providerId, (dependencyCountByProviderId.get(dep.providerId) ?? 0) + 1);
       }
     });
 
@@ -142,10 +147,11 @@ export class ConstellationMapper {
 
     const centerX = width / 2;
     const centerY = height / 2;
+    const rootComponentId = visibleTreeNodes.length > 0 ? visibleTreeNodes[0].id : -1;
     const staticLayout = useStaticLayout
       ? (
         useOrganicLayout
-          ? this._createOrganicLayout(visibleTreeNodes, renderServicesByNodeId, centerX, centerY)
+          ? this._createOrganicLayout(visibleTreeNodes, renderServicesByNodeId, dependencyCountByNodeId, rootComponentId, centerX, centerY)
           : this._createAtlasLayout(visibleTreeNodes, renderServicesByNodeId, centerX, centerY)
       )
       : null;
@@ -163,8 +169,6 @@ export class ConstellationMapper {
         y: centerY + Math.sin(angle) * radius
       };
     };
-    const rootComponentId = visibleTreeNodes.length > 0 ? visibleTreeNodes[0].id : -1;
-
     visibleTreeNodes.forEach(node => {
       const id = 'inj-' + node.id;
 
@@ -174,6 +178,15 @@ export class ConstellationMapper {
       const position = staticLayout?.injectorPositions.get(node.id)
         ?? nextInitialPosition(currentPositions.get(id));
       const isRootComponent = node.id === rootComponentId;
+      const services = servicesByNodeId.get(node.id) ?? [];
+      const dependencyCount = dependencyCountByNodeId.get(node.id) ?? 0;
+      const importance = this._injectorImportance(
+        services.length,
+        dependencyCount,
+        node.children?.length ?? 0,
+        isRootComponent,
+        node.type
+      );
 
       const renderNode: RenderNode = {
         id,
@@ -190,7 +203,9 @@ export class ConstellationMapper {
           subLabel: node.type === 'Environment' ? 'ENV' : 'EL',
           dependencyType: 'Injector',
           isRoot: isRootComponent,
-          isFramework: false
+          isFramework: false,
+          importance,
+          clusterSize: services.length
         }
       };
       nextRenderNodes.set(id, renderNode);
@@ -255,6 +270,8 @@ export class ConstellationMapper {
         const isRootScope = svc.isRoot || svc.token?.['ɵprov']?.providedIn === 'root';
         const isUnused = !usedProviderIds.has(svc.id);
         const isFramework = svc.isFramework;
+        const usageCount = Math.max(svc.usageCount || 0, dependencyCountByProviderId.get(svc.id) ?? 0);
+        const importance = this._serviceImportance(svc, depType, usageCount, isRootScope, isUnused, isFramework);
 
         const themeColor = this._getThemeColor(depType);
         let color = themeColor.color;
@@ -281,7 +298,8 @@ export class ConstellationMapper {
             dependencyType: depType,
             isRoot: isRootScope,
             isUnused: isUnused,
-            isFramework: isFramework
+            isFramework: isFramework,
+            importance
           }
         };
         nextRenderNodes.set(id, renderNode);
@@ -346,6 +364,64 @@ export class ConstellationMapper {
     };
 
     return {workerNodes, workerLinks, renderNodes: nextRenderNodes, renderLinks, stats};
+  }
+
+  private static _injectorImportance(
+    serviceCount: number,
+    dependencyCount: number,
+    childCount: number,
+    isRoot: boolean,
+    nodeType: GenieTreeNode['type']
+  ): number {
+    if (isRoot) return 1;
+
+    const serviceScore = this._logScale(serviceCount, 160);
+    const dependencyScore = this._logScale(dependencyCount, 160);
+    const childScore = this._logScale(childCount, 24);
+    const environmentBonus = nodeType === 'Environment' ? 0.08 : 0;
+
+    return this._clamp01(
+      0.12
+      + serviceScore * 0.36
+      + dependencyScore * 0.34
+      + childScore * 0.14
+      + environmentBonus
+    );
+  }
+
+  private static _serviceImportance(
+    service: GenieServiceRegistration,
+    dependencyType: GenieServiceRegistration['dependencyType'],
+    usageCount: number,
+    isRootScope: boolean,
+    isUnused: boolean,
+    isFramework: boolean
+  ): number {
+    const usageScore = this._logScale(usageCount, 120);
+    const rootBonus = isRootScope ? 0.24 : 0;
+    const appCodeBonus = isFramework ? 0 : 0.12;
+    const providerBonus = service.providerType === 'Factory' || service.providerType === 'Existing' ? 0.04 : 0;
+    const typeBonus = dependencyType === 'Service' || dependencyType === 'Component' ? 0.04 : 0;
+    const unusedPenalty = isUnused ? 0.16 : 0;
+
+    return this._clamp01(
+      0.10
+      + usageScore * 0.56
+      + rootBonus
+      + appCodeBonus
+      + providerBonus
+      + typeBonus
+      - unusedPenalty
+    );
+  }
+
+  private static _logScale(value: number, fullAt: number): number {
+    if (value <= 0) return 0;
+    return this._clamp01(Math.log2(value + 1) / Math.log2(fullAt + 1));
+  }
+
+  private static _clamp01(value: number): number {
+    return Math.max(0, Math.min(1, value));
   }
 
   private static _selectSimulationLinks(renderLinks: RenderLink[], nodeCount: number): WorkerLink[] {
@@ -526,6 +602,8 @@ export class ConstellationMapper {
   private static _createOrganicLayout(
     nodes: GenieTreeNode[],
     servicesByNodeId: Map<number, GenieServiceRegistration[]>,
+    dependencyCountByNodeId: Map<number, number>,
+    rootNodeId: number,
     centerX: number,
     centerY: number
   ): {
@@ -535,16 +613,42 @@ export class ConstellationMapper {
     const injectorPositions = new Map<number, { x: number; y: number }>();
     const servicePositions = new Map<number, { x: number; y: number }>();
 
-    nodes.forEach((node, index) => {
-      const position = this._organicInjectorPosition(centerX, centerY, index, node.id);
+    const rankedNodes = nodes
+      .map((node, originalIndex) => {
+        const services = servicesByNodeId.get(node.id) ?? [];
+        const importance = this._injectorImportance(
+          services.length,
+          dependencyCountByNodeId.get(node.id) ?? 0,
+          node.children?.length ?? 0,
+          node.id === rootNodeId,
+          node.type
+        );
+
+        return {
+          node,
+          services,
+          originalIndex,
+          importance,
+          clusterRadius: this._estimateOrganicClusterRadius(services.length, importance)
+        };
+      })
+      .sort((a, b) => {
+        if (a.node.id === rootNodeId) return -1;
+        if (b.node.id === rootNodeId) return 1;
+        const importanceDiff = b.importance - a.importance;
+        if (Math.abs(importanceDiff) > 0.001) return importanceDiff;
+        return a.originalIndex - b.originalIndex;
+      });
+
+    rankedNodes.forEach(({node, services, importance, clusterRadius}, index) => {
+      const position = this._organicInjectorPosition(centerX, centerY, index, node.id, clusterRadius, importance);
       injectorPositions.set(node.id, position);
 
-      const services = servicesByNodeId.get(node.id) ?? [];
       services.forEach((service, serviceIndex) => {
         if (servicePositions.has(service.id)) return;
         servicePositions.set(
           service.id,
-          this._organicServicePosition(position, serviceIndex, service.id)
+          this._organicServicePosition(position, serviceIndex, service.id, services.length)
         );
       });
     });
@@ -556,14 +660,19 @@ export class ConstellationMapper {
     centerX: number,
     centerY: number,
     index: number,
-    nodeId: number
+    nodeId: number,
+    clusterRadius: number,
+    importance: number
   ): { x: number; y: number } {
     if (index === 0) return {x: centerX, y: centerY};
 
     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
     const hash = this._stableHash(String(nodeId));
     const angle = index * goldenAngle + (hash % 1000) / 1000 * 0.38;
-    const radius = Math.sqrt(index) * ORGANIC_INJECTOR_SPACING + 160 + (hash % 90);
+    const spacing = ORGANIC_INJECTOR_SPACING
+      + Math.min(ORGANIC_MAX_CLUSTER_SPACING_BOOST, clusterRadius * 0.34)
+      + importance * 80;
+    const radius = Math.sqrt(index) * spacing + 160 + clusterRadius * 0.42 + (hash % 90);
     const wobbleA = Math.sin(index * 0.41 + hash * 0.0001) * 70;
     const wobbleB = Math.cos(index * 0.27 + hash * 0.0002) * 70;
 
@@ -576,13 +685,15 @@ export class ConstellationMapper {
   private static _organicServicePosition(
     parent: { x: number; y: number },
     index: number,
-    serviceId: number
+    serviceId: number,
+    serviceCount: number
   ): { x: number; y: number } {
     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
     const hash = this._stableHash(String(serviceId));
     const angle = index * goldenAngle + (hash % 1000) / 1000 * Math.PI * 2;
+    const densitySpacing = ORGANIC_SERVICE_SPACING + Math.min(18, Math.log2(serviceCount + 1) * 2.1);
     const radius = ORGANIC_FIRST_SERVICE_RADIUS
-      + Math.sqrt(index) * ORGANIC_SERVICE_SPACING
+      + Math.sqrt(index) * densitySpacing
       + (hash % 26);
     const wobbleA = Math.sin(hash * 0.003 + index * 0.73) * 10;
     const wobbleB = Math.cos(hash * 0.002 + index * 0.59) * 10;
@@ -591,6 +702,16 @@ export class ConstellationMapper {
       x: parent.x + Math.cos(angle) * radius + wobbleA,
       y: parent.y + Math.sin(angle) * radius + wobbleB
     };
+  }
+
+  private static _estimateOrganicClusterRadius(serviceCount: number, importance: number): number {
+    if (serviceCount <= 0) return 96 + importance * 72;
+
+    const densitySpacing = ORGANIC_SERVICE_SPACING + Math.min(18, Math.log2(serviceCount + 1) * 2.1);
+    return ORGANIC_FIRST_SERVICE_RADIUS
+      + Math.sqrt(serviceCount) * densitySpacing
+      + 80
+      + importance * 96;
   }
 
   private static _estimateAtlasClusterRadius(serviceCount: number): number {

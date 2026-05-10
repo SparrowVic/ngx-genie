@@ -7,6 +7,7 @@ import {
   input,
   NgZone,
   OnDestroy,
+  output,
   viewChild,
   signal, effect, untracked, ViewEncapsulation, PLATFORM_ID
 } from '@angular/core';
@@ -35,6 +36,9 @@ const STORAGE_KEY_CONSTELLATION_LAYOUT_STRATEGY = 'genie_constellation_layout_st
 const STORAGE_KEY_CONSTELLATION_AUTO_OPTIMIZE = 'genie_constellation_auto_optimize';
 const LARGE_GRAPH_HOVER_THROTTLE_MS = 48;
 const LARGE_GRAPH_HOVER_NODE_THRESHOLD = 1500;
+const MIN_CONSTELLATION_ZOOM = 0.0005;
+const MAX_CONSTELLATION_ZOOM = 8;
+const ZOOM_SYNC_EPSILON = 0.0005;
 
 @Component({
   selector: 'lib-constellation-view',
@@ -62,6 +66,8 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   readonly getProvidersForNode = input.required<(node: GenieTreeNode) => GenieServiceRegistration[]>();
   readonly selectService = input.required<(svc: GenieServiceRegistration) => void>();
   readonly transformStyle = input<string>('');
+  readonly zoomLevel = input<number>(1);
+  readonly zoomLevelChange = output<number>();
 
   readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   readonly containerRef = viewChild.required<ElementRef<HTMLElement>>('container');
@@ -135,6 +141,16 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
         });
       }
     });
+
+    effect(() => {
+      const zoom = Number(this.zoomLevel());
+      untracked(() => {
+        if (!this.engine) return;
+        if (!Number.isFinite(zoom)) return;
+        if (Math.abs(zoom - this.viewState.k) < ZOOM_SYNC_EPSILON) return;
+        this.setZoomAroundViewportCenter(zoom);
+      });
+    });
   }
 
   ngAfterViewInit() {
@@ -206,14 +222,7 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
 
-    const newK = Math.max(0.1, Math.min(5, this.viewState.k * factor));
-    const kRatio = newK / this.viewState.k;
-
-    this.viewState.x = mouseX - (mouseX - this.viewState.x) * kRatio;
-    this.viewState.y = mouseY - (mouseY - this.viewState.y) * kRatio;
-    this.viewState.k = newK;
-
-    this.engine?.updateTransform(this.viewState);
+    this.setZoomAroundPoint(this.viewState.k * factor, mouseX, mouseY);
   }
 
   onMouseLeave() {
@@ -343,7 +352,9 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
 
     if (this.stateService.hasTransform()) {
       this.viewState = this.stateService.viewTransform;
+      this.viewState.k = this.clampZoom(this.viewState.k);
       this.engine.updateTransform(this.viewState);
+      this.zoomLevelChange.emit(this.viewState.k);
     }
 
     this.updateGraphData();
@@ -375,6 +386,30 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
     }
 
     this.graphUpdateTimer = setTimeout(callback, 80);
+  }
+
+  private setZoomAroundViewportCenter(zoom: number): void {
+    const rect = this.containerRef().nativeElement.getBoundingClientRect();
+    this.setZoomAroundPoint(zoom, rect.width / 2, rect.height / 2, false);
+  }
+
+  private setZoomAroundPoint(zoom: number, anchorX: number, anchorY: number, emit = true): void {
+    const newK = this.clampZoom(zoom);
+    if (Math.abs(newK - this.viewState.k) < ZOOM_SYNC_EPSILON) return;
+
+    const kRatio = newK / Math.max(this.viewState.k, MIN_CONSTELLATION_ZOOM);
+
+    this.viewState.x = anchorX - (anchorX - this.viewState.x) * kRatio;
+    this.viewState.y = anchorY - (anchorY - this.viewState.y) * kRatio;
+    this.viewState.k = newK;
+
+    this.engine?.updateTransform(this.viewState);
+    if (emit) this.zoomLevelChange.emit(newK);
+  }
+
+  private clampZoom(zoom: number): number {
+    if (!Number.isFinite(zoom)) return 1;
+    return Math.max(MIN_CONSTELLATION_ZOOM, Math.min(MAX_CONSTELLATION_ZOOM, zoom));
   }
 
   private cancelGraphDataUpdate(): void {

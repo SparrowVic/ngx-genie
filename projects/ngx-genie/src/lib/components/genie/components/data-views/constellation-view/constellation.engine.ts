@@ -18,6 +18,7 @@ interface ViewBounds {
 
 const ATLAS_SPATIAL_CELL_SIZE = 720;
 const ATLAS_MAX_DRAWN_NODES = 9000;
+const ATLAS_MAX_SPATIAL_CELLS_PER_FRAME = 25000;
 
 export class ConstellationEngine {
   private readonly _ctx: CanvasRenderingContext2D;
@@ -354,7 +355,7 @@ export class ConstellationEngine {
     if (!this._isStaticLayout()) {
       const nodes: RenderNode[] = [];
       for (const node of this._renderNodes.values()) {
-        if (this._isNodeInBounds(node, bounds)) nodes.push(node);
+        if (this._isNodeInBounds(node, bounds, zoom)) nodes.push(node);
       }
       return nodes;
     }
@@ -364,6 +365,11 @@ export class ConstellationEngine {
     const minCellY = Math.floor(bounds.top / ATLAS_SPATIAL_CELL_SIZE);
     const maxCellY = Math.floor(bounds.bottom / ATLAS_SPATIAL_CELL_SIZE);
     const nodes: RenderNode[] = [];
+    const collectLimit = zoom < 0.72 ? ATLAS_MAX_DRAWN_NODES * 2 : ATLAS_MAX_DRAWN_NODES;
+    const cellCount = (maxCellX - minCellX + 1) * (maxCellY - minCellY + 1);
+    if (cellCount > ATLAS_MAX_SPATIAL_CELLS_PER_FRAME) {
+      return this._scanRenderableNodes(bounds, zoom, collectLimit);
+    }
 
     for (let x = minCellX; x <= maxCellX; x++) {
       for (let y = minCellY; y <= maxCellY; y++) {
@@ -371,12 +377,34 @@ export class ConstellationEngine {
         if (!bucket) continue;
 
         for (const node of bucket) {
-          if (!this._isNodeInBounds(node, bounds)) continue;
+          if (!this._isNodeInBounds(node, bounds, zoom)) continue;
           if (!this._passesAtlasNodeLod(node, zoom)) continue;
           nodes.push(node);
-          if (nodes.length >= ATLAS_MAX_DRAWN_NODES) return nodes;
+          if (nodes.length >= collectLimit) return this._finalizeRenderableNodes(nodes, zoom);
         }
       }
+    }
+
+    return this._finalizeRenderableNodes(nodes, zoom);
+  }
+
+  private _scanRenderableNodes(bounds: ViewBounds, zoom: number, collectLimit: number): RenderNode[] {
+    const nodes: RenderNode[] = [];
+
+    for (const node of this._renderNodes.values()) {
+      if (!this._isNodeInBounds(node, bounds, zoom)) continue;
+      if (!this._passesAtlasNodeLod(node, zoom)) continue;
+      nodes.push(node);
+      if (zoom >= 0.72 && nodes.length >= collectLimit) break;
+    }
+
+    return this._finalizeRenderableNodes(nodes, zoom);
+  }
+
+  private _finalizeRenderableNodes(nodes: RenderNode[], zoom: number): RenderNode[] {
+    if (zoom < 0.72) {
+      nodes.sort((a, b) => this._getNodeImportance(a) - this._getNodeImportance(b));
+      if (nodes.length > ATLAS_MAX_DRAWN_NODES) return nodes.slice(nodes.length - ATLAS_MAX_DRAWN_NODES);
     }
 
     return nodes;
@@ -389,6 +417,10 @@ export class ConstellationEngine {
     if (zoom >= 0.7) return true;
 
     const degree = this._dependencyDegreeByNodeId.get(node.id) ?? 0;
+    const importance = this._getNodeImportance(node);
+    if (zoom < 0.28) return importance >= 0.84 || degree >= 34;
+    if (zoom < 0.45) return importance >= 0.70 || degree >= 18;
+    if (importance >= 0.55) return true;
     if (zoom >= 0.45 && degree >= 8) return true;
     return false;
   }
@@ -446,6 +478,15 @@ export class ConstellationEngine {
     return zoom > minZoom;
   }
 
+  private _shouldRenderOverviewLabel(node: RenderNode, zoom: number): boolean {
+    if (zoom > 0.34) return false;
+    if (node.meta?.isRoot) return true;
+
+    const importance = this._getNodeImportance(node);
+    if (node.type === 'injector') return importance >= 0.92;
+    return importance >= 0.97;
+  }
+
   private _isHugeGraph(): boolean {
     return this._isStaticLayout()
       || !!this._graphStats?.isHuge
@@ -454,7 +495,7 @@ export class ConstellationEngine {
   }
 
   private _getViewBounds(tx: number, ty: number, zoom: number, width: number, height: number): ViewBounds {
-    const safeZoom = Math.max(zoom, 0.001);
+    const safeZoom = Math.max(zoom, 0.0005);
     const margin = 120 / safeZoom;
     return {
       left: (-tx / safeZoom) - margin,
@@ -464,8 +505,8 @@ export class ConstellationEngine {
     };
   }
 
-  private _isNodeInBounds(node: RenderNode, bounds: ViewBounds): boolean {
-    const radius = node.radius + 40;
+  private _isNodeInBounds(node: RenderNode, bounds: ViewBounds, zoom: number): boolean {
+    const radius = this._getVisualRadius(node, zoom) + 40 / Math.max(zoom, 0.2);
     return node.x + radius >= bounds.left
       && node.x - radius <= bounds.right
       && node.y + radius >= bounds.top
@@ -743,9 +784,100 @@ export class ConstellationEngine {
     }
   }
 
+  private _getNodeImportance(node: RenderNode): number {
+    if (node.meta?.isRoot) return 1;
+    const explicitImportance = node.meta?.importance;
+    if (typeof explicitImportance === 'number') return Math.max(0, Math.min(1, explicitImportance));
+
+    const degree = this._dependencyDegreeByNodeId.get(node.id) ?? 0;
+    return Math.max(0.08, Math.min(1, Math.log2(degree + 1) / 8));
+  }
+
+  private _getVisualRadius(node: RenderNode, zoom: number): number {
+    const baseRadius = node.radius;
+    const overview = this._overviewFactor(zoom);
+    if (overview <= 0) return baseRadius;
+
+    const safeZoom = Math.max(zoom, 0.0005);
+    const isInjector = node.type === 'injector';
+    const isRoot = !!node.meta?.isRoot;
+    const unusedFactor = node.meta?.isUnused ? 0.74 : 1;
+    const tierScale = this._overviewTierScale(node);
+    const baseScreenRadius = baseRadius * zoom;
+    const fullScreenRadius = isInjector ? (isRoot ? 16 : 13) : 8.5 * unusedFactor;
+    const tieredScreenRadius = Math.max(isInjector ? 3.5 : 2.1, fullScreenRadius * tierScale);
+    const stepBoost = this._overviewStepBoost(zoom, tierScale, isRoot);
+    const targetScreenRadius = tieredScreenRadius + stepBoost;
+    const screenRadius = this._lerp(baseScreenRadius, targetScreenRadius, overview);
+
+    return Math.max(baseRadius, screenRadius / safeZoom);
+  }
+
+  private _overviewFactor(zoom: number): number {
+    if (zoom >= 0.72) return 0;
+    if (zoom <= 0.20) return 1;
+    return Math.max(0, Math.min(1, (0.72 - zoom) / 0.52));
+  }
+
+  private _overviewTierScale(node: RenderNode): number {
+    if (node.meta?.isRoot) return 1;
+
+    const importance = this._getNodeImportance(node);
+    if (importance >= 0.82) return 0.75;
+    if (importance >= 0.52) return 0.5;
+    return 0.25;
+  }
+
+  private _overviewStepBoost(zoom: number, tierScale: number, isRoot: boolean): number {
+    let boost = 0;
+    if (zoom < 0.42 && tierScale >= 0.5) boost += 1.2;
+    if (zoom < 0.24 && tierScale >= 0.75) boost += 1.6;
+    if (zoom < 0.12 && (tierScale >= 0.75 || isRoot)) boost += 1.8;
+    if (zoom < 0.06 && isRoot) boost += 2.2;
+    return boost;
+  }
+
+  private _drawOverviewBeacon(
+    _ctx: CanvasRenderingContext2D,
+    node: RenderNode,
+    zoom: number,
+    radius: number,
+    isHighlight: boolean
+  ): void {
+    const overview = this._overviewFactor(zoom);
+    if (overview <= 0) return;
+
+    const importance = this._getNodeImportance(node);
+    const isRoot = !!node.meta?.isRoot;
+    const isProminent = isRoot
+      || isHighlight
+      || (node.type === 'injector' && importance >= 0.52)
+      || (node.type === 'service' && importance >= 0.82);
+    if (!isProminent) return;
+
+    const previousAlpha = _ctx.globalAlpha;
+    const alpha = previousAlpha * overview * (isRoot ? 0.24 : node.type === 'injector' ? 0.15 : 0.10);
+    _ctx.globalAlpha = alpha;
+    _ctx.beginPath();
+    _ctx.arc(node.x, node.y, radius * (isRoot ? 2.4 : 1.95), 0, Math.PI * 2);
+    _ctx.strokeStyle = node.glowColor;
+    _ctx.lineWidth = Math.max(0.8, 1.15 / Math.max(zoom, 0.0005));
+    _ctx.stroke();
+
+    if (isRoot || importance >= 0.82 || isHighlight) {
+      _ctx.globalAlpha = alpha * 0.45;
+      _ctx.beginPath();
+      _ctx.arc(node.x, node.y, radius * (isRoot ? 3.6 : 2.75), 0, Math.PI * 2);
+      _ctx.stroke();
+    }
+
+    _ctx.globalAlpha = previousAlpha;
+  }
+
   private _drawNode(_ctx: CanvasRenderingContext2D, node: RenderNode, zoom: number, isFocusActive: boolean, time: number) {
     let nodeOpacity = 1.0;
     const isHighlight = this.hoveredNode === node || this.pinnedNode === node;
+    const visualRadius = this._getVisualRadius(node, zoom);
 
     if (isFocusActive) {
       const isNeighbor = this._focusedNodeIds.has(node.id);
@@ -757,20 +889,21 @@ export class ConstellationEngine {
     if (node.meta?.isUnused && !this._unusedPattern) nodeOpacity *= 0.4;
 
     _ctx.globalAlpha = nodeOpacity;
+    this._drawOverviewBeacon(_ctx, node, zoom, visualRadius, isHighlight);
 
     if (node.type === 'injector') {
-      this._drawHexagon(_ctx, node, zoom, isHighlight, time);
+      this._drawHexagon(_ctx, node, zoom, isHighlight, time, visualRadius);
     } else {
       const isFramework = !!node.meta?.isFramework;
       const isUnused = !!node.meta?.isUnused;
-      this._drawDiamond(_ctx, node, zoom, isHighlight, time, isFramework, isUnused);
+      this._drawDiamond(_ctx, node, zoom, isHighlight, time, isFramework, isUnused, visualRadius);
     }
 
     _ctx.globalAlpha = 1.0;
   }
 
-  private _drawHexagon(_ctx: CanvasRenderingContext2D, node: RenderNode, zoom: number, isHighlight: boolean, time: number) {
-    const {x, y, radius, baseColor, glowColor} = node;
+  private _drawHexagon(_ctx: CanvasRenderingContext2D, node: RenderNode, zoom: number, isHighlight: boolean, time: number, radius: number) {
+    const {x, y, baseColor, glowColor} = node;
     let currentAngle = node.angle || 0;
     if (this._shouldAnimateVisuals()) {
       currentAngle += time * (isHighlight ? 0.002 : 0.0005);
@@ -812,11 +945,13 @@ export class ConstellationEngine {
       _ctx.stroke();
     }
 
-    if (isHighlight || this._shouldRenderLabels(zoom, 0.6)) this._drawLabel(_ctx, node, y + radius + 12 / zoom, zoom, isHighlight);
+    if (isHighlight || this._shouldRenderLabels(zoom, 0.6) || this._shouldRenderOverviewLabel(node, zoom)) {
+      this._drawLabel(_ctx, node, y + radius + 12 / zoom, zoom, isHighlight || this._shouldRenderOverviewLabel(node, zoom));
+    }
   }
 
-  private _drawDiamond(_ctx: CanvasRenderingContext2D, node: RenderNode, zoom: number, isHighlight: boolean, time: number, isFramework: boolean, isUnused: boolean) {
-    const {x, y, radius, baseColor, glowColor} = node;
+  private _drawDiamond(_ctx: CanvasRenderingContext2D, node: RenderNode, zoom: number, isHighlight: boolean, time: number, isFramework: boolean, isUnused: boolean, radius: number) {
+    const {x, y, baseColor, glowColor} = node;
     let sizeAnim = radius;
 
     if (this._shouldAnimateVisuals()) {
@@ -867,7 +1002,9 @@ export class ConstellationEngine {
 
     _ctx.shadowBlur = 0;
 
-    if (isHighlight || this._shouldRenderLabels(zoom, 0.8)) this._drawLabel(_ctx, node, y + radius + 10 / zoom, zoom, isHighlight);
+    if (isHighlight || this._shouldRenderLabels(zoom, 0.8) || this._shouldRenderOverviewLabel(node, zoom)) {
+      this._drawLabel(_ctx, node, y + radius + 10 / zoom, zoom, isHighlight || this._shouldRenderOverviewLabel(node, zoom));
+    }
   }
 
   private _drawLabel(_ctx: CanvasRenderingContext2D, node: RenderNode, yPos: number, zoom: number, isHighlight: boolean) {
