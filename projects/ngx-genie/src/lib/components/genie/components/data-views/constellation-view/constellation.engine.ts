@@ -26,6 +26,13 @@ interface RelationSlot {
   ringIndex: number;
 }
 
+interface ViewportCluster {
+  members: RenderNode[];
+  x: number;
+  y: number;
+  radius: number;
+}
+
 const ATLAS_SPATIAL_CELL_SIZE = 720;
 const ATLAS_MAX_DRAWN_NODES = 9000;
 const ATLAS_MAX_SPATIAL_CELLS_PER_FRAME = 25000;
@@ -35,7 +42,17 @@ const FOCUS_DIM_LINK_OPACITY = 0.24;
 const VIEWPORT_LENS_MAX_NODES = 420;
 const VIEWPORT_LENS_MIN_ZOOM = 0.08;
 const VIEWPORT_LENS_MAX_STRENGTH = 0.94;
-const VIEWPORT_LENS_TRANSITION_MS = 420;
+const VIEWPORT_LENS_TRANSITION_MS = 760;
+const VIEWPORT_LENS_MIN_STEP_PX = 4;
+const VIEWPORT_LENS_MAX_STEP_PX = 18;
+const RELATION_RING_CLOSE_ZOOM_START = 1.05;
+const RELATION_RING_CLOSE_ZOOM_END = 2.45;
+const DETAIL_SHRINK_ZOOM_START = 2.2;
+const DETAIL_SHRINK_ZOOM_END = 5.8;
+const DETAIL_MIN_SCALE = 0.56;
+const VIEWPORT_CLUSTER_PACKING_MAX_CLUSTERS = 18;
+const VIEWPORT_CLUSTER_PACKING_MIN_SPREAD = 0.42;
+const VIEWPORT_CLUSTER_PACKING_TARGET_SCALE = 0.58;
 const RELATION_RING_FIRST_RADIUS_PX = 118;
 const RELATION_RING_GAP_PX = 86;
 const RELATION_RING_MIN_SPACING_PX = 68;
@@ -665,10 +682,7 @@ export class ConstellationEngine {
       activeIds.add(node.id);
       const target = targets.get(node.id) ?? node;
       const current = this._displayPositions.get(node.id) ?? {x: node.x, y: node.y};
-      const next = {
-        x: this._lerp(current.x, target.x, ease),
-        y: this._lerp(current.y, target.y, ease)
-      };
+      const next = this._advanceDisplayPosition(current, target, ease, zoom, frameDelta);
       const screenDelta = Math.hypot(target.x - next.x, target.y - next.y) * zoom;
 
       if (screenDelta > maxScreenDelta) maxScreenDelta = screenDelta;
@@ -686,6 +700,41 @@ export class ConstellationEngine {
     }
 
     this._viewportLensAnimating = maxScreenDelta > 0.35;
+  }
+
+  private _advanceDisplayPosition(
+    current: DisplayPosition,
+    target: DisplayPosition,
+    ease: number,
+    zoom: number,
+    frameDelta: number
+  ): DisplayPosition {
+    const next = {
+      x: this._lerp(current.x, target.x, ease),
+      y: this._lerp(current.y, target.y, ease)
+    };
+    const dx = next.x - current.x;
+    const dy = next.y - current.y;
+    const screenDistance = Math.hypot(dx, dy) * zoom;
+    const maxStep = this._viewportLensMaxStepPx(frameDelta, zoom);
+
+    if (screenDistance <= maxStep) return next;
+
+    const scale = maxStep / Math.max(screenDistance, 0.001);
+    return {
+      x: current.x + dx * scale,
+      y: current.y + dy * scale
+    };
+  }
+
+  private _viewportLensMaxStepPx(frameDelta: number, zoom: number): number {
+    const safeDelta = Math.max(8, Math.min(80, frameDelta));
+    const closeZoom = this._closeZoomFactor(zoom);
+    const pixelsPerSecond = this._lerp(1040, 640, closeZoom);
+    return Math.max(
+      VIEWPORT_LENS_MIN_STEP_PX,
+      Math.min(VIEWPORT_LENS_MAX_STEP_PX, pixelsPerSecond * safeDelta / 1000)
+    );
   }
 
   private _buildRelationalLensTargets(renderableNodes: RenderNode[], zoom: number): Map<string, DisplayPosition> {
@@ -712,6 +761,8 @@ export class ConstellationEngine {
       this._assignRelationRingTargets(parent, children, zoom, targets);
     }
 
+    this._applyViewportClusterPacking(groupedChildren, visibleNodes, targets, zoom);
+
     return this._resolveLensCollisions(renderableNodes, targets, zoom);
   }
 
@@ -736,6 +787,159 @@ export class ConstellationEngine {
     }
   }
 
+  private _applyViewportClusterPacking(
+    groupedChildren: Map<string, RenderNode[]>,
+    visibleNodes: Map<string, RenderNode>,
+    targets: Map<string, DisplayPosition>,
+    zoom: number
+  ): void {
+    const clusters = this._buildViewportClusters(groupedChildren, visibleNodes, targets, zoom);
+    if (clusters.length < 2 || clusters.length > VIEWPORT_CLUSTER_PACKING_MAX_CLUSTERS) return;
+
+    const scale = this._viewportClusterPackingScale(clusters);
+    if (scale > 0.985) return;
+
+    const centerX = this._width * 0.5;
+    const centerY = this._height * 0.5;
+    const deltas = new Map<string, { dx: number; dy: number; count: number }>();
+
+    for (const cluster of clusters) {
+      const packedX = centerX + (cluster.x - centerX) * scale;
+      const packedY = centerY + (cluster.y - centerY) * scale;
+      const dx = (packedX - cluster.x) / Math.max(zoom, VIEWPORT_LENS_MIN_ZOOM);
+      const dy = (packedY - cluster.y) / Math.max(zoom, VIEWPORT_LENS_MIN_ZOOM);
+
+      for (const member of cluster.members) {
+        const delta = deltas.get(member.id);
+        if (delta) {
+          delta.dx += dx;
+          delta.dy += dy;
+          delta.count++;
+        } else {
+          deltas.set(member.id, {dx, dy, count: 1});
+        }
+      }
+    }
+
+    for (const [nodeId, delta] of deltas) {
+      const node = visibleNodes.get(nodeId);
+      if (!node) continue;
+
+      const currentTarget = targets.get(nodeId) ?? this._getDisplayPosition(node);
+      targets.set(nodeId, {
+        x: currentTarget.x + delta.dx / delta.count,
+        y: currentTarget.y + delta.dy / delta.count
+      });
+    }
+  }
+
+  private _buildViewportClusters(
+    groupedChildren: Map<string, RenderNode[]>,
+    visibleNodes: Map<string, RenderNode>,
+    targets: Map<string, DisplayPosition>,
+    zoom: number
+  ): ViewportCluster[] {
+    const clusters: ViewportCluster[] = [];
+
+    for (const [parentId, children] of groupedChildren) {
+      const parent = visibleNodes.get(parentId);
+      if (!parent || children.length === 0) continue;
+
+      const members = this._uniqueClusterMembers(parent, children);
+      let left = Number.POSITIVE_INFINITY;
+      let right = Number.NEGATIVE_INFINITY;
+      let top = Number.POSITIVE_INFINITY;
+      let bottom = Number.NEGATIVE_INFINITY;
+
+      for (const member of members) {
+        const position = targets.get(member.id) ?? this._getDisplayPosition(member);
+        const screenPosition = this._worldToScreen(position);
+        const radius = this._nodeCollisionRadiusPx(member, zoom);
+        left = Math.min(left, screenPosition.x - radius);
+        right = Math.max(right, screenPosition.x + radius);
+        top = Math.min(top, screenPosition.y - radius);
+        bottom = Math.max(bottom, screenPosition.y + radius);
+      }
+
+      if (!Number.isFinite(left) || !Number.isFinite(top)) continue;
+
+      clusters.push({
+        members,
+        x: (left + right) * 0.5,
+        y: (top + bottom) * 0.5,
+        radius: Math.max(28, Math.hypot(right - left, bottom - top) * 0.5)
+      });
+    }
+
+    return clusters;
+  }
+
+  private _uniqueClusterMembers(parent: RenderNode, children: RenderNode[]): RenderNode[] {
+    const members: RenderNode[] = [parent];
+    const seenIds = new Set<string>([parent.id]);
+
+    for (const child of children) {
+      if (seenIds.has(child.id)) continue;
+      members.push(child);
+      seenIds.add(child.id);
+    }
+
+    return members;
+  }
+
+  private _viewportClusterPackingScale(clusters: ViewportCluster[]): number {
+    let left = Number.POSITIVE_INFINITY;
+    let right = Number.NEGATIVE_INFINITY;
+    let top = Number.POSITIVE_INFINITY;
+    let bottom = Number.NEGATIVE_INFINITY;
+    let area = 0;
+
+    for (const cluster of clusters) {
+      left = Math.min(left, cluster.x - cluster.radius);
+      right = Math.max(right, cluster.x + cluster.radius);
+      top = Math.min(top, cluster.y - cluster.radius);
+      bottom = Math.max(bottom, cluster.y + cluster.radius);
+      area += Math.PI * cluster.radius * cluster.radius;
+    }
+
+    const viewportArea = Math.max(1, this._width * this._height);
+    const occupancy = this._clamp01(area / viewportArea);
+    const spread = Math.max(
+      (right - left) / Math.max(1, this._width),
+      (bottom - top) / Math.max(1, this._height)
+    );
+    const sparseFactor = 1 - this._smoothStep(this._clamp01((occupancy - 0.12) / 0.26));
+    const spreadFactor = this._smoothStep(this._clamp01((spread - VIEWPORT_CLUSTER_PACKING_MIN_SPREAD) / 0.58));
+    const countFactor = this._lerp(1, 0.55, this._clamp01((clusters.length - 2) / 14));
+    const pull = sparseFactor * spreadFactor * countFactor;
+    if (pull <= 0.04) return 1;
+
+    const desiredScale = this._lerp(1, VIEWPORT_CLUSTER_PACKING_TARGET_SCALE, pull);
+    const safeScale = this._minimumSafeClusterScale(clusters);
+    return Math.min(1, Math.max(desiredScale, safeScale));
+  }
+
+  private _minimumSafeClusterScale(clusters: ViewportCluster[]): number {
+    let minScale = 0;
+
+    for (let i = 0; i < clusters.length; i++) {
+      const a = clusters[i];
+      for (let j = i + 1; j < clusters.length; j++) {
+        const b = clusters[j];
+        const distance = Math.hypot(b.x - a.x, b.y - a.y);
+        if (distance <= 0.001) {
+          minScale = Math.max(minScale, 1);
+          continue;
+        }
+
+        const safeDistance = a.radius + b.radius + 34;
+        minScale = Math.max(minScale, safeDistance / distance);
+      }
+    }
+
+    return minScale >= 1 ? 1 : minScale;
+  }
+
   private _assignRelationRingTargets(
     parent: RenderNode,
     children: RenderNode[],
@@ -748,19 +952,20 @@ export class ConstellationEngine {
     const strength = this._relationLensStrength(parent, children, zoom);
     if (strength <= 0) return;
 
-    const parentFootprint = this._nodeFootprintRadiusPx(parent, zoom);
+    const parentFootprint = this._relationLayoutFootprintRadiusPx(parent, zoom);
     const maxChildFootprint = orderedSlotChildren.reduce(
-      (max, child) => Math.max(max, this._nodeFootprintRadiusPx(child, zoom)),
+      (max, child) => Math.max(max, this._relationLayoutFootprintRadiusPx(child, zoom)),
       RELATION_RING_MIN_SPACING_PX * 0.5
     );
     const safeZoom = Math.max(zoom, VIEWPORT_LENS_MIN_ZOOM);
+    const ringScale = this._relationRingCompactionScale(zoom, children.length);
 
     for (const child of children) {
       const slot = slots.get(child.id);
       if (!slot) continue;
 
       const ringRadiusPx = this._relationRingRadiusPx(slot.ringIndex, parentFootprint, maxChildFootprint);
-      const radius = ringRadiusPx / safeZoom;
+      const radius = ringRadiusPx * ringScale / safeZoom;
       const ringTarget = {
         x: parent.x + Math.cos(slot.angle) * radius,
         y: parent.y + Math.sin(slot.angle) * radius
@@ -855,6 +1060,26 @@ export class ConstellationEngine {
     return Math.max(RELATION_RING_MIN_SPACING_PX * 0.5, baseRadius);
   }
 
+  private _relationLayoutFootprintRadiusPx(node: RenderNode, zoom: number): number {
+    const footprint = this._nodeFootprintRadiusPx(node, zoom);
+    const visualRadius = this._getVisualRadius(node, zoom) * zoom;
+    const closeZoom = this._closeZoomFactor(zoom);
+    const compactFootprint = Math.max(
+      this._relationSlotFootprintRadiusPx(node),
+      visualRadius + (node.type === 'injector' ? 18 : 14),
+      footprint * (node.type === 'injector' ? 0.70 : 0.62)
+    );
+
+    return this._lerp(footprint, compactFootprint, closeZoom);
+  }
+
+  private _relationRingCompactionScale(zoom: number, childCount: number): number {
+    const closeZoom = this._closeZoomFactor(zoom);
+    const denseGroupRecovery = this._clamp01((childCount - 18) / 30) * 0.16;
+    const targetScale = 0.56 + denseGroupRecovery;
+    return this._lerp(1, targetScale, closeZoom);
+  }
+
   private _relationLensStrength(parent: RenderNode, children: RenderNode[], zoom: number): number {
     if (children.length === 0) return 0;
 
@@ -917,7 +1142,7 @@ export class ConstellationEngine {
       return {
         node,
         movable: movableIds.has(node.id),
-        radius: this._nodeFootprintRadiusPx(node, zoom),
+        radius: this._nodeCollisionRadiusPx(node, zoom),
         x: target.x * zoom,
         y: target.y * zoom
       };
@@ -934,7 +1159,7 @@ export class ConstellationEngine {
           let dx = b.x - a.x;
           let dy = b.y - a.y;
           let dist = Math.hypot(dx, dy);
-          const minDistance = a.radius + b.radius + 10;
+          const minDistance = a.radius + b.radius + this._collisionGapPx(zoom);
           if (dist >= minDistance) continue;
 
           if (dist < 0.001) {
@@ -985,7 +1210,7 @@ export class ConstellationEngine {
     if (labelFactor <= 0.01) return visualRadiusPx + 12;
 
     const label = node.meta?.label ?? '';
-    const fontSizePx = Math.max(9 * zoom, 11);
+    const fontSizePx = this._labelScreenFontSizePx(zoom, false);
     const labelWidth = Math.min(340, label.length * fontSizePx * 0.62);
     const labelRadius = Math.max(
       visualRadiusPx + 14,
@@ -993,6 +1218,23 @@ export class ConstellationEngine {
     );
 
     return this._lerp(visualRadiusPx + 12, labelRadius, labelFactor);
+  }
+
+  private _nodeCollisionRadiusPx(node: RenderNode, zoom: number): number {
+    const footprint = this._nodeFootprintRadiusPx(node, zoom);
+    const visualRadius = this._getVisualRadius(node, zoom) * zoom;
+    const closeZoom = this._closeZoomFactor(zoom);
+    const compactRadius = Math.max(
+      this._relationSlotFootprintRadiusPx(node),
+      visualRadius + (node.type === 'injector' ? 16 : 12),
+      footprint * (node.type === 'injector' ? 0.76 : 0.68)
+    );
+
+    return this._lerp(footprint, compactRadius, closeZoom);
+  }
+
+  private _collisionGapPx(zoom: number): number {
+    return this._lerp(10, 5, this._closeZoomFactor(zoom));
   }
 
   private _labelFootprintFactor(node: RenderNode, zoom: number): number {
@@ -1015,6 +1257,14 @@ export class ConstellationEngine {
     return this._displayPositions.get(node.id) ?? node;
   }
 
+  private _worldToScreen(position: DisplayPosition): DisplayPosition {
+    const {x: tx, y: ty, k: zoom} = this._viewTransform;
+    return {
+      x: position.x * zoom + tx,
+      y: position.y * zoom + ty
+    };
+  }
+
   private _clamp01(value: number): number {
     return Math.max(0, Math.min(1, value));
   }
@@ -1022,6 +1272,12 @@ export class ConstellationEngine {
   private _smoothStep(value: number): number {
     const t = this._clamp01(value);
     return t * t * (3 - 2 * t);
+  }
+
+  private _closeZoomFactor(zoom: number): number {
+    return this._smoothStep(
+      this._clamp01((zoom - RELATION_RING_CLOSE_ZOOM_START) / (RELATION_RING_CLOSE_ZOOM_END - RELATION_RING_CLOSE_ZOOM_START))
+    );
   }
 
   private _stableHash(value: string): number {
@@ -1288,7 +1544,7 @@ export class ConstellationEngine {
   private _getVisualRadius(node: RenderNode, zoom: number): number {
     const baseRadius = node.radius;
     const overview = this._overviewFactor(zoom);
-    if (overview <= 0) return baseRadius;
+    if (overview <= 0) return baseRadius * this._detailScale(zoom);
 
     const safeZoom = Math.max(zoom, 0.0005);
     const isInjector = node.type === 'injector';
@@ -1302,13 +1558,20 @@ export class ConstellationEngine {
     const targetScreenRadius = tieredScreenRadius + stepBoost;
     const screenRadius = this._lerp(baseScreenRadius, targetScreenRadius, overview);
 
-    return Math.max(baseRadius, screenRadius / safeZoom);
+    return Math.max(baseRadius * this._detailScale(zoom), screenRadius / safeZoom);
   }
 
   private _overviewFactor(zoom: number): number {
     if (zoom >= 0.72) return 0;
     if (zoom <= 0.20) return 1;
     return Math.max(0, Math.min(1, (0.72 - zoom) / 0.52));
+  }
+
+  private _detailScale(zoom: number): number {
+    const factor = this._smoothStep(
+      this._clamp01((zoom - DETAIL_SHRINK_ZOOM_START) / (DETAIL_SHRINK_ZOOM_END - DETAIL_SHRINK_ZOOM_START))
+    );
+    return this._lerp(1, DETAIL_MIN_SCALE, factor);
   }
 
   private _overviewTierScale(node: RenderNode): number {
@@ -1510,10 +1773,17 @@ export class ConstellationEngine {
     _ctx.fillStyle = isHighlight ? '#fff' : 'rgba(226, 232, 240, 0.8)';
     if (node.meta?.isUnused) _ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
 
-    const fontSize = Math.max(9, 11 / zoom);
+    const fontSize = this._labelScreenFontSizePx(zoom, isHighlight) / Math.max(zoom, 0.0005);
     _ctx.font = `${isHighlight ? 'bold' : ''} ${fontSize}px "JetBrains Mono"`;
     _ctx.textAlign = 'center';
     _ctx.fillText(node.meta?.label || '', node.x, yPos);
+  }
+
+  private _labelScreenFontSizePx(zoom: number, isHighlight: boolean): number {
+    const baseSize = Math.max(9 * zoom, 11);
+    const detailScale = this._detailScale(zoom);
+    const highlightScale = isHighlight ? this._lerp(detailScale, 1, 0.35) : detailScale;
+    return baseSize * highlightScale;
   }
 
   private _drawGrid(_ctx: CanvasRenderingContext2D, w: number, h: number, tx: number, ty: number, zoom: number) {

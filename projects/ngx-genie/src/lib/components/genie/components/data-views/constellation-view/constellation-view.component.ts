@@ -39,6 +39,14 @@ const LARGE_GRAPH_HOVER_NODE_THRESHOLD = 1500;
 const MIN_CONSTELLATION_ZOOM = 0.0005;
 const MAX_CONSTELLATION_ZOOM = 8;
 const ZOOM_SYNC_EPSILON = 0.0005;
+const ZOOM_TRANSITION_MS = 170;
+const ZOOM_ANIMATION_EPSILON = 0.001;
+
+interface ViewState {
+  x: number;
+  y: number;
+  k: number;
+}
 
 @Component({
   selector: 'lib-constellation-view',
@@ -91,7 +99,11 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   private engine: ConstellationEngine | null = null;
   private resizeObserver: ResizeObserver | null = null;
 
-  private viewState = {x: 0, y: 0, k: 1};
+  private viewState: ViewState = {x: 0, y: 0, k: 1};
+  private zoomTargetState: ViewState | null = null;
+  private zoomAnimationFrameId = 0;
+  private lastZoomAnimationAt = 0;
+  private shouldEmitZoomAnimation = false;
   private isDragging = false;
   private lastMousePos = {x: 0, y: 0};
   private hasMoved = false;
@@ -168,6 +180,7 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
     }
     if (this.resizeObserver) this.resizeObserver.disconnect();
     this.cancelGraphDataUpdate();
+    this.cancelZoomAnimation();
     this.canvasRef().nativeElement.removeEventListener('wheel', this.wheelListener);
   }
 
@@ -175,6 +188,7 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   onMouseDown(event: MouseEvent) {
     event.stopPropagation();
 
+    this.cancelZoomAnimation();
     this.isDragging = true;
     this.hasMoved = false;
     this.lastMousePos = {x: event.clientX, y: event.clientY};
@@ -222,7 +236,8 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
 
-    this.setZoomAroundPoint(this.viewState.k * factor, mouseX, mouseY);
+    const baseState = this.zoomTargetState ?? this.viewState;
+    this.setZoomAroundPoint(baseState.k * factor, mouseX, mouseY, true, true);
   }
 
   onMouseLeave() {
@@ -390,21 +405,110 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
 
   private setZoomAroundViewportCenter(zoom: number): void {
     const rect = this.containerRef().nativeElement.getBoundingClientRect();
-    this.setZoomAroundPoint(zoom, rect.width / 2, rect.height / 2, false);
+    this.setZoomAroundPoint(zoom, rect.width / 2, rect.height / 2, false, true);
   }
 
-  private setZoomAroundPoint(zoom: number, anchorX: number, anchorY: number, emit = true): void {
-    const newK = this.clampZoom(zoom);
-    if (Math.abs(newK - this.viewState.k) < ZOOM_SYNC_EPSILON) return;
+  private setZoomAroundPoint(
+    zoom: number,
+    anchorX: number,
+    anchorY: number,
+    emit = true,
+    animated = false
+  ): void {
+    const baseState = animated ? (this.zoomTargetState ?? this.viewState) : this.viewState;
+    const nextState = this.getZoomedViewState(baseState, zoom, anchorX, anchorY);
+    if (!nextState) return;
 
-    const kRatio = newK / Math.max(this.viewState.k, MIN_CONSTELLATION_ZOOM);
+    if (animated) {
+      this.zoomTargetState = nextState;
+      this.shouldEmitZoomAnimation = this.shouldEmitZoomAnimation || emit;
+      this.startZoomAnimation();
+      return;
+    }
 
-    this.viewState.x = anchorX - (anchorX - this.viewState.x) * kRatio;
-    this.viewState.y = anchorY - (anchorY - this.viewState.y) * kRatio;
-    this.viewState.k = newK;
-
+    this.cancelZoomAnimation();
+    this.viewState = nextState;
     this.engine?.updateTransform(this.viewState);
-    if (emit) this.zoomLevelChange.emit(newK);
+    if (emit) this.zoomLevelChange.emit(nextState.k);
+  }
+
+  private getZoomedViewState(baseState: ViewState, zoom: number, anchorX: number, anchorY: number): ViewState | null {
+    const newK = this.clampZoom(zoom);
+    if (Math.abs(newK - baseState.k) < ZOOM_SYNC_EPSILON) return null;
+
+    const kRatio = newK / Math.max(baseState.k, MIN_CONSTELLATION_ZOOM);
+
+    return {
+      x: anchorX - (anchorX - baseState.x) * kRatio,
+      y: anchorY - (anchorY - baseState.y) * kRatio,
+      k: newK
+    };
+  }
+
+  private startZoomAnimation(): void {
+    if (this.zoomAnimationFrameId) return;
+
+    this.lastZoomAnimationAt = 0;
+    const step = (now: number) => {
+      const target = this.zoomTargetState;
+      if (!target) {
+        this.zoomAnimationFrameId = 0;
+        this.shouldEmitZoomAnimation = false;
+        return;
+      }
+
+      const delta = this.lastZoomAnimationAt ? Math.min(80, now - this.lastZoomAnimationAt) : 16;
+      this.lastZoomAnimationAt = now;
+      const ease = this.easedFrameStep(delta, ZOOM_TRANSITION_MS);
+
+      this.viewState = {
+        x: this.lerp(this.viewState.x, target.x, ease),
+        y: this.lerp(this.viewState.y, target.y, ease),
+        k: this.lerp(this.viewState.k, target.k, ease)
+      };
+
+      const isDone = Math.abs(this.viewState.k - target.k) < ZOOM_ANIMATION_EPSILON
+        && Math.hypot(this.viewState.x - target.x, this.viewState.y - target.y) < 0.5;
+
+      if (isDone) {
+        this.viewState = target;
+        this.zoomTargetState = null;
+      }
+
+      this.engine?.updateTransform(this.viewState);
+      if (this.shouldEmitZoomAnimation) this.zoomLevelChange.emit(this.viewState.k);
+
+      if (isDone) {
+        this.zoomAnimationFrameId = 0;
+        this.lastZoomAnimationAt = 0;
+        this.shouldEmitZoomAnimation = false;
+        return;
+      }
+
+      this.zoomAnimationFrameId = requestAnimationFrame(step);
+    };
+
+    this.zoomAnimationFrameId = requestAnimationFrame(step);
+  }
+
+  private cancelZoomAnimation(): void {
+    if (this.zoomAnimationFrameId) {
+      cancelAnimationFrame(this.zoomAnimationFrameId);
+      this.zoomAnimationFrameId = 0;
+    }
+    this.zoomTargetState = null;
+    this.lastZoomAnimationAt = 0;
+    this.shouldEmitZoomAnimation = false;
+  }
+
+  private easedFrameStep(deltaMs: number, durationMs: number): number {
+    const safeDuration = Math.max(1, durationMs);
+    const safeDelta = Math.max(0, Math.min(80, deltaMs));
+    return 1 - Math.pow(0.001, safeDelta / safeDuration);
+  }
+
+  private lerp(start: number, end: number, t: number): number {
+    return start * (1 - t) + end * t;
   }
 
   private clampZoom(zoom: number): number {
