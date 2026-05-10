@@ -16,9 +16,24 @@ interface ViewBounds {
   bottom: number;
 }
 
+interface DisplayPosition {
+  x: number;
+  y: number;
+}
+
 const ATLAS_SPATIAL_CELL_SIZE = 720;
 const ATLAS_MAX_DRAWN_NODES = 9000;
 const ATLAS_MAX_SPATIAL_CELLS_PER_FRAME = 25000;
+const FOCUS_TRANSITION_MS = 180;
+const FOCUS_DIM_NODE_OPACITY = 0.34;
+const FOCUS_DIM_LINK_OPACITY = 0.24;
+const VIEWPORT_LENS_MAX_NODES = 420;
+const VIEWPORT_LENS_MIN_ZOOM = 0.08;
+const VIEWPORT_LENS_MAX_STRENGTH = 0.86;
+const VIEWPORT_LENS_TRANSITION_MS = 280;
+const RELATION_RING_FIRST_RADIUS_PX = 118;
+const RELATION_RING_GAP_PX = 86;
+const RELATION_RING_MIN_SPACING_PX = 68;
 
 export class ConstellationEngine {
   private readonly _ctx: CanvasRenderingContext2D;
@@ -45,6 +60,9 @@ export class ConstellationEngine {
 
   private _focusedNodeIds = new Set<string>();
   private _currentFocusLevel = 0;
+  private _displayPositions = new Map<string, DisplayPosition>();
+  private _viewportLensAnimating = false;
+  private _lastFrameAt = 0;
   private _physicsTickPending = false;
   private _lastPhysicsTickAt = 0;
   private _renderDirty = true;
@@ -121,6 +139,9 @@ export class ConstellationEngine {
     this._renderNodes = renderNodes;
     this._renderLinks = renderLinks;
     this._graphStats = stats ?? null;
+    for (const id of this._displayPositions.keys()) {
+      if (!renderNodes.has(id)) this._displayPositions.delete(id);
+    }
     this._rebuildLinkIndexes(renderLinks);
     this._rebuildNodeSpatialIndex();
     if (this.hoveredNode) this.hoveredNode = this._renderNodes.get(this.hoveredNode.id) ?? null;
@@ -220,8 +241,9 @@ export class ConstellationEngine {
     const candidates = this._getHitTestCandidates(worldX, worldY);
 
     for (const node of candidates) {
-      const dx = worldX - node.x;
-      const dy = worldY - node.y;
+      const position = this._getDisplayPosition(node);
+      const dx = worldX - position.x;
+      const dy = worldY - position.y;
       const distSq = dx * dx + dy * dy;
 
       if (distSq < minDistSq) {
@@ -340,11 +362,24 @@ export class ConstellationEngine {
     const cellX = Math.floor(worldX / ATLAS_SPATIAL_CELL_SIZE);
     const cellY = Math.floor(worldY / ATLAS_SPATIAL_CELL_SIZE);
     const candidates: RenderNode[] = [];
+    const seenIds = new Set<string>();
 
     for (let x = cellX - 1; x <= cellX + 1; x++) {
       for (let y = cellY - 1; y <= cellY + 1; y++) {
         const bucket = this._nodeSpatialIndex.get(`${x}:${y}`);
-        if (bucket) candidates.push(...bucket);
+        if (!bucket) continue;
+        for (const node of bucket) {
+          candidates.push(node);
+          seenIds.add(node.id);
+        }
+      }
+    }
+
+    if (this._displayPositions.size > 0 && this._displayPositions.size <= VIEWPORT_LENS_MAX_NODES * 2) {
+      for (const id of this._displayPositions.keys()) {
+        if (seenIds.has(id)) continue;
+        const node = this._renderNodes.get(id);
+        if (node) candidates.push(node);
       }
     }
 
@@ -380,12 +415,12 @@ export class ConstellationEngine {
           if (!this._isNodeInBounds(node, bounds, zoom)) continue;
           if (!this._passesAtlasNodeLod(node, zoom)) continue;
           nodes.push(node);
-          if (nodes.length >= collectLimit) return this._finalizeRenderableNodes(nodes, zoom);
+          if (nodes.length >= collectLimit) return this._finalizeRenderableNodes(nodes, bounds, zoom);
         }
       }
     }
 
-    return this._finalizeRenderableNodes(nodes, zoom);
+    return this._finalizeRenderableNodes(nodes, bounds, zoom);
   }
 
   private _scanRenderableNodes(bounds: ViewBounds, zoom: number, collectLimit: number): RenderNode[] {
@@ -398,16 +433,38 @@ export class ConstellationEngine {
       if (zoom >= 0.72 && nodes.length >= collectLimit) break;
     }
 
-    return this._finalizeRenderableNodes(nodes, zoom);
+    return this._finalizeRenderableNodes(nodes, bounds, zoom);
   }
 
-  private _finalizeRenderableNodes(nodes: RenderNode[], zoom: number): RenderNode[] {
+  private _finalizeRenderableNodes(nodes: RenderNode[], bounds: ViewBounds, zoom: number): RenderNode[] {
+    if (this._displayPositions.size > 0) {
+      const visibleIds = new Set(nodes.map(node => node.id));
+      for (const [id, position] of this._displayPositions) {
+        if (visibleIds.has(id)) continue;
+        const node = this._renderNodes.get(id);
+        if (!node) continue;
+        if (!this._isDisplayPositionInBounds(node, position, bounds, zoom)) continue;
+        if (!this._passesAtlasNodeLod(node, zoom)) continue;
+
+        nodes.push(node);
+        visibleIds.add(id);
+      }
+    }
+
     if (zoom < 0.72) {
       nodes.sort((a, b) => this._getNodeImportance(a) - this._getNodeImportance(b));
       if (nodes.length > ATLAS_MAX_DRAWN_NODES) return nodes.slice(nodes.length - ATLAS_MAX_DRAWN_NODES);
     }
 
     return nodes;
+  }
+
+  private _isDisplayPositionInBounds(node: RenderNode, position: DisplayPosition, bounds: ViewBounds, zoom: number): boolean {
+    const radius = this._getVisualRadius(node, zoom) + 40 / Math.max(zoom, 0.2);
+    return position.x + radius >= bounds.left
+      && position.x - radius <= bounds.right
+      && position.y + radius >= bounds.top
+      && position.y - radius <= bounds.bottom;
   }
 
   private _passesAtlasNodeLod(node: RenderNode, zoom: number): boolean {
@@ -439,9 +496,23 @@ export class ConstellationEngine {
     return start * (1 - t) + end * t;
   }
 
+  private _easedFrameStep(deltaMs: number, durationMs: number): number {
+    const safeDuration = Math.max(1, durationMs);
+    const safeDelta = Math.max(0, Math.min(80, deltaMs));
+    return 1 - Math.pow(0.001, safeDelta / safeDuration);
+  }
+
   private _shouldRenderFrame(): boolean {
     if (!this._isStaticLayout()) return true;
-    return this._renderDirty;
+    return this._renderDirty || this._isFocusTransitionActive() || this._viewportLensAnimating;
+  }
+
+  private _targetFocusLevel(): number {
+    return this.focusModeEnabled && this._getActiveFocusNode() ? 1 : 0;
+  }
+
+  private _isFocusTransitionActive(): boolean {
+    return Math.abs(this._currentFocusLevel - this._targetFocusLevel()) > 0.002;
   }
 
   private _shouldAnimateVisuals(): boolean {
@@ -513,7 +584,7 @@ export class ConstellationEngine {
       && node.y - radius <= bounds.bottom;
   }
 
-  private _isLinkInBounds(source: RenderNode, target: RenderNode, bounds: ViewBounds): boolean {
+  private _isLinkPositionInBounds(source: DisplayPosition, target: DisplayPosition, bounds: ViewBounds): boolean {
     return Math.max(source.x, target.x) >= bounds.left
       && Math.min(source.x, target.x) <= bounds.right
       && Math.max(source.y, target.y) >= bounds.top
@@ -525,6 +596,8 @@ export class ConstellationEngine {
     const _ctx = this._ctx;
     const {_width, _height} = this;
     const time = performance.now();
+    const frameDelta = this._lastFrameAt ? Math.min(80, time - this._lastFrameAt) : 16;
+    this._lastFrameAt = time;
     const dpi = this._dpiScale;
 
     _ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -541,13 +614,17 @@ export class ConstellationEngine {
     _ctx.scale(zoom, zoom);
 
     const activeFocusNode = this._getActiveFocusNode();
-    const targetFocusLevel = (this.focusModeEnabled && activeFocusNode) ? 1.0 : 0.0;
-    this._currentFocusLevel = this._isStaticLayout()
-      ? targetFocusLevel
-      : this._lerp(this._currentFocusLevel, targetFocusLevel, 0.05);
+    const targetFocusLevel = this._targetFocusLevel();
+    this._currentFocusLevel = this._lerp(
+      this._currentFocusLevel,
+      targetFocusLevel,
+      this._easedFrameStep(frameDelta, FOCUS_TRANSITION_MS)
+    );
     if (this._currentFocusLevel < 0.001) this._currentFocusLevel = 0;
+    if (Math.abs(this._currentFocusLevel - targetFocusLevel) < 0.002) this._currentFocusLevel = targetFocusLevel;
     const isFocusActive = this._currentFocusLevel > 0.01;
     const renderableNodes = this._getRenderableNodes(bounds, zoom);
+    this._prepareViewportLens(renderableNodes, zoom, frameDelta);
 
     _ctx.lineCap = 'round';
     this._drawLinksForFrame(_ctx, zoom, isFocusActive, time, bounds, activeFocusNode);
@@ -556,6 +633,291 @@ export class ConstellationEngine {
     for (const node of renderableNodes) {
       this._drawNode(_ctx, node, zoom, isFocusActive, time);
     }
+  }
+
+  private _prepareViewportLens(renderableNodes: RenderNode[], zoom: number, frameDelta: number): void {
+    const targets = this._buildRelationalLensTargets(renderableNodes, zoom);
+    const activeIds = new Set<string>();
+    const ease = this._easedFrameStep(frameDelta, VIEWPORT_LENS_TRANSITION_MS);
+
+    let maxScreenDelta = 0;
+    for (const node of renderableNodes) {
+      activeIds.add(node.id);
+      const target = targets.get(node.id) ?? node;
+      const current = this._displayPositions.get(node.id) ?? {x: node.x, y: node.y};
+      const next = {
+        x: this._lerp(current.x, target.x, ease),
+        y: this._lerp(current.y, target.y, ease)
+      };
+      const screenDelta = Math.hypot(target.x - next.x, target.y - next.y) * zoom;
+
+      if (screenDelta > maxScreenDelta) maxScreenDelta = screenDelta;
+      if (targets.has(node.id) || screenDelta > 0.2) {
+        this._displayPositions.set(node.id, next);
+      } else {
+        this._displayPositions.delete(node.id);
+      }
+    }
+
+    if (this._displayPositions.size > renderableNodes.length * 2 + 200) {
+      for (const id of this._displayPositions.keys()) {
+        if (!activeIds.has(id)) this._displayPositions.delete(id);
+      }
+    }
+
+    this._viewportLensAnimating = maxScreenDelta > 0.35;
+  }
+
+  private _buildRelationalLensTargets(renderableNodes: RenderNode[], zoom: number): Map<string, DisplayPosition> {
+    const targets = new Map<string, DisplayPosition>();
+    if (!this._isStaticLayout()) return targets;
+    if (zoom < VIEWPORT_LENS_MIN_ZOOM) return targets;
+
+    const count = renderableNodes.length;
+    if (count < 2 || count > VIEWPORT_LENS_MAX_NODES) return targets;
+
+    const visibleNodes = new Map<string, RenderNode>();
+    for (const node of renderableNodes) {
+      visibleNodes.set(node.id, node);
+    }
+
+    const groupedChildren = new Map<string, RenderNode[]>();
+    const assignedChildren = new Set<string>();
+    this._collectRelationLensGroups(this._providerLinks, visibleNodes, groupedChildren, assignedChildren);
+    this._collectRelationLensGroups(this._componentLinks, visibleNodes, groupedChildren, assignedChildren);
+
+    for (const [parentId, children] of groupedChildren) {
+      const parent = visibleNodes.get(parentId);
+      if (!parent || children.length === 0) continue;
+      this._assignRelationRingTargets(parent, children, zoom, targets);
+    }
+
+    return this._resolveLensCollisions(renderableNodes, targets, zoom);
+  }
+
+  private _collectRelationLensGroups(
+    links: RenderLink[],
+    visibleNodes: Map<string, RenderNode>,
+    groupedChildren: Map<string, RenderNode[]>,
+    assignedChildren: Set<string>
+  ): void {
+    for (const link of links) {
+      const parent = visibleNodes.get(link.sourceId);
+      const child = visibleNodes.get(link.targetId);
+      if (!parent || !child || parent === child || assignedChildren.has(child.id)) continue;
+
+      const group = groupedChildren.get(parent.id);
+      if (group) {
+        group.push(child);
+      } else {
+        groupedChildren.set(parent.id, [child]);
+      }
+      assignedChildren.add(child.id);
+    }
+  }
+
+  private _assignRelationRingTargets(
+    parent: RenderNode,
+    children: RenderNode[],
+    zoom: number,
+    targets: Map<string, DisplayPosition>
+  ): void {
+    const orderedChildren = [...children].sort((a, b) => {
+      const angleA = Math.atan2(a.y - parent.y, a.x - parent.x);
+      const angleB = Math.atan2(b.y - parent.y, b.x - parent.x);
+      if (Math.abs(angleA - angleB) > 0.0001) return angleA - angleB;
+      return a.id.localeCompare(b.id);
+    });
+    const strength = this._relationLensStrength(parent, orderedChildren, zoom);
+    if (strength <= 0) return;
+
+    const parentFootprint = this._nodeFootprintRadiusPx(parent, zoom);
+    const maxChildFootprint = orderedChildren.reduce(
+      (max, child) => Math.max(max, this._nodeFootprintRadiusPx(child, zoom)),
+      RELATION_RING_MIN_SPACING_PX * 0.5
+    );
+    let ringIndex = 0;
+    let slotIndex = 0;
+    let ringRadiusPx = this._relationRingRadiusPx(ringIndex, parentFootprint, maxChildFootprint);
+    let ringCapacity = this._relationRingCapacity(ringRadiusPx, maxChildFootprint);
+    for (const child of orderedChildren) {
+      if (slotIndex >= ringCapacity) {
+        ringIndex++;
+        slotIndex = 0;
+        ringRadiusPx = this._relationRingRadiusPx(ringIndex, parentFootprint, maxChildFootprint);
+        ringCapacity = this._relationRingCapacity(ringRadiusPx, maxChildFootprint);
+      }
+
+      const angle = this._relationRingAngle(slotIndex, ringCapacity, ringIndex);
+      const radius = ringRadiusPx / Math.max(zoom, VIEWPORT_LENS_MIN_ZOOM);
+      const ringTarget = {
+        x: parent.x + Math.cos(angle) * radius,
+        y: parent.y + Math.sin(angle) * radius
+      };
+
+      targets.set(child.id, {
+        x: this._lerp(child.x, ringTarget.x, strength),
+        y: this._lerp(child.y, ringTarget.y, strength)
+      });
+      slotIndex++;
+    }
+  }
+
+  private _relationLensStrength(parent: RenderNode, children: RenderNode[], zoom: number): number {
+    if (children.length === 0) return 0;
+
+    let avgDistancePx = 0;
+    for (const child of children) {
+      avgDistancePx += Math.hypot(child.x - parent.x, child.y - parent.y) * zoom;
+    }
+    avgDistancePx /= children.length;
+
+    const parentFootprint = this._nodeFootprintRadiusPx(parent, zoom);
+    const maxChildFootprint = children.reduce(
+      (max, child) => Math.max(max, this._nodeFootprintRadiusPx(child, zoom)),
+      RELATION_RING_MIN_SPACING_PX * 0.5
+    );
+    const firstRingCapacity = this._relationRingCapacity(
+      this._relationRingRadiusPx(0, parentFootprint, maxChildFootprint),
+      maxChildFootprint
+    );
+    const idealDistance = this._relationRingRadiusPx(
+      Math.max(0, Math.ceil(children.length / firstRingCapacity) - 1),
+      parentFootprint,
+      maxChildFootprint
+    );
+    const distanceFactor = this._clamp01((avgDistancePx - idealDistance * 0.72) / Math.max(1, idealDistance * 2.2));
+    const groupFactor = this._clamp01((children.length - 1) / 10);
+    const zoomFactor = this._clamp01((zoom - VIEWPORT_LENS_MIN_ZOOM) / 0.7);
+
+    return VIEWPORT_LENS_MAX_STRENGTH * zoomFactor * (0.50 + distanceFactor * 0.30 + groupFactor * 0.20);
+  }
+
+  private _relationRingRadiusPx(ringIndex: number, parentFootprintPx: number, childFootprintPx: number): number {
+    const firstRing = Math.max(
+      RELATION_RING_FIRST_RADIUS_PX,
+      parentFootprintPx + childFootprintPx + RELATION_RING_MIN_SPACING_PX * 0.55
+    );
+    const ringGap = Math.max(RELATION_RING_GAP_PX, childFootprintPx * 1.35 + RELATION_RING_MIN_SPACING_PX * 0.35);
+    return firstRing + ringIndex * ringGap;
+  }
+
+  private _relationRingCapacity(radiusPx: number, childFootprintPx: number): number {
+    const itemSpacing = Math.max(RELATION_RING_MIN_SPACING_PX, childFootprintPx * 2 + 18);
+    return Math.max(4, Math.floor((Math.PI * 2 * radiusPx) / itemSpacing));
+  }
+
+  private _relationRingAngle(slotIndex: number, capacity: number, ringIndex: number): number {
+    const turnOffset = ringIndex % 2 === 0 ? 0 : Math.PI / capacity;
+    return -Math.PI / 2 + turnOffset + slotIndex * (Math.PI * 2 / capacity);
+  }
+
+  private _resolveLensCollisions(
+    renderableNodes: RenderNode[],
+    targets: Map<string, DisplayPosition>,
+    zoom: number
+  ): Map<string, DisplayPosition> {
+    if (targets.size === 0 || renderableNodes.length > VIEWPORT_LENS_MAX_NODES) return targets;
+
+    const movableIds = new Set(targets.keys());
+    const nodes = renderableNodes.map(node => {
+      const target = targets.get(node.id) ?? node;
+      return {
+        node,
+        movable: movableIds.has(node.id),
+        radius: this._nodeFootprintRadiusPx(node, zoom),
+        x: target.x * zoom,
+        y: target.y * zoom
+      };
+    });
+
+    for (let iteration = 0; iteration < 8; iteration++) {
+      let hadOverlap = false;
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i];
+        for (let j = i + 1; j < nodes.length; j++) {
+          const b = nodes[j];
+          if (!a.movable && !b.movable) continue;
+
+          let dx = b.x - a.x;
+          let dy = b.y - a.y;
+          let dist = Math.hypot(dx, dy);
+          const minDistance = a.radius + b.radius + 10;
+          if (dist >= minDistance) continue;
+
+          if (dist < 0.001) {
+            const hash = this._stableHash(`${a.node.id}:${b.node.id}`);
+            const angle = (hash % 6283) / 1000;
+            dx = Math.cos(angle);
+            dy = Math.sin(angle);
+            dist = 1;
+          }
+
+          const overlap = (minDistance - dist) * 0.56;
+          const ux = dx / dist;
+          const uy = dy / dist;
+          hadOverlap = true;
+
+          if (a.movable && b.movable) {
+            a.x -= ux * overlap * 0.5;
+            a.y -= uy * overlap * 0.5;
+            b.x += ux * overlap * 0.5;
+            b.y += uy * overlap * 0.5;
+          } else if (a.movable) {
+            a.x -= ux * overlap;
+            a.y -= uy * overlap;
+          } else {
+            b.x += ux * overlap;
+            b.y += uy * overlap;
+          }
+        }
+      }
+      if (!hadOverlap) break;
+    }
+
+    const resolvedTargets = new Map<string, DisplayPosition>();
+    for (const item of nodes) {
+      if (!item.movable) continue;
+      resolvedTargets.set(item.node.id, {
+        x: item.x / zoom,
+        y: item.y / zoom
+      });
+    }
+
+    return resolvedTargets;
+  }
+
+  private _nodeFootprintRadiusPx(node: RenderNode, zoom: number): number {
+    const visualRadiusPx = this._getVisualRadius(node, zoom) * zoom;
+    const labelVisible = this._shouldRenderLabels(zoom, node.type === 'injector' ? 0.6 : 0.8)
+      || this._shouldRenderOverviewLabel(node, zoom);
+    if (!labelVisible) return visualRadiusPx + 12;
+
+    const label = node.meta?.label ?? '';
+    const fontSizePx = Math.max(9 * zoom, 11);
+    const labelWidth = Math.min(340, label.length * fontSizePx * 0.62);
+
+    return Math.max(
+      visualRadiusPx + 14,
+      labelWidth * 0.5 + 16
+    );
+  }
+
+  private _getDisplayPosition(node: RenderNode): DisplayPosition {
+    return this._displayPositions.get(node.id) ?? node;
+  }
+
+  private _clamp01(value: number): number {
+    return Math.max(0, Math.min(1, value));
+  }
+
+  private _stableHash(value: string): number {
+    let hash = 2166136261;
+    for (let index = 0; index < value.length; index++) {
+      hash ^= value.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
   }
 
   private _drawLinksForFrame(
@@ -641,10 +1003,11 @@ export class ConstellationEngine {
 
       const intensity = Math.min(1, Math.log2(degree + 1) / 12);
       const radius = node.radius + 8 + intensity * 24;
-      const alpha = (isFocusActive ? 0.06 : 0.12) * intensity;
+      const alpha = (isFocusActive ? 0.085 : 0.12) * intensity;
+      const position = this._getDisplayPosition(node);
 
       _ctx.beginPath();
-      _ctx.arc(node.x, node.y, radius / Math.max(zoom, 0.35), 0, Math.PI * 2);
+      _ctx.arc(position.x, position.y, radius / Math.max(zoom, 0.35), 0, Math.PI * 2);
       _ctx.strokeStyle = `rgba(56, 189, 248, ${alpha})`;
       _ctx.lineWidth = Math.max(0.6, 1.4 / zoom);
       _ctx.stroke();
@@ -656,64 +1019,80 @@ export class ConstellationEngine {
     const source = this._renderNodes.get(link.sourceId);
     const target = this._renderNodes.get(link.targetId);
     if (!source || !target) return false;
-    if (!this._isLinkInBounds(source, target, bounds)) return false;
+    const sourcePosition = this._getDisplayPosition(source);
+    const targetPosition = this._getDisplayPosition(target);
+    if (!this._isLinkPositionInBounds(sourcePosition, targetPosition, bounds)) return false;
 
-    let linkOpacity = 0.6;
-    if (isFocusActive) {
-      const activeFocusNode = this._getActiveFocusNode();
-      const isRelated = activeFocusNode && (link.sourceId === activeFocusNode.id || link.targetId === activeFocusNode.id);
-      if (!isRelated) linkOpacity = this._lerp(1.0, 0.05, this._currentFocusLevel);
-    }
+    const sourceOriginal = {x: source.x, y: source.y};
+    const targetOriginal = {x: target.x, y: target.y};
+    source.x = sourcePosition.x;
+    source.y = sourcePosition.y;
+    target.x = targetPosition.x;
+    target.y = targetPosition.y;
 
-    _ctx.globalAlpha = linkOpacity;
+    try {
+      let linkOpacity = 0.6;
+      if (isFocusActive) {
+        const activeFocusNode = this._getActiveFocusNode();
+        const isRelated = activeFocusNode && (link.sourceId === activeFocusNode.id || link.targetId === activeFocusNode.id);
+        if (!isRelated) linkOpacity = this._lerp(1.0, FOCUS_DIM_LINK_OPACITY, this._currentFocusLevel);
+      }
 
-    if (link.type === 'provider') {
-      const isUnused = target.meta?.isUnused;
-      _ctx.beginPath();
-      _ctx.moveTo(source.x, source.y);
-      _ctx.lineTo(target.x, target.y);
-      _ctx.strokeStyle = isUnused ? 'rgba(100, 116, 139, 0.3)' : CONSTELLATION_THEME.links.base;
-      if (isUnused) _ctx.setLineDash([4, 4]);
-      else _ctx.setLineDash([1, 4]);
-      _ctx.lineWidth = 1 / zoom;
-      _ctx.stroke();
-      _ctx.setLineDash([]);
-    } else if (link.type === 'component-child') {
-      _ctx.beginPath();
-      _ctx.moveTo(source.x, source.y);
-      _ctx.lineTo(target.x, target.y);
-      _ctx.strokeStyle = CONSTELLATION_THEME.injector.color;
-      _ctx.lineWidth = 0.8 / zoom;
-      _ctx.stroke();
-    } else {
-      const isUnused = target.meta?.isUnused;
-      if (isUnused) {
+      _ctx.globalAlpha = linkOpacity;
+
+      if (link.type === 'provider') {
+        const isUnused = target.meta?.isUnused;
         _ctx.beginPath();
         _ctx.moveTo(source.x, source.y);
         _ctx.lineTo(target.x, target.y);
-        _ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
-        _ctx.setLineDash([30, 20]);
-        _ctx.lineWidth = 1.5 / zoom;
+        _ctx.strokeStyle = isUnused ? 'rgba(100, 116, 139, 0.3)' : CONSTELLATION_THEME.links.base;
+        if (isUnused) _ctx.setLineDash([4, 4]);
+        else _ctx.setLineDash([1, 4]);
+        _ctx.lineWidth = 1 / zoom;
         _ctx.stroke();
         _ctx.setLineDash([]);
-      } else {
-        const color = target.glowColor || '#fff';
+      } else if (link.type === 'component-child') {
         _ctx.beginPath();
         _ctx.moveTo(source.x, source.y);
         _ctx.lineTo(target.x, target.y);
-        _ctx.strokeStyle = color;
-        _ctx.globalAlpha = linkOpacity * 0.15;
-        _ctx.lineWidth = 2 / zoom;
+        _ctx.strokeStyle = CONSTELLATION_THEME.injector.color;
+        _ctx.lineWidth = 0.8 / zoom;
         _ctx.stroke();
+      } else {
+        const isUnused = target.meta?.isUnused;
+        if (isUnused) {
+          _ctx.beginPath();
+          _ctx.moveTo(source.x, source.y);
+          _ctx.lineTo(target.x, target.y);
+          _ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+          _ctx.setLineDash([30, 20]);
+          _ctx.lineWidth = 1.5 / zoom;
+          _ctx.stroke();
+          _ctx.setLineDash([]);
+        } else {
+          const color = target.glowColor || '#fff';
+          _ctx.beginPath();
+          _ctx.moveTo(source.x, source.y);
+          _ctx.lineTo(target.x, target.y);
+          _ctx.strokeStyle = color;
+          _ctx.globalAlpha = linkOpacity * 0.15;
+          _ctx.lineWidth = 2 / zoom;
+          _ctx.stroke();
 
-        if (this._shouldAnimateVisuals() && this._renderLinks.length <= this._getAnimatedLinkLimit() && linkOpacity > 0.3) {
-          _ctx.globalAlpha = linkOpacity;
-          this._drawEnergy(_ctx, link, source, target, color, time, zoom);
+          if (this._shouldAnimateVisuals() && this._renderLinks.length <= this._getAnimatedLinkLimit() && linkOpacity > 0.3) {
+            _ctx.globalAlpha = linkOpacity;
+            this._drawEnergy(_ctx, link, source, target, color, time, zoom);
+          }
         }
       }
+      _ctx.globalAlpha = 1.0;
+      return true;
+    } finally {
+      source.x = sourceOriginal.x;
+      source.y = sourceOriginal.y;
+      target.x = targetOriginal.x;
+      target.y = targetOriginal.y;
     }
-    _ctx.globalAlpha = 1.0;
-    return true;
   }
 
   private _drawEnergy(_ctx: CanvasRenderingContext2D, link: RenderLink, source: RenderNode, target: RenderNode, color: string, time: number, zoom: number) {
@@ -878,11 +1257,16 @@ export class ConstellationEngine {
     let nodeOpacity = 1.0;
     const isHighlight = this.hoveredNode === node || this.pinnedNode === node;
     const visualRadius = this._getVisualRadius(node, zoom);
+    const displayPosition = this._getDisplayPosition(node);
+    const originalX = node.x;
+    const originalY = node.y;
+    node.x = displayPosition.x;
+    node.y = displayPosition.y;
 
     if (isFocusActive) {
       const isNeighbor = this._focusedNodeIds.has(node.id);
       if (!isHighlight && !isNeighbor) {
-        nodeOpacity = this._lerp(1.0, 0.1, this._currentFocusLevel);
+        nodeOpacity = this._lerp(1.0, FOCUS_DIM_NODE_OPACITY, this._currentFocusLevel);
       }
     }
 
@@ -899,6 +1283,8 @@ export class ConstellationEngine {
       this._drawDiamond(_ctx, node, zoom, isHighlight, time, isFramework, isUnused, visualRadius);
     }
 
+    node.x = originalX;
+    node.y = originalY;
     _ctx.globalAlpha = 1.0;
   }
 
