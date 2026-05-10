@@ -16,6 +16,7 @@ export class OrgChartNodeComponent {
 
   readonly node = input.required<GenieTreeNode>();
   readonly services = input.required<GenieServiceRegistration[]>();
+  readonly hiddenServiceCount = input<number>(0);
   readonly expanded = input<boolean>(false);
 
 

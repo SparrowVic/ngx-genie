@@ -12,9 +12,17 @@ import {CommonModule} from '@angular/common';
 import {GenieTreeNode, GenieServiceRegistration} from '../../../../../models/genie-node.model';
 import {OrgChartLegendComponent} from './org-chart-legend/org-chart-legend.component';
 import {OrgChartNodeComponent} from './org-chart-node/org-chart-node.component';
-import {OrgChartUtils} from './org-chart.utils';
 import {GenieFilterState} from '../../../options-panel/options-panel.models';
 import {OrgChartStateService} from './org-chart-state.service';
+
+const ORG_MAX_RENDERED_NODES = 450;
+const ORG_MAX_DEPTH = 6;
+const ORG_MAX_SERVICES_PER_NODE = 8;
+
+interface OrgRenderBudget {
+  remaining: number;
+  nextSummaryId: number;
+}
 
 @Component({
   selector: 'lib-org-chart-view',
@@ -45,12 +53,17 @@ export class OrgChartViewComponent implements OnInit, OnDestroy {
   isDragging = false;
   lastMousePos = {x: 0, y: 0};
 
-  readonly filteredTree = computed(() => {
-    return OrgChartUtils.filterTree(
-      this.tree(),
-      this.filterState(),
-      this.getProvidersForNode()
-    );
+  readonly totalVisibleNodes = computed(() => this.countVisibleNodes(this.tree(), 0));
+  readonly isLargeGraph = computed(() => this.totalVisibleNodes() > ORG_MAX_RENDERED_NODES);
+
+  readonly renderedTree = computed(() => {
+    const tree = this.tree();
+    if (!this.isLargeGraph()) return tree;
+
+    return this.limitTreeForRender(tree, 0, null, {
+      remaining: ORG_MAX_RENDERED_NODES,
+      nextSummaryId: -1
+    });
   });
 
   ngOnInit() {
@@ -111,5 +124,100 @@ export class OrgChartViewComponent implements OnInit, OnDestroy {
     this.viewState.x = mouseX - (mouseX - this.viewState.x) * kRatio;
     this.viewState.y = mouseY - (mouseY - this.viewState.y) * kRatio;
     this.viewState.k = newK;
+  }
+
+  getVisibleServices(node: GenieTreeNode): GenieServiceRegistration[] {
+    if (this.isSummaryNode(node)) return [];
+    return this.getProvidersForNode()(node).slice(0, ORG_MAX_SERVICES_PER_NODE);
+  }
+
+  getHiddenServiceCount(node: GenieTreeNode): number {
+    if (this.isSummaryNode(node)) return 0;
+    const total = this.getProvidersForNode()(node).length;
+    return Math.max(0, total - ORG_MAX_SERVICES_PER_NODE);
+  }
+
+  onNodeClick(node: GenieTreeNode): void {
+    if (this.isSummaryNode(node)) return;
+    this.selectNode()(node);
+  }
+
+  onToggleNode(node: GenieTreeNode): void {
+    if (this.isSummaryNode(node)) return;
+    this.toggleNode()(node.id);
+  }
+
+  private countVisibleNodes(nodes: GenieTreeNode[], depth: number): number {
+    const isExpanded = this.isNodeExpanded();
+    let count = 0;
+
+    for (const node of nodes) {
+      count++;
+      if (isExpanded(node.id) && node.children?.length) {
+        count += this.countVisibleNodes(node.children, depth + 1);
+      }
+    }
+
+    return count;
+  }
+
+  private limitTreeForRender(
+    nodes: GenieTreeNode[],
+    depth: number,
+    parent: GenieTreeNode | null,
+    budget: OrgRenderBudget
+  ): GenieTreeNode[] {
+    const result: GenieTreeNode[] = [];
+    let omittedCount = 0;
+    const isExpanded = this.isNodeExpanded();
+
+    for (const node of nodes) {
+      if (budget.remaining <= 0) {
+        omittedCount += this.countVisibleNodes([node], depth);
+        continue;
+      }
+
+      budget.remaining--;
+      let children: GenieTreeNode[] = [];
+
+      if (isExpanded(node.id) && node.children?.length) {
+        if (depth >= ORG_MAX_DEPTH) {
+          omittedCount += this.countVisibleNodes(node.children, depth + 1);
+        } else {
+          children = this.limitTreeForRender(node.children, depth + 1, node, budget);
+        }
+      }
+
+      result.push({...node, children});
+    }
+
+    if (omittedCount > 0) {
+      result.push(this.createSummaryNode(parent, nodes[0], omittedCount, budget));
+    }
+
+    return result;
+  }
+
+  private createSummaryNode(
+    parent: GenieTreeNode | null,
+    anchor: GenieTreeNode,
+    omittedCount: number,
+    budget: OrgRenderBudget
+  ): GenieTreeNode {
+    return {
+      id: budget.nextSummaryId--,
+      label: `${omittedCount} more nodes`,
+      injector: anchor.injector,
+      type: anchor.type,
+      parentId: parent?.id ?? null,
+      componentInstance: undefined,
+      isActive: false,
+      children: [],
+      groupCount: omittedCount
+    };
+  }
+
+  private isSummaryNode(node: GenieTreeNode): boolean {
+    return node.id < 0 && (node.groupCount || 0) > 0;
   }
 }

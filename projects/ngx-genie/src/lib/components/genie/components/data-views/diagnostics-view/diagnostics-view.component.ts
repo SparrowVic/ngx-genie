@@ -290,7 +290,7 @@ export class DiagnosticsViewComponent {
   resolveAndSelect(anomaly: Anomaly) {
     if (anomaly.relatedServiceIds.length > 0) {
       const svcId = anomaly.relatedServiceIds[0];
-      const svc = this.registry.services().find(s => s.id === svcId);
+      const svc = this.registry.getServiceById(svcId);
       if (svc) {
         this.selectService(svc);
       }

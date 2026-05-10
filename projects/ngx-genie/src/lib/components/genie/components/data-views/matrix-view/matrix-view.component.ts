@@ -684,7 +684,7 @@ export class GenieMatrixViewComponent implements OnInit, AfterViewInit, OnDestro
         if (cell && (cell.active)) {
           const col = columns[hit.c];
           if (col && col.service) {
-            const fullService = this.registry.services().find(s => s.id === col.service.id);
+            const fullService = this.registry.getServiceById(col.service.id);
             this.selectService()(fullService || col.service);
           }
         }

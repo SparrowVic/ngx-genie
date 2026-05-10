@@ -69,8 +69,17 @@
             </div>
           </div>
         }
+
+        @if (hiddenServiceCount()) {
+          <div class="service-chip more-services">
+            <div class="chip-type">+</div>
+            <div class="chip-content">
+              <span class="service-name">{{ hiddenServiceCount() }} more providers</span>
+            </div>
+          </div>
+        }
       </div>
-    } @else {
+    } @else if (!isCluster()) {
       <div class="genie-empty-state">
         <span class="empty-dot"></span> No providers in use
       </div>

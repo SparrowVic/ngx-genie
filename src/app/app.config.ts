@@ -16,7 +16,7 @@ export const appConfig: ApplicationConfig = {
     provideGenie({
       hotkey: 'F1',
       enabled: true,
-      visibleOnStart: false,
+      visibleOnStart: true,
     }),
     providePrimeNG({
       theme: {

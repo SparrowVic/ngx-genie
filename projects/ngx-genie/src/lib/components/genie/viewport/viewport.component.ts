@@ -50,6 +50,8 @@ export class ViewportComponent {
   getProvidersForNode = input.required<(node: GenieTreeNode) => GenieServiceRegistration[]>();
   selectDependency = input.required<(s: GenieServiceRegistration) => void>();
   selectNode = input.required<(n: GenieTreeNode) => void>();
+  selectedNode = input<GenieTreeNode | null>(null);
+  selectedDependency = input<GenieServiceRegistration | null>(null);
 
 
   viewMode = input.required<GenieViewMode>();

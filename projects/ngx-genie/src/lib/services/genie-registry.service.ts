@@ -44,6 +44,9 @@ const GENIE_INTERNAL_COMPONENTS = new Set([
   '_GenieComponent'
 ]);
 
+const EMPTY_SERVICES: GenieServiceRegistration[] = [];
+const EMPTY_DEPENDENCIES: GenieDependency[] = [];
+
 const NATIVE_JS_CONSTRUCTORS = new Set([
   'String', 'Number', 'Boolean', 'Object', 'Array', 'Symbol', 'Function',
   'Map', 'Set', 'WeakMap', 'WeakSet',
@@ -86,9 +89,67 @@ export class GenieRegistryService {
 
   private injectorToNodeMap = new WeakMap<Injector, number>();
   private instanceToServiceMap = new WeakMap<any, number>();
+  private dependencyKeySet = new Set<string>();
+  private serviceIndexById = new Map<number, number>();
 
 
   private _deferredEvents: DeferredInjectionEvent[] = [];
+
+  private readonly _nodesById = computed(() => {
+    const index = new Map<number, GenieNode>();
+    for (const node of this._nodes()) {
+      index.set(node.id, node);
+    }
+    return index;
+  });
+
+  private readonly _servicesById = computed(() => {
+    const index = new Map<number, GenieServiceRegistration>();
+    for (const service of this._services()) {
+      index.set(service.id, service);
+    }
+    return index;
+  });
+
+  private readonly _servicesByNodeId = computed(() => {
+    const index = new Map<number, GenieServiceRegistration[]>();
+    for (const service of this._services()) {
+      const list = index.get(service.nodeId);
+      if (list) {
+        list.push(service);
+      } else {
+        index.set(service.nodeId, [service]);
+      }
+    }
+    return index;
+  });
+
+  private readonly _dependenciesByConsumerNodeId = computed(() => {
+    const index = new Map<number, GenieDependency[]>();
+    for (const dependency of this._dependencies()) {
+      const list = index.get(dependency.consumerNodeId);
+      if (list) {
+        list.push(dependency);
+      } else {
+        index.set(dependency.consumerNodeId, [dependency]);
+      }
+    }
+    return index;
+  });
+
+  private readonly _dependenciesByProviderId = computed(() => {
+    const index = new Map<number, GenieDependency[]>();
+    for (const dependency of this._dependencies()) {
+      if (dependency.providerId === null) continue;
+      const list = index.get(dependency.providerId);
+      if (list) {
+        list.push(dependency);
+      } else {
+        index.set(dependency.providerId, [dependency]);
+      }
+    }
+    return index;
+  });
 
   constructor(
     private appRef: ApplicationRef,
@@ -221,6 +282,7 @@ export class GenieRegistryService {
     };
 
     this.instanceToServiceMap.set(instance, id);
+    this.serviceIndexById.set(id, this._services().length);
     this._services.update(existing => [...existing, reg]);
     return id;
   }
@@ -269,7 +331,6 @@ export class GenieRegistryService {
     if (!node) {
       node = this.register(name, injector, parentNode, 'Element');
       node.componentInstance = compRef.instance;
-      this.injectorToNodeMap.set(injector, node.id);
 
       this.extractProvidersFromComponent(componentType, node);
       this.scanConstructorDependencies(componentType, node);
@@ -309,7 +370,6 @@ export class GenieRegistryService {
           if (!node) {
             node = this.register(name, childInjector, parentNode, 'Element');
             node.componentInstance = context;
-            this.injectorToNodeMap.set(childInjector, node.id);
             this.extractProvidersFromComponent(componentType, node);
             this.scanConstructorDependencies(componentType, node);
             this.scanInjectedProperties(node);
@@ -337,7 +397,7 @@ export class GenieRegistryService {
         if (value && (typeof value === 'object' || typeof value === 'function')) {
           const providerId = this.instanceToServiceMap.get(value);
           if (providerId) {
-            const svc = this._services().find(s => s.id === providerId);
+            const svc = this.getServiceById(providerId);
             if (svc) {
               this.upsertDependency(node.id, providerId, svc.label, {}, 'Direct', key);
             }
@@ -457,18 +517,19 @@ export class GenieRegistryService {
   }
 
   private upsertDependency(consumerId: number, providerId: number | null, tokenName: string, flags: InjectionFlags, type: DependencyType, propName?: string) {
-    this._dependencies.update(deps => {
-      const exists = deps.some(d => d.consumerNodeId === consumerId && d.tokenName === tokenName && d.providerId === providerId);
-      if (exists) return deps;
-      if (providerId) {
-        const svc = this._services().find(s => s.id === providerId);
-        if (svc) this.incrementServiceUsage(providerId, svc.token);
-      }
-      return [...deps, {
-        consumerNodeId: consumerId, providerId: providerId, tokenName: tokenName,
-        type: type, propName: propName, flags: flags, resolutionPath: []
-      }];
-    });
+    const key = this.getDependencyKey(consumerId, providerId, tokenName);
+    if (this.dependencyKeySet.has(key)) return;
+
+    this.dependencyKeySet.add(key);
+    if (providerId) {
+      const svc = this.getServiceById(providerId);
+      if (svc) this.incrementServiceUsage(providerId, svc.token);
+    }
+
+    this._dependencies.update(deps => [...deps, {
+      consumerNodeId: consumerId, providerId: providerId, tokenName: tokenName,
+      type: type, propName: propName, flags: flags, resolutionPath: []
+    }]);
   }
 
   private isSystemToken(token: any): boolean {
@@ -544,6 +605,7 @@ export class GenieRegistryService {
         isRoot: this.checkIsRoot(token), isFramework: isFramework
       };
       this.instanceToServiceMap.set(instance, id);
+      this.serviceIndexById.set(id, this._services().length + newServices.length);
       newServices.push(reg);
     });
     if (newServices.length > 0) {
@@ -620,15 +682,27 @@ export class GenieRegistryService {
     } catch (e) {
     }
     this._nodes.update(nodes => [...nodes, node]);
+    this.injectorToNodeMap.set(injector, node.id);
     return node;
   }
 
   private cleanupNode(nodeId: number): void {
-    const servicesToRemove = this._services().filter(s => s.nodeId === nodeId);
+    const node = this.getNodeById(nodeId);
+    const servicesToRemove = this.getServicesForNode(nodeId);
     const serviceIdsToRemove = new Set(servicesToRemove.map(s => s.id));
+    if (node) this.injectorToNodeMap.delete(node.injector);
+    for (const service of servicesToRemove) {
+      if (service.instance && (typeof service.instance === 'object' || typeof service.instance === 'function')) {
+        this.instanceToServiceMap.delete(service.instance);
+      }
+    }
     this._nodes.update(nodes => nodes.filter(n => n.id !== nodeId));
-    this._services.update(services => services.filter(s => s.nodeId !== nodeId));
-    this._dependencies.update(deps => deps.filter(d => d.consumerNodeId !== nodeId && (d.providerId === null || !serviceIdsToRemove.has(d.providerId))));
+    const nextServices = this._services().filter(s => s.nodeId !== nodeId);
+    this.rebuildServiceIndex(nextServices);
+    this._services.set(nextServices);
+    const nextDependencies = this._dependencies().filter(d => d.consumerNodeId !== nodeId && (d.providerId === null || !serviceIdsToRemove.has(d.providerId)));
+    this.rebuildDependencyKeys(nextDependencies);
+    this._dependencies.set(nextDependencies);
   }
 
   guessProviderType(token: any, instance: any): GenieProviderType {
@@ -677,11 +751,41 @@ export class GenieRegistryService {
   }
 
   getServicesForNode(nodeId: number): GenieServiceRegistration[] {
-    return this._services().filter(s => s.nodeId === nodeId);
+    return this._servicesByNodeId().get(nodeId) ?? EMPTY_SERVICES;
+  }
+
+  getDependenciesForNode(nodeId: number): GenieDependency[] {
+    return this._dependenciesByConsumerNodeId().get(nodeId) ?? EMPTY_DEPENDENCIES;
+  }
+
+  getDependenciesForService(serviceId: number): GenieDependency[] {
+    return this._dependenciesByProviderId().get(serviceId) ?? EMPTY_DEPENDENCIES;
+  }
+
+  getServiceById(serviceId: number): GenieServiceRegistration | null {
+    return this._servicesById().get(serviceId) ?? null;
+  }
+
+  getNodeById(nodeId: number): GenieNode | null {
+    return this._nodesById().get(nodeId) ?? null;
   }
 
   incrementServiceUsage(serviceId: number, token: unknown): void {
-    this._services.update(list => list.map(s => s.id === serviceId ? {...s, usageCount: s.usageCount + 1} : s));
+    this._services.update(list => {
+      let index = this.serviceIndexById.get(serviceId) ?? -1;
+      if (index === -1 || list[index]?.id !== serviceId) {
+        index = list.findIndex(s => s.id === serviceId);
+        if (index === -1) {
+          this.serviceIndexById.delete(serviceId);
+          return list;
+        }
+        this.serviceIndexById.set(serviceId, index);
+      }
+      if (index === -1) return list;
+      const updated = list.slice();
+      updated[index] = {...updated[index], usageCount: updated[index].usageCount + 1};
+      return updated;
+    });
   }
 
   toggle(): void {
@@ -697,11 +801,36 @@ export class GenieRegistryService {
     this._hasWarnedAboutProduction = false;
     this.injectorToNodeMap = new WeakMap();
     this.instanceToServiceMap = new WeakMap();
+    this.dependencyKeySet.clear();
+    this.serviceIndexById.clear();
     this._deferredEvents = [];
   }
 
   findNodeByInjector(injector: Injector): GenieNode | null {
-    return this._nodes().find(n => n.injector === injector) ?? null;
+    const nodeId = this.injectorToNodeMap.get(injector);
+    return nodeId ? this.getNodeById(nodeId) : null;
+  }
+
+  private getDependencyKey(consumerId: number, providerId: number | null, tokenName: string): string {
+    return `${consumerId}|${providerId ?? 'null'}|${tokenName}`;
+  }
+
+  private rebuildDependencyKeys(dependencies: GenieDependency[]): void {
+    this.dependencyKeySet.clear();
+    for (const dependency of dependencies) {
+      this.dependencyKeySet.add(this.getDependencyKey(
+        dependency.consumerNodeId,
+        dependency.providerId,
+        dependency.tokenName
+      ));
+    }
+  }
+
+  private rebuildServiceIndex(services: GenieServiceRegistration[]): void {
+    this.serviceIndexById.clear();
+    services.forEach((service, index) => {
+      this.serviceIndexById.set(service.id, index);
+    });
   }
 
   private describeToken(token: unknown): string {

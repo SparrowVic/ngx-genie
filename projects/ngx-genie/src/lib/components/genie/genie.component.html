@@ -64,6 +64,8 @@
           [getProvidersForNode]="getProvidersForNode"
           [selectDependency]="selectDependency"
           [selectNode]="selectNode"
+          [selectedNode]="state.selectedNode()"
+          [selectedDependency]="state.selectedService()"
         ></lib-viewport>
       </div>
       @if (showInspectorPanel()) {

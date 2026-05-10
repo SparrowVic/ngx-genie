@@ -237,6 +237,23 @@ $c-framework: #f59e0b;
     }
   }
 
+  &.more-services {
+    cursor: default;
+    border-style: dashed;
+    background: rgba(255, 255, 255, 0.03);
+    color: $c-text-muted;
+
+    .chip-type {
+      color: $c-text-muted;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .service-name {
+      color: $c-text-muted;
+      font-style: italic;
+    }
+  }
+
   .chip-type {
     font-size: 0.85em;
     font-weight: 800;

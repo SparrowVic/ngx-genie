@@ -1,24 +1,91 @@
 <div class="tree-wrapper" genieResizable>
   <div class="background-layer"></div>
-  <div class="scroll-container custom-scrollbar">
-    <div class="content-padding">
-      <ul class="genie-tree-root">
-        @for (node of filteredTree(); track node.id) {
-          <lib-tree-node
-            [node]="node"
-            [isNodeExpanded]="isNodeExpanded()"
-            [toggleNode]="toggleNode()"
-            [selectNode]="selectNode()"
-            [selectDependency]="selectDependency()"
-            [selectedNodeId]="_selectedNodeId()"
-            [selectedDependencyId]="_selectedDependencyId()"
-            [dependenciesFetcher]="getProvidersForNode()"
-          />
+  <div
+    #scrollContainer
+    class="scroll-container custom-scrollbar"
+    (scroll)="onScroll($event)"
+  >
+    <div class="virtual-content" [style.height.px]="totalHeight()">
+      @for (item of visibleRows(); track trackVisibleRow($index, item)) {
+        @let row = item.row;
+
+        @if (row.kind === 'node') {
+          <div
+            class="virtual-row tree-node-row"
+            [class.active]="_selectedNodeId() === row.node.id"
+            [style.transform]="'translateY(' + item.top + 'px)'"
+            [style.padding-left.px]="nodeIndent(row.depth)"
+            (click)="selectNodeRow(row)"
+          >
+            <button
+              type="button"
+              class="chevron-btn"
+              [class.hidden]="!row.hasExpandableContent"
+              [class.expanded]="row.expanded"
+              (click)="toggleRow(row, $event)"
+            >
+              <span class="chevron-icon"></span>
+            </button>
+
+            <span class="node-glyph" [class.open]="row.expanded"></span>
+
+            <span class="node-type-badge" [attr.data-type]="row.node.type">
+              {{ row.node.type === 'Environment' ? 'ENV' : 'EL' }}
+            </span>
+
+            <span class="node-label" [title]="row.node.label">{{ row.node.label }}</span>
+
+            <span class="node-id">#{{ row.node.id }}</span>
+
+            @if (row.dependencyCount) {
+              <span class="badge-pill">{{ row.dependencyCount }}</span>
+            }
+          </div>
+        } @else {
+          <div
+            class="virtual-row dependency-row"
+            [class.unused]="!row.dependency.usageCount"
+            [class.root-scope]="isRoot(row.dependency)"
+            [class.framework-item]="row.dependency.isFramework"
+            [class.active]="_selectedDependencyId() === row.dependency.id"
+            [style.transform]="'translateY(' + item.top + 'px)'"
+            [style.padding-left.px]="dependencyIndent(row.depth)"
+            (click)="selectDependencyRow(row, $event)"
+          >
+            <span
+              class="type-indicator"
+              [attr.data-deptype]="row.dependency.dependencyType"
+              [title]="row.dependency.dependencyType"
+            >
+              {{ getAbbrType(row.dependency.dependencyType) }}
+            </span>
+
+            <span class="dependency-label" [title]="row.dependency.label">
+              {{ row.dependency.label }}
+            </span>
+
+            <span class="dependency-id">#{{ row.dependency.id }}</span>
+            <span class="provider-type">{{ getProviderTypeAbbr(row.dependency.providerType) }}</span>
+
+            @if (row.dependency.isFramework) {
+              <span class="framework-badge" title="Angular Internal">NG</span>
+            }
+            @if (isRoot(row.dependency)) {
+              <span class="root-badge" title="Root Singleton">ROOT</span>
+            }
+            @if (row.dependency.usageCount; as count) {
+              <span class="usage-badge">x{{ count }}</span>
+            } @else {
+              <span class="usage-badge unused">0</span>
+            }
+          </div>
         }
-      </ul>
+      }
     </div>
 
-    <div style="height: 30px"></div>
+    @if (!flatRows().length) {
+      <div class="empty-tree">No matching nodes</div>
+    }
   </div>
 
   <lib-tree-legend></lib-tree-legend>

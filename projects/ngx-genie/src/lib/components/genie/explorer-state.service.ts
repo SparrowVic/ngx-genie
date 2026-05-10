@@ -36,26 +36,54 @@ export class GenieExplorerStateService {
 
   private readonly rawTree = computed<GenieTreeNode[]>(() => buildGenieTree(this.nodes()));
 
+  private readonly treeNodeById = computed(() => {
+    const index = new Map<number, GenieTreeNode>();
+    const walk = (nodes: GenieTreeNode[]) => {
+      for (const node of nodes) {
+        index.set(node.id, node);
+        if (node.children.length > 0) walk(node.children);
+      }
+    };
+    walk(this.rawTree());
+    return index;
+  });
+
+  private readonly filteredServicesByNodeId = computed(() => {
+    const filters = this.filterState();
+    const index = new Map<number, GenieServiceRegistration[]>();
+
+    for (const service of this.services()) {
+      if (!this._serviceMatchesFilters(service, filters)) continue;
+      const list = index.get(service.nodeId);
+      if (list) {
+        list.push(service);
+      } else {
+        index.set(service.nodeId, [service]);
+      }
+    }
+
+    return index;
+  });
+
 
   readonly serviceConsumersMap = computed(() => {
     const deps = this.dependencies();
-    const nodes = this.nodes();
-    const map = new Map<number, string[]>();
-
-    const nodeNames = new Map<number, string>();
-    nodes.forEach(n => nodeNames.set(n.id, n.label));
+    const sets = new Map<number, Set<string>>();
 
     deps.forEach(dep => {
       if (dep.providerId !== null) {
-        if (!map.has(dep.providerId)) {
-          map.set(dep.providerId, []);
+        if (!sets.has(dep.providerId)) {
+          sets.set(dep.providerId, new Set<string>());
         }
-        const consumerName = nodeNames.get(dep.consumerNodeId) || `Node #${dep.consumerNodeId}`;
-        const list = map.get(dep.providerId)!;
-        if (!list.includes(consumerName)) {
-          list.push(consumerName);
-        }
+        const consumerNode = this.registry.getNodeById(dep.consumerNodeId);
+        const consumerName = consumerNode?.label || `Node #${dep.consumerNodeId}`;
+        sets.get(dep.providerId)!.add(consumerName);
       }
+    });
+
+    const map = new Map<number, string[]>();
+    sets.forEach((consumerNames, serviceId) => {
+      map.set(serviceId, Array.from(consumerNames));
     });
     return map;
   });
@@ -171,7 +199,8 @@ export class GenieExplorerStateService {
       this.filterState(),
       this.searchQuery(),
       this.isDeepFocusMode(),
-      this.selectedNode()
+      this.selectedNode(),
+      this.filteredServicesByNodeId()
     );
   });
 
@@ -182,7 +211,7 @@ export class GenieExplorerStateService {
 
   readonly inspectorDependencies = computed(() => {
     const node = this.selectedNode();
-    return node ? this.dependencies().filter(d => d.consumerNodeId === node.id) : [];
+    return node ? this.registry.getDependenciesForNode(node.id) : [];
   });
 
   readonly inspectorInjectionPath = computed(() => this._getNodePathForSelectedService());
@@ -194,10 +223,10 @@ export class GenieExplorerStateService {
   readonly maxNodeDeps = computed(() => {
     const nodes = this.nodes();
     if (nodes.length === 0) return 0;
-    const filters = this.filterState();
+    const servicesByNodeId = this.filteredServicesByNodeId();
     let max = 0;
     for (const node of nodes) {
-      const count = this._getFilteredServicesForNode(node.id, filters).length;
+      const count = servicesByNodeId.get(node.id)?.length ?? 0;
       if (count > max) max = count;
     }
     return max;
@@ -246,7 +275,7 @@ export class GenieExplorerStateService {
   }
 
   getProvidersForNode(nodeId: number): GenieServiceRegistration[] {
-    return this._getFilteredServicesForNode(nodeId, this.filterState());
+    return this._getFilteredServicesForNode(nodeId);
   }
 
   private _calculateFilteredTree(
@@ -254,13 +283,16 @@ export class GenieExplorerStateService {
     filters: GenieFilterState,
     query: string,
     isDeepFocus: boolean,
-    selectedNode: GenieTreeNode | null
+    selectedNode: GenieTreeNode | null,
+    servicesByNodeId: Map<number, GenieServiceRegistration[]>
   ): GenieTreeNode[] {
 
     let pathIds = new Set<number>();
     if (isDeepFocus && selectedNode) {
       pathIds = this._getIdsForDeepFocusPath(selectedNode.id);
     }
+
+    const normalizedQuery = query.trim().toLowerCase();
 
     const filterNode = (node: GenieTreeNode, forceInclude: boolean): GenieTreeNode | null => {
 
@@ -276,7 +308,7 @@ export class GenieExplorerStateService {
         }
       }
 
-      let services = this._getFilteredServicesForNode(node.id, filters);
+      const services = servicesByNodeId.get(node.id) ?? [];
       const effectiveCount = services.length;
 
       let matchesSelf = true;
@@ -293,13 +325,13 @@ export class GenieExplorerStateService {
         }
       }
 
-      const hasTextSearch = !!query;
+      const hasTextSearch = normalizedQuery.length > 0;
       const hasCompTags = filters.componentTags && filters.componentTags.length > 0;
       const hasDepTags = filters.dependencyTags && filters.dependencyTags.length > 0;
       const hasActiveSearchOrFilter = hasTextSearch || hasCompTags || hasDepTags;
 
       if (hasActiveSearchOrFilter && !isForcedByDeepFocus) {
-        if (hasTextSearch && !node.label.toLowerCase().includes(query.toLowerCase())) {
+        if (hasTextSearch && !node.label.toLowerCase().includes(normalizedQuery)) {
           matchesSelf = false;
         }
 
@@ -310,13 +342,13 @@ export class GenieExplorerStateService {
         }
 
         if (matchesSelf && hasDepTags) {
-          const nodeServiceLabels = services.map(s => s.label);
+          const nodeServiceLabels = new Set(services.map(s => s.label));
           if (filters.matchMode === 'AND') {
-            if (!filters.dependencyTags.every(tag => nodeServiceLabels.includes(tag))) {
+            if (!filters.dependencyTags.every(tag => nodeServiceLabels.has(tag))) {
               matchesSelf = false;
             }
           } else {
-            if (!filters.dependencyTags.some(tag => nodeServiceLabels.includes(tag))) {
+            if (!filters.dependencyTags.some(tag => nodeServiceLabels.has(tag))) {
               matchesSelf = false;
             }
           }
@@ -368,41 +400,48 @@ export class GenieExplorerStateService {
     return result;
   }
 
-  private _getFilteredServicesForNode(nodeId: number, filters: GenieFilterState): GenieServiceRegistration[] {
-    let services = this.registry.getServicesForNode(nodeId);
+  private _getFilteredServicesForNode(nodeId: number): GenieServiceRegistration[] {
+    return this.filteredServicesByNodeId().get(nodeId) ?? [];
+  }
 
-    if (filters.showRootOnly) services = services.filter(s => s.isRoot === true || s.token?.['ɵprov']?.providedIn === 'root');
-    if (filters.showLocalOnly) services = services.filter(s => s.isRoot !== true && s.token?.['ɵprov']?.providedIn !== 'root');
-    if (filters.hideUnusedDeps) services = services.filter(s => (s.usageCount || 0) > 0);
+  private _serviceMatchesFilters(s: GenieServiceRegistration, filters: GenieFilterState): boolean {
+    if (filters.showRootOnly && !(s.isRoot === true || s.token?.['ɵprov']?.providedIn === 'root')) {
+      return false;
+    }
+    if (filters.showLocalOnly && (s.isRoot === true || s.token?.['ɵprov']?.providedIn === 'root')) {
+      return false;
+    }
+    if (filters.hideUnusedDeps && (s.usageCount || 0) === 0) {
+      return false;
+    }
 
-    return services.filter(s => {
-      const type = s.dependencyType;
-      const isFramework = s.isFramework;
+    const type = s.dependencyType;
+    const isFramework = s.isFramework;
 
-      if (filters.hideInternals && isFramework) return false;
+    if (filters.hideInternals && isFramework) return false;
 
-      if (!isFramework) {
-        if (type === 'Service' && !filters.showUserServices) return false;
-        if (type === 'Pipe' && !filters.showUserPipes) return false;
-        if (type === 'Directive' && !filters.showUserDirectives) return false;
-        if (type === 'Component' && !filters.showUserComponents) return false;
-        if (type === 'Token' && !filters.showUserTokens) return false;
-        if (type === 'Value' && !filters.showUserValues) return false;
-        if (type === 'Observable' && !filters.showUserObservables) return false;
-        if (type === 'Signal' && !filters.showUserSignals) return false;
-      } else {
-        if (type === 'Service' && !filters.showFrameworkServices) return false;
-        if (type === 'System' && !filters.showFrameworkSystem) return false;
-        if (type === 'Pipe' && !filters.showFrameworkPipes) return false;
-        if (type === 'Directive' && !filters.showFrameworkDirectives) return false;
-        if (type === 'Component' && !filters.showFrameworkComponents) return false;
-        if (type === 'Token' && !filters.showFrameworkTokens) return false;
-        if (type === 'Observable' && !filters.showFrameworkObservables) return false;
-        if (type === 'Signal' && !filters.showFrameworkSignals) return false;
-      }
-
+    if (!isFramework) {
+      if (type === 'Service' && !filters.showUserServices) return false;
+      if (type === 'Pipe' && !filters.showUserPipes) return false;
+      if (type === 'Directive' && !filters.showUserDirectives) return false;
+      if (type === 'Component' && !filters.showUserComponents) return false;
+      if (type === 'Token' && !filters.showUserTokens) return false;
+      if (type === 'Value' && !filters.showUserValues) return false;
+      if (type === 'Observable' && !filters.showUserObservables) return false;
+      if (type === 'Signal' && !filters.showUserSignals) return false;
       return true;
-    });
+    }
+
+    if (type === 'Service' && !filters.showFrameworkServices) return false;
+    if (type === 'System' && !filters.showFrameworkSystem) return false;
+    if (type === 'Pipe' && !filters.showFrameworkPipes) return false;
+    if (type === 'Directive' && !filters.showFrameworkDirectives) return false;
+    if (type === 'Component' && !filters.showFrameworkComponents) return false;
+    if (type === 'Token' && !filters.showFrameworkTokens) return false;
+    if (type === 'Observable' && !filters.showFrameworkObservables) return false;
+    if (type === 'Signal' && !filters.showFrameworkSignals) return false;
+
+    return true;
   }
 
   private _getIdsForDeepFocusPath(targetId: number): Set<number> {
@@ -451,17 +490,7 @@ export class GenieExplorerStateService {
   }
 
   private _findNodeById(id: number): GenieTreeNode | null {
-    const find = (nodes: GenieTreeNode[]): GenieTreeNode | null => {
-      for (const n of nodes) {
-        if (n.id === id) return n;
-        if (n.children) {
-          const found = find(n.children);
-          if (found) return found;
-        }
-      }
-      return null;
-    }
-    return find(this.rawTree());
+    return this.treeNodeById().get(id) ?? null;
   }
 
   private _loadLiveWatchState(): boolean {
