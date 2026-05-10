@@ -19,6 +19,7 @@ export class MatrixDataService implements OnDestroy {
 
   private worker: Worker | null = null;
   private workerUrl: string | null = null;
+  private calculationRequestId = 0;
 
   readonly isWorkerDone = signal(false);
   readonly rows = signal<ProcessedRow[]>([]);
@@ -48,6 +49,8 @@ export class MatrixDataService implements OnDestroy {
 
         this.worker.onmessage = ({data}) => {
           if (data.type === 'RESULT') {
+            if (data.requestId !== this.calculationRequestId) return;
+
             const result = data.payload as MatrixWorkerResult;
             this.ngZone.run(() => {
               this.rows.set(result.rows);
@@ -67,16 +70,11 @@ export class MatrixDataService implements OnDestroy {
   calculate(tree: GenieTreeNode[], filter: GenieFilterState | null) {
     if (!this.worker) return;
 
+    const requestId = ++this.calculationRequestId;
+
     if (this.rows().length === 0) {
       this.isWorkerDone.set(false);
     }
-
-    const sanitizeNode = (node: GenieTreeNode): any => ({
-      id: node.id,
-      label: node.label,
-      children: node.children ? node.children.map(c => sanitizeNode(c)) : [],
-    });
-
 
     const allServices = this.registry.services();
     const filteredServices = allServices.filter(s => this.shouldShowService(s, filter));
@@ -103,13 +101,31 @@ export class MatrixDataService implements OnDestroy {
     }));
 
     const payload = {
-      tree: tree.map(n => sanitizeNode(n)),
+      tree: this.flattenNodesForWorker(tree),
       filterState: filter,
       services: safeServices,
       dependencies: safeDependencies
     };
 
-    this.worker.postMessage({type: 'CALCULATE', payload});
+    this.worker.postMessage({type: 'CALCULATE', requestId, payload});
+  }
+
+  private flattenNodesForWorker(tree: GenieTreeNode[]): Array<{ id: number; label: string }> {
+    const rows: Array<{ id: number; label: string }> = [];
+    const stack = [...tree].reverse();
+
+    while (stack.length > 0) {
+      const node = stack.pop()!;
+      rows.push({id: node.id, label: node.label});
+
+      if (node.children?.length) {
+        for (let index = node.children.length - 1; index >= 0; index--) {
+          stack.push(node.children[index]);
+        }
+      }
+    }
+
+    return rows;
   }
 
   private shouldShowService(s: GenieServiceRegistration, filters: GenieFilterState | null): boolean {

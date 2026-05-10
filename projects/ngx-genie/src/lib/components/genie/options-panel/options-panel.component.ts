@@ -54,12 +54,12 @@ export class OptionsPanelComponent {
   readonly collapseAll = output<void>();
   readonly filterChange = output<GenieFilterState>();
 
-  protected readonly _hideUnusedDeps = signal(false);
-  protected readonly _hideIsolatedComponents = signal(false);
+  protected readonly _hideUnusedDeps = signal(true);
+  protected readonly _hideIsolatedComponents = signal(true);
   protected readonly _minDeps = signal(0);
   protected readonly _maxDeps = signal(100);
 
-  protected readonly _hideInternals = signal(false);
+  protected readonly _hideInternals = signal(true);
   protected readonly _groupSimilarSiblings = signal(true);
   protected readonly _showRootOnly = signal(false);
   protected readonly _showLocalOnly = signal(false);
@@ -71,7 +71,7 @@ export class OptionsPanelComponent {
   protected readonly _showUserTokens = signal(true);
   protected readonly _showUserValues = signal(true);
   protected readonly _showUserObservables = signal(true);
-  protected readonly _showUserSignals = signal(true);
+  protected readonly _showUserSignals = signal(false);
 
   protected readonly _showFrameworkServices = signal(false);
   protected readonly _showFrameworkSystem = signal(false);

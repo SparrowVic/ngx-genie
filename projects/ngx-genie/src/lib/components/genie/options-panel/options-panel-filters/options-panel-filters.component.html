@@ -13,15 +13,17 @@
 </div>
 
 
-<gen-modal
-  [isOpen]="showAdvancedModal()"
-  [width]="'1300px'"
-  title="Advanced Internals Configuration"
-  (close)="closeAdvancedSettings()"
->
-  <gen-advanced-filters-config></gen-advanced-filters-config>
+@if (showAdvancedModal()) {
+  <gen-modal
+    [isOpen]="true"
+    [width]="'1300px'"
+    title="Advanced Internals Configuration"
+    (close)="closeAdvancedSettings()"
+  >
+    <gen-advanced-filters-config></gen-advanced-filters-config>
 
-  <div footer>
-    <button class="btn-secondary" (click)="closeAdvancedSettings()">Close</button>
-  </div>
-</gen-modal>
+    <div footer>
+      <button class="btn-secondary" (click)="closeAdvancedSettings()">Close</button>
+    </div>
+  </gen-modal>
+}

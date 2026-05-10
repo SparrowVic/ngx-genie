@@ -24,6 +24,16 @@ import {GenieResizableDirective} from '../../../../../shared/directives/resizabl
 
 type ViewMode = 'list' | 'grid';
 type CategoryFilter = 'ALL' | 'memory' | 'architecture' | 'performance' | 'best-practice';
+type SourceFilters = {
+  components: boolean;
+  services: boolean;
+  directives: boolean;
+  pipes: boolean;
+  tokens: boolean;
+};
+
+const INITIAL_RENDER_LIMIT = 100;
+const RENDER_LIMIT_STEP = 100;
 
 @Component({
   selector: 'lib-diagnostics-view',
@@ -52,6 +62,7 @@ export class DiagnosticsViewComponent {
   readonly showSystemIssues = signal(false);
   readonly viewMode = signal<ViewMode>('list');
   readonly categoryFilter = signal<CategoryFilter>('ALL');
+  readonly renderLimit = signal(INITIAL_RENDER_LIMIT);
 
   readonly filterSeverity = signal<{ critical: boolean; warning: boolean; info: boolean }>({
     critical: true,
@@ -81,10 +92,13 @@ export class DiagnosticsViewComponent {
     return this.diagnostics.runDiagnostics(currentConfig);
   });
 
+  readonly serviceById = computed(() => {
+    return new Map(this.registry.services().map(s => [s.id, s]));
+  });
+
   readonly availableTags = computed(() => {
     const anomalies = this.report().anomalies;
-    const services = this.registry.services();
-    const serviceMap = new Map(services.map(s => [s.id, s]));
+    const serviceMap = this.serviceById();
     const names = new Set<string>();
 
     anomalies.forEach(a => {
@@ -106,11 +120,20 @@ export class DiagnosticsViewComponent {
 
   readonly stats = computed(() => {
     const pool = this.filteredAnomalies();
+    let critical = 0;
+    let warning = 0;
+    let info = 0;
+    for (const item of pool) {
+      if (item.severity === 'critical') critical++;
+      else if (item.severity === 'warning') warning++;
+      else info++;
+    }
+
     return {
       total: pool.length,
-      critical: pool.filter(a => a.severity === 'critical').length,
-      warning: pool.filter(a => a.severity === 'warning').length,
-      info: pool.filter(a => a.severity === 'info').length
+      critical,
+      warning,
+      info
     };
   });
 
@@ -123,44 +146,18 @@ export class DiagnosticsViewComponent {
     const cat = this.categoryFilter();
 
     const tags = this.selectedTags();
-    const textQuery = this.inputValue().toLowerCase();
+    const textQuery = this.inputValue().trim().toLowerCase();
 
-    const servicesMap = new Map(this.registry.services().map(s => [s.id, s]));
+    const servicesMap = this.serviceById();
 
     return all.filter(item => {
       if (item.isFramework) {
         if (!showSystem) return false;
 
-        let typeMatch = false;
-        if (item.relatedServiceIds.length === 0) typeMatch = true;
-        else {
-          const svc = servicesMap.get(item.relatedServiceIds[0]);
-          if (svc) {
-            const type = svc.dependencyType;
-            if (type === 'Component' && sysFilters.components) typeMatch = true;
-            else if (type === 'Service' && sysFilters.services) typeMatch = true;
-            else if (type === 'Directive' && sysFilters.directives) typeMatch = true;
-            else if (type === 'Pipe' && sysFilters.pipes) typeMatch = true;
-            else if ((type === 'Token' || type === 'Value' || type === 'Observable') && sysFilters.tokens) typeMatch = true;
-          } else typeMatch = true;
-        }
-        if (!typeMatch) return false;
+        if (!this.matchesSourceFilter(item, sysFilters, servicesMap)) return false;
 
       } else {
-        let typeMatch = false;
-        if (item.relatedServiceIds.length === 0) typeMatch = true;
-        else {
-          const svc = servicesMap.get(item.relatedServiceIds[0]);
-          if (svc) {
-            const type = svc.dependencyType;
-            if (type === 'Component' && userFilters.components) typeMatch = true;
-            else if (type === 'Service' && userFilters.services) typeMatch = true;
-            else if (type === 'Directive' && userFilters.directives) typeMatch = true;
-            else if (type === 'Pipe' && userFilters.pipes) typeMatch = true;
-            else if ((type === 'Token' || type === 'Value' || type === 'Observable') && userFilters.tokens) typeMatch = true;
-          } else typeMatch = true;
-        }
-        if (!typeMatch) return false;
+        if (!this.matchesSourceFilter(item, userFilters, servicesMap)) return false;
       }
 
       if (item.severity === 'critical' && !sevFilters.critical) return false;
@@ -189,6 +186,14 @@ export class DiagnosticsViewComponent {
     });
   });
 
+  readonly displayedAnomalies = computed(() => {
+    return this.filteredAnomalies().slice(0, this.renderLimit());
+  });
+
+  readonly remainingAnomalies = computed(() => {
+    return Math.max(0, this.filteredAnomalies().length - this.displayedAnomalies().length);
+  });
+
   readonly hiddenCount = computed(() => {
     return this.report().anomalies.length - this.filteredAnomalies().length;
   });
@@ -211,6 +216,7 @@ export class DiagnosticsViewComponent {
       return newSet;
     });
     this.inputValue.set('');
+    this.resetRenderLimit();
     this.searchInput.nativeElement.focus();
   }
 
@@ -220,11 +226,13 @@ export class DiagnosticsViewComponent {
       newSet.delete(tag);
       return newSet;
     });
+    this.resetRenderLimit();
   }
 
   onInputChange(val: string) {
     this.inputValue.set(val);
     this.isDropdownOpen.set(true);
+    this.resetRenderLimit();
   }
 
   onInputKeydown(event: KeyboardEvent) {
@@ -261,18 +269,22 @@ export class DiagnosticsViewComponent {
 
   toggleFilter(type: 'critical' | 'warning' | 'info') {
     this.filterSeverity.update(s => ({...s, [type]: !s[type]}));
+    this.resetRenderLimit();
   }
 
   toggleUserSource(type: 'components' | 'services' | 'directives' | 'pipes' | 'tokens') {
     this.filterSourceUser.update(s => ({...s, [type]: !s[type]}));
+    this.resetRenderLimit();
   }
 
   toggleSystemSource(type: 'components' | 'services' | 'directives' | 'pipes' | 'tokens') {
     this.filterSourceSystem.update(s => ({...s, [type]: !s[type]}));
+    this.resetRenderLimit();
   }
 
   toggleSystemIssues() {
     this.showSystemIssues.update(v => !v);
+    this.resetRenderLimit();
   }
 
   toggleViewMode() {
@@ -281,6 +293,15 @@ export class DiagnosticsViewComponent {
 
   setCategoryFilter(cat: CategoryFilter) {
     this.categoryFilter.set(cat);
+    this.resetRenderLimit();
+  }
+
+  loadMore() {
+    this.renderLimit.update(limit => limit + RENDER_LIMIT_STEP);
+  }
+
+  showAll() {
+    this.renderLimit.set(this.filteredAnomalies().length);
   }
 
   isNodeLevelIssue(type: string): boolean {
@@ -333,6 +354,32 @@ export class DiagnosticsViewComponent {
     textarea.select();
     document.execCommand('copy');
     document.body.removeChild(textarea);
+  }
+
+  private resetRenderLimit(): void {
+    this.renderLimit.set(INITIAL_RENDER_LIMIT);
+  }
+
+  private matchesSourceFilter(
+    item: Anomaly,
+    filters: SourceFilters,
+    servicesMap: Map<number, GenieServiceRegistration>
+  ): boolean {
+    if (item.relatedServiceIds.length === 0) return true;
+
+    const svc = servicesMap.get(item.relatedServiceIds[0]);
+    if (!svc) return true;
+
+    const type = svc.dependencyType;
+    if (type === 'Component') return filters.components;
+    if (type === 'Service') return filters.services;
+    if (type === 'Directive') return filters.directives;
+    if (type === 'Pipe') return filters.pipes;
+    if (type === 'Token' || type === 'Value' || type === 'Observable' || type === 'Signal') {
+      return filters.tokens;
+    }
+
+    return true;
   }
 
   getIconForType(type: string): string {

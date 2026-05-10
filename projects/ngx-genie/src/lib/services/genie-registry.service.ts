@@ -46,6 +46,10 @@ const GENIE_INTERNAL_COMPONENTS = new Set([
 
 const EMPTY_SERVICES: GenieServiceRegistration[] = [];
 const EMPTY_DEPENDENCIES: GenieDependency[] = [];
+const MAX_SNAPSHOT_KEYS = 200;
+const MAX_DEFERRED_EVENTS = 50000;
+const SCAN_CHUNK_BUDGET_MS = 8;
+const SCAN_CHUNK_MAX_ELEMENTS = 250;
 
 const NATIVE_JS_CONSTRUCTORS = new Set([
   'String', 'Number', 'Boolean', 'Object', 'Array', 'Symbol', 'Function',
@@ -66,6 +70,11 @@ interface DeferredInjectionEvent {
   flags: any;
 }
 
+interface DomScanQueueItem {
+  element: HTMLElement;
+  parentNode: GenieNode;
+}
+
 @Injectable()
 export class GenieRegistryService {
   private readonly _isOpen = signal(false);
@@ -83,17 +92,28 @@ export class GenieRegistryService {
   private _nextNodeId = 1;
   private _nextServiceId = 1;
   private _hasWarnedAboutProduction = false;
+  private _isSpyInstalled = false;
 
 
   private _isScanning = false;
 
   private injectorToNodeMap = new WeakMap<Injector, number>();
+  private componentInstanceToNodeMap = new WeakMap<object, number>();
   private instanceToServiceMap = new WeakMap<any, number>();
   private dependencyKeySet = new Set<string>();
+  private nodeById = new Map<number, GenieNode>();
+  private serviceById = new Map<number, GenieServiceRegistration>();
   private serviceIndexById = new Map<number, number>();
 
-
+  private _isRegistryBatchActive = false;
+  private _pendingNodes: GenieNode[] = [];
+  private _pendingServices: GenieServiceRegistration[] = [];
+  private _pendingDependencies: GenieDependency[] = [];
+  private _pendingServiceUsage = new Map<number, number>();
+  private _isChunkedScanActive = false;
+  private _chunkedScanCompletionCallbacks: Array<() => void> = [];
   private _deferredEvents: DeferredInjectionEvent[] = [];
+  private _deferredTokensByInjector = new WeakMap<Injector, Set<any>>();
 
   private readonly _nodesById = computed(() => {
     const index = new Map<number, GenieNode>();
@@ -186,6 +206,9 @@ export class GenieRegistryService {
   }
 
   private installSpy(): void {
+    if (this._isSpyInstalled) return;
+    this._isSpyInstalled = true;
+
     const registry = this;
 
     Injector.prototype.get = function (token: any, notFoundValue?: any, flags?: any): any {
@@ -194,7 +217,7 @@ export class GenieRegistryService {
 
       if (registry._isScanning) return result;
 
-      if (registry.isIgnoredToken(token)) return result;
+      if (registry.isIgnoredTokenFast(token)) return result;
       try {
         registry.handleInjectionEvent(this, token, result, flags);
       } catch (e) {
@@ -216,7 +239,7 @@ export class GenieRegistryService {
 
       if (registry._isScanning) return result;
 
-      if (registry.isIgnoredToken(token)) return result;
+      if (registry.isIgnoredTokenFast(token)) return result;
       try {
 
         registry.handleInjectionEvent(this, token, result, flags);
@@ -233,7 +256,7 @@ export class GenieRegistryService {
 
 
     if (!consumerId) {
-      this._deferredEvents.push({injector: requestingInjector, token, instance, flags});
+      this.queueDeferredEvent(requestingInjector, token, instance, flags);
       return;
     }
 
@@ -242,6 +265,8 @@ export class GenieRegistryService {
 
 
   private processInjection(consumerId: number, token: any, instance: any, flags: any) {
+    if (this.isIgnoredToken(token)) return;
+
     let providerId: number | null = null;
     if (instance && (typeof instance === 'object' || typeof instance === 'function')) {
       providerId = this.instanceToServiceMap.get(instance) || null;
@@ -282,12 +307,14 @@ export class GenieRegistryService {
     };
 
     this.instanceToServiceMap.set(instance, id);
-    this.serviceIndexById.set(id, this._services().length);
-    this._services.update(existing => [...existing, reg]);
+    this.serviceById.set(id, reg);
+    this.addServices([reg]);
     return id;
   }
 
   scanApplication(): void {
+    this.installSpy();
+    this.beginRegistryBatch();
     this._isScanning = true;
 
     try {
@@ -297,49 +324,119 @@ export class GenieRegistryService {
       });
     } finally {
       this._isScanning = false;
+      this.processDeferredEvents();
+      this.flushRegistryBatch();
+    }
+  }
+
+  scanApplicationChunked(onComplete?: () => void): void {
+    if (onComplete) this._chunkedScanCompletionCallbacks.push(onComplete);
+    if (this._isChunkedScanActive) return;
+
+    this.installSpy();
+    this.beginRegistryBatch();
+    this._isChunkedScanActive = true;
+
+    const queue: DomScanQueueItem[] = [];
+
+    try {
+      this._isScanning = true;
+      for (const rootRef of this.appRef.components) {
+        const rootNode = this.scanComponentRef(rootRef, null);
+        const nativeElement = rootRef.location.nativeElement as HTMLElement;
+        this.enqueueChildElements(nativeElement, rootNode, queue);
+      }
+    } catch (error) {
+      this.finishChunkedScan();
+      throw error;
+    } finally {
+      this._isScanning = false;
     }
 
-
-    this.processDeferredEvents();
+    this.processDomScanQueue(queue);
   }
 
   private processDeferredEvents(): void {
     const events = this._deferredEvents;
+    const remainingEvents: DeferredInjectionEvent[] = [];
+    const remainingTokensByInjector = new WeakMap<Injector, Set<any>>();
     this._deferredEvents = [];
+    this._deferredTokensByInjector = new WeakMap();
 
     events.forEach(evt => {
       const consumerId = this.injectorToNodeMap.get(evt.injector);
       if (consumerId) {
-
         this.processInjection(consumerId, evt.token, evt.instance, evt.flags);
+        return;
       }
+
+      if (remainingEvents.length >= MAX_DEFERRED_EVENTS) return;
+      remainingEvents.push(evt);
+
+      let tokens = remainingTokensByInjector.get(evt.injector);
+      if (!tokens) {
+        tokens = new Set<any>();
+        remainingTokensByInjector.set(evt.injector, tokens);
+      }
+      tokens.add(evt.token);
     });
+
+    this._deferredEvents = remainingEvents;
+    this._deferredTokensByInjector = remainingTokensByInjector;
+  }
+
+  private queueDeferredEvent(injector: Injector, token: any, instance: any, flags: any): void {
+    let tokens = this._deferredTokensByInjector.get(injector);
+    if (!tokens) {
+      tokens = new Set<any>();
+      this._deferredTokensByInjector.set(injector, tokens);
+    }
+
+    if (tokens.has(token)) return;
+    if (this._deferredEvents.length >= MAX_DEFERRED_EVENTS) return;
+
+    tokens.add(token);
+    this._deferredEvents.push({injector, token, instance, flags});
   }
 
   private scanComponentTree(compRef: ComponentRef<any>, parentNode: GenieNode | null): void {
+    const node = this.scanComponentRef(compRef, parentNode);
+    const nativeElement = compRef.location.nativeElement as HTMLElement;
+    this.scanDomForComponents(nativeElement, node);
+  }
+
+  private scanComponentRef(compRef: ComponentRef<any>, parentNode: GenieNode | null): GenieNode {
     const componentType = compRef.componentType;
     const name = componentType.name || 'AnonymousComponent';
-    if (this.isGenieInternalComponent(name)) return;
+    if (this.isGenieInternalComponent(name)) {
+      const existing = this.findNodeByComponentInstance(compRef.instance);
+      if (existing) return existing;
+      if (parentNode) return parentNode;
+    }
 
     const injector = compRef.injector;
 
 
     this.patchInjectorInstance(injector);
 
-    let node = this.findNodeByInjector(injector);
+    let node = this.findNodeByInjector(injector) ?? this.findNodeByComponentInstance(compRef.instance);
 
     if (!node) {
       node = this.register(name, injector, parentNode, 'Element');
       node.componentInstance = compRef.instance;
+      this.bindComponentInstanceToNode(compRef.instance, node);
 
       this.extractProvidersFromComponent(componentType, node);
       this.scanConstructorDependencies(componentType, node);
       this.scanInjectedProperties(node);
       this.scanTemplateDependencies(node);
+    } else {
+      this.bindInjectorToNode(injector, node);
+      if (!node.componentInstance) node.componentInstance = compRef.instance;
+      this.bindComponentInstanceToNode(compRef.instance, node);
     }
 
-    const nativeElement = compRef.location.nativeElement as HTMLElement;
-    this.scanDomForComponents(nativeElement, node);
+    return node;
   }
 
   private scanDomForComponents(element: HTMLElement, parentNode: GenieNode): void {
@@ -357,6 +454,11 @@ export class GenieRegistryService {
       // @ts-ignore
       const context = ng.getComponent(child);
       if (context) {
+        if (context === parentNode.componentInstance) {
+          this.scanDomForComponents(child as HTMLElement, parentNode);
+          continue;
+        }
+
         // @ts-ignore
         const childInjector = ng.getInjector(child);
         if (childInjector) {
@@ -366,14 +468,19 @@ export class GenieRegistryService {
 
           this.patchInjectorInstance(childInjector);
 
-          let node = this.findNodeByInjector(childInjector);
+          let node = this.findNodeByInjector(childInjector) ?? this.findNodeByComponentInstance(context);
           if (!node) {
             node = this.register(name, childInjector, parentNode, 'Element');
             node.componentInstance = context;
+            this.bindComponentInstanceToNode(context, node);
             this.extractProvidersFromComponent(componentType, node);
             this.scanConstructorDependencies(componentType, node);
             this.scanInjectedProperties(node);
             this.scanTemplateDependencies(node);
+          } else {
+            this.bindInjectorToNode(childInjector, node);
+            if (!node.componentInstance) node.componentInstance = context;
+            this.bindComponentInstanceToNode(context, node);
           }
           this.scanDomForComponents(child as HTMLElement, node);
           continue;
@@ -381,6 +488,133 @@ export class GenieRegistryService {
       }
       this.scanDomForComponents(child as HTMLElement, parentNode);
     }
+  }
+
+  private processDomScanQueue(queue: DomScanQueueItem[], cursor = 0): void {
+    if (cursor >= queue.length) {
+      this.finishChunkedScan();
+      return;
+    }
+
+    this.scheduleScanChunk(() => {
+      const startedAt = this.now();
+      let processed = 0;
+      this._isScanning = true;
+
+      try {
+        while (cursor < queue.length && processed < SCAN_CHUNK_MAX_ELEMENTS) {
+          const item = queue[cursor];
+          cursor++;
+          this.scanDomElement(item.element, item.parentNode, queue);
+          processed++;
+
+          if (this.now() - startedAt >= SCAN_CHUNK_BUDGET_MS) {
+            break;
+          }
+        }
+      } finally {
+        this._isScanning = false;
+      }
+
+      if (cursor < queue.length) {
+        this.processDomScanQueue(queue, cursor);
+      } else {
+        this.finishChunkedScan();
+      }
+    });
+  }
+
+  private scanDomElement(element: HTMLElement, parentNode: GenieNode, queue: DomScanQueueItem[]): void {
+    // @ts-ignore
+    const ng = typeof window !== 'undefined' ? window.ng : null;
+    if (!ng || !ng.getComponent || !ng.getInjector) {
+      if (!this._hasWarnedAboutProduction) {
+        console.warn('[Genie] Debugging utilities (window.ng) are missing. Child component discovery is limited in production builds.');
+        this._hasWarnedAboutProduction = true;
+      }
+      return;
+    }
+
+    try {
+      // @ts-ignore
+      const context = ng.getComponent(element);
+      if (context) {
+        if (context === parentNode.componentInstance) {
+          this.enqueueChildElements(element, parentNode, queue);
+          return;
+        }
+
+        // @ts-ignore
+        const childInjector = ng.getInjector(element);
+        if (childInjector) {
+          const componentType = context.constructor as Type<any>;
+          const name = componentType.name || 'AnonymousComponent';
+          if (this.isGenieInternalComponent(name)) {
+            this.enqueueChildElements(element, parentNode, queue);
+            return;
+          }
+
+          this.patchInjectorInstance(childInjector);
+
+          let node = this.findNodeByInjector(childInjector) ?? this.findNodeByComponentInstance(context);
+          if (!node) {
+            node = this.register(name, childInjector, parentNode, 'Element');
+            node.componentInstance = context;
+            this.bindComponentInstanceToNode(context, node);
+            this.extractProvidersFromComponent(componentType, node);
+            this.scanConstructorDependencies(componentType, node);
+            this.scanInjectedProperties(node);
+            this.scanTemplateDependencies(node);
+          } else {
+            this.bindInjectorToNode(childInjector, node);
+            if (!node.componentInstance) node.componentInstance = context;
+            this.bindComponentInstanceToNode(context, node);
+          }
+
+          this.enqueueChildElements(element, node, queue);
+          return;
+        }
+      }
+    } catch {
+    }
+
+    this.enqueueChildElements(element, parentNode, queue);
+  }
+
+  private enqueueChildElements(element: HTMLElement, parentNode: GenieNode, queue: DomScanQueueItem[]): void {
+    const children = Array.from(element.children) as HTMLElement[];
+    for (const child of children) {
+      queue.push({element: child, parentNode});
+    }
+  }
+
+  private scheduleScanChunk(callback: () => void): void {
+    const win = typeof window !== 'undefined' ? window as any : null;
+    if (win && typeof win.requestIdleCallback === 'function') {
+      win.requestIdleCallback(callback, {timeout: 80});
+      return;
+    }
+    setTimeout(callback, 0);
+  }
+
+  private finishChunkedScan(): void {
+    this._isScanning = false;
+    this.processDeferredEvents();
+    this.flushRegistryBatch();
+    this._isChunkedScanActive = false;
+
+    const callbacks = this._chunkedScanCompletionCallbacks;
+    this._chunkedScanCompletionCallbacks = [];
+    callbacks.forEach(callback => {
+      try {
+        callback();
+      } catch {
+      }
+    });
+  }
+
+  private now(): number {
+    return typeof performance !== 'undefined' ? performance.now() : Date.now();
   }
 
   private scanInjectedProperties(node: GenieNode): void {
@@ -522,14 +756,13 @@ export class GenieRegistryService {
 
     this.dependencyKeySet.add(key);
     if (providerId) {
-      const svc = this.getServiceById(providerId);
-      if (svc) this.incrementServiceUsage(providerId, svc.token);
+      this.incrementServiceUsage(providerId);
     }
 
-    this._dependencies.update(deps => [...deps, {
+    this.addDependency({
       consumerNodeId: consumerId, providerId: providerId, tokenName: tokenName,
       type: type, propName: propName, flags: flags, resolutionPath: []
-    }]);
+    });
   }
 
   private isSystemToken(token: any): boolean {
@@ -541,6 +774,10 @@ export class GenieRegistryService {
     if (IGNORED_TOKENS.has(token)) return true;
     const name = this.describeToken(token);
     return IGNORED_TOKENS.has(name);
+  }
+
+  private isIgnoredTokenFast(token: any): boolean {
+    return IGNORED_TOKENS.has(token) || (typeof token === 'string' && IGNORED_TOKENS.has(token));
   }
 
   private isGenieInternalComponent(name: string): boolean {
@@ -605,11 +842,11 @@ export class GenieRegistryService {
         isRoot: this.checkIsRoot(token), isFramework: isFramework
       };
       this.instanceToServiceMap.set(instance, id);
-      this.serviceIndexById.set(id, this._services().length + newServices.length);
+      this.serviceById.set(id, reg);
       newServices.push(reg);
     });
     if (newServices.length > 0) {
-      this._services.update(existing => [...existing, ...newServices]);
+      this.addServices(newServices);
     }
   }
 
@@ -681,8 +918,9 @@ export class GenieRegistryService {
       }
     } catch (e) {
     }
-    this._nodes.update(nodes => [...nodes, node]);
-    this.injectorToNodeMap.set(injector, node.id);
+    this.nodeById.set(node.id, node);
+    this.addNode(node);
+    this.bindInjectorToNode(injector, node);
     return node;
   }
 
@@ -690,11 +928,18 @@ export class GenieRegistryService {
     const node = this.getNodeById(nodeId);
     const servicesToRemove = this.getServicesForNode(nodeId);
     const serviceIdsToRemove = new Set(servicesToRemove.map(s => s.id));
-    if (node) this.injectorToNodeMap.delete(node.injector);
+    if (node) {
+      this.injectorToNodeMap.delete(node.injector);
+      this.nodeById.delete(node.id);
+    }
+    if (node?.componentInstance && typeof node.componentInstance === 'object') {
+      this.componentInstanceToNodeMap.delete(node.componentInstance);
+    }
     for (const service of servicesToRemove) {
       if (service.instance && (typeof service.instance === 'object' || typeof service.instance === 'function')) {
         this.instanceToServiceMap.delete(service.instance);
       }
+      this.serviceById.delete(service.id);
     }
     this._nodes.update(nodes => nodes.filter(n => n.id !== nodeId));
     const nextServices = this._services().filter(s => s.nodeId !== nodeId);
@@ -726,12 +971,18 @@ export class GenieRegistryService {
   snapshotProperties(instance: any): Record<string, any> {
     if (!instance || typeof instance !== 'object') return {};
     const snapshot: Record<string, any> = {};
+    let scannedKeys = 0;
     for (const key in instance) {
+      scannedKeys++;
+      if (scannedKeys > MAX_SNAPSHOT_KEYS) {
+        snapshot['...'] = `[truncated after ${MAX_SNAPSHOT_KEYS} keys]`;
+        break;
+      }
       if (key.startsWith('_') || key.startsWith('ng') || key.startsWith('ɵ')) continue;
       try {
         const val = instance[key];
         if (isSignal(val)) {
-          snapshot[key] = `[Signal] ${val()}`;
+          snapshot[key] = '[Signal]';
           continue;
         }
         if (val && typeof val.subscribe === 'function') {
@@ -763,14 +1014,38 @@ export class GenieRegistryService {
   }
 
   getServiceById(serviceId: number): GenieServiceRegistration | null {
-    return this._servicesById().get(serviceId) ?? null;
+    return this.serviceById.get(serviceId) ?? null;
   }
 
   getNodeById(nodeId: number): GenieNode | null {
-    return this._nodesById().get(nodeId) ?? null;
+    return this.nodeById.get(nodeId) ?? null;
   }
 
-  incrementServiceUsage(serviceId: number, token: unknown): void {
+  hasPendingDeferredEvents(): boolean {
+    return this._deferredEvents.length > 0;
+  }
+
+  incrementServiceUsage(serviceId: number): void {
+    const pendingIndex = this._pendingServices.findIndex(service => service.id === serviceId);
+    if (pendingIndex !== -1) {
+      const updated = {
+        ...this._pendingServices[pendingIndex],
+        usageCount: this._pendingServices[pendingIndex].usageCount + 1
+      };
+      this._pendingServices[pendingIndex] = updated;
+      this.serviceById.set(serviceId, updated);
+      return;
+    }
+
+    if (this._isRegistryBatchActive) {
+      this._pendingServiceUsage.set(serviceId, (this._pendingServiceUsage.get(serviceId) ?? 0) + 1);
+      const service = this.serviceById.get(serviceId);
+      if (service) {
+        this.serviceById.set(serviceId, {...service, usageCount: service.usageCount + 1});
+      }
+      return;
+    }
+
     this._services.update(list => {
       let index = this.serviceIndexById.get(serviceId) ?? -1;
       if (index === -1 || list[index]?.id !== serviceId) {
@@ -784,6 +1059,7 @@ export class GenieRegistryService {
       if (index === -1) return list;
       const updated = list.slice();
       updated[index] = {...updated[index], usageCount: updated[index].usageCount + 1};
+      this.serviceById.set(serviceId, updated[index]);
       return updated;
     });
   }
@@ -800,15 +1076,109 @@ export class GenieRegistryService {
     this._nextServiceId = 1;
     this._hasWarnedAboutProduction = false;
     this.injectorToNodeMap = new WeakMap();
+    this.componentInstanceToNodeMap = new WeakMap();
     this.instanceToServiceMap = new WeakMap();
+    this.nodeById.clear();
+    this.serviceById.clear();
     this.dependencyKeySet.clear();
     this.serviceIndexById.clear();
+    this._pendingNodes = [];
+    this._pendingServices = [];
+    this._pendingDependencies = [];
+    this._pendingServiceUsage.clear();
+    this._isRegistryBatchActive = false;
     this._deferredEvents = [];
+    this._deferredTokensByInjector = new WeakMap();
   }
 
   findNodeByInjector(injector: Injector): GenieNode | null {
     const nodeId = this.injectorToNodeMap.get(injector);
     return nodeId ? this.getNodeById(nodeId) : null;
+  }
+
+  private findNodeByComponentInstance(instance: any): GenieNode | null {
+    if (!instance || typeof instance !== 'object') return null;
+    const nodeId = this.componentInstanceToNodeMap.get(instance);
+    return nodeId ? this.getNodeById(nodeId) : null;
+  }
+
+  private bindInjectorToNode(injector: Injector, node: GenieNode): void {
+    this.injectorToNodeMap.set(injector, node.id);
+  }
+
+  private bindComponentInstanceToNode(instance: any, node: GenieNode): void {
+    if (!instance || typeof instance !== 'object') return;
+    this.componentInstanceToNodeMap.set(instance, node.id);
+  }
+
+  private beginRegistryBatch(): void {
+    this._pendingNodes = [];
+    this._pendingServices = [];
+    this._pendingDependencies = [];
+    this._pendingServiceUsage.clear();
+    this._isRegistryBatchActive = true;
+  }
+
+  private flushRegistryBatch(): void {
+    this._isRegistryBatchActive = false;
+
+    if (this._pendingNodes.length > 0) {
+      this._nodes.update(nodes => [...nodes, ...this._pendingNodes]);
+      this._pendingNodes = [];
+    }
+
+    if (this._pendingServices.length > 0 || this._pendingServiceUsage.size > 0) {
+      let nextServices = this._pendingServices.length > 0
+        ? [...this._services(), ...this._pendingServices]
+        : this._services();
+
+      if (this._pendingServiceUsage.size > 0) {
+        nextServices = nextServices.map(service => {
+          const usageDelta = this._pendingServiceUsage.get(service.id);
+          if (!usageDelta) return service;
+          const updated = {...service, usageCount: service.usageCount + usageDelta};
+          this.serviceById.set(service.id, updated);
+          return updated;
+        });
+        this._pendingServiceUsage.clear();
+      }
+
+      this.rebuildServiceIndex(nextServices);
+      this._services.set(nextServices);
+      this._pendingServices = [];
+    }
+
+    if (this._pendingDependencies.length > 0) {
+      this._dependencies.update(dependencies => [...dependencies, ...this._pendingDependencies]);
+      this._pendingDependencies = [];
+    }
+  }
+
+  private addNode(node: GenieNode): void {
+    if (this._isRegistryBatchActive) {
+      this._pendingNodes.push(node);
+      return;
+    }
+    this._nodes.update(nodes => [...nodes, node]);
+  }
+
+  private addServices(services: GenieServiceRegistration[]): void {
+    if (this._isRegistryBatchActive) {
+      this._pendingServices.push(...services);
+      return;
+    }
+
+    const nextServices = [...this._services(), ...services];
+    this.rebuildServiceIndex(nextServices);
+    this._services.set(nextServices);
+  }
+
+  private addDependency(dependency: GenieDependency): void {
+    if (this._isRegistryBatchActive) {
+      this._pendingDependencies.push(dependency);
+      return;
+    }
+    this._dependencies.update(dependencies => [...dependencies, dependency]);
   }
 
   private getDependencyKey(consumerId: number, providerId: number | null, tokenName: string): string {

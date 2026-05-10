@@ -264,13 +264,20 @@ export class ConstellationMapper {
   }
 
   private static _flattenTree(nodes: GenieTreeNode[]): GenieTreeNode[] {
-    let result: GenieTreeNode[] = [];
-    for (const node of nodes) {
+    const result: GenieTreeNode[] = [];
+    const stack = [...nodes].reverse();
+
+    while (stack.length > 0) {
+      const node = stack.pop()!;
       result.push(node);
-      if (node.children && node.children.length > 0) {
-        result = result.concat(this._flattenTree(node.children));
+
+      if (node.children?.length) {
+        for (let index = node.children.length - 1; index >= 0; index--) {
+          stack.push(node.children[index]);
+        }
       }
     }
+
     return result;
   }
 

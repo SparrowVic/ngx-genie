@@ -2,7 +2,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  effect,
   inject,
+  NgZone,
   signal,
   ViewChild,
   computed,
@@ -19,8 +21,12 @@ import {OptionsPanelComponent} from './options-panel/options-panel.component';
 import {InspectorPanelComponent} from './inspector-panel/inspector-panel.component';
 import {GenieExplorerStateService} from './explorer-state.service';
 import {GenieFilterState} from './options-panel/options-panel.models';
+import {GenieRegistryService} from '../../services/genie-registry.service';
 
 const STORAGE_KEY_LAYOUT = 'genie_layout_config';
+const FIRST_VISIBLE_SCAN_DELAY_MS = 350;
+const FOLLOW_UP_VISIBLE_SCAN_DELAY_MS = 1500;
+const MAX_VISIBLE_SCAN_ATTEMPTS = 3;
 
 interface GenieLayoutState {
   x: number;
@@ -57,6 +63,8 @@ export class GenieComponent implements OnDestroy {
   readonly config: GenieConfig = inject(GENIE_CONFIG);
   private readonly document = inject(DOCUMENT);
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly registry = inject(GenieRegistryService);
+  private readonly zone = inject(NgZone);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
 
   @ViewChild('windowRef') windowRef!: ElementRef<HTMLElement>;
@@ -93,8 +101,20 @@ export class GenieComponent implements OnDestroy {
   private _keyListener: ((e: KeyboardEvent) => void) | null = null;
 
   private _saveTimeout: any = null;
+  private _scanTimers: ReturnType<typeof setTimeout>[] = [];
+  private _idleScanHandles: number[] = [];
+  private _pendingScanCount = 0;
+  private _visibleScanAttempt = 0;
 
   constructor() {
+    effect(() => {
+      if (!this.config.enabled || !this.visible()) {
+        this.cancelQueuedScan();
+        return;
+      }
+      this.scheduleScanWhenVisible();
+    });
+
     if (this.isBrowser && this.config.enabled && this.config.hotkey) {
       this._keyListener = (event: KeyboardEvent) => {
         if (event.key === this.config.hotkey) {
@@ -110,6 +130,7 @@ export class GenieComponent implements OnDestroy {
     if (this.isBrowser && this._keyListener) {
       window.removeEventListener('keydown', this._keyListener);
     }
+    this.cancelQueuedScan();
   }
 
   handleViewChange(mode: GenieViewMode) {
@@ -212,6 +233,80 @@ export class GenieComponent implements OnDestroy {
   private scheduleSave() {
     if (this._saveTimeout) clearTimeout(this._saveTimeout);
     this._saveTimeout = setTimeout(() => this.saveLayoutState(), 500);
+  }
+
+  private scheduleScanWhenVisible() {
+    if (!this.isBrowser || this._pendingScanCount > 0) return;
+
+    this._visibleScanAttempt = 0;
+    this.queueVisibleScan(FIRST_VISIBLE_SCAN_DELAY_MS);
+  }
+
+  private queueVisibleScan(delay: number) {
+    this._pendingScanCount++;
+
+    const runScan = () => {
+      this._pendingScanCount = Math.max(0, this._pendingScanCount - 1);
+      if (!this.visible()) return;
+      this.runApplicationScan(() => this.queueFollowUpScanIfNeeded());
+    };
+
+    this._visibleScanAttempt++;
+
+    const queueIdleScan = () => {
+      const win = window as any;
+      if (typeof win.requestIdleCallback === 'function') {
+        const handle = win.requestIdleCallback(runScan, {timeout: 1500});
+        this._idleScanHandles.push(handle);
+      } else {
+        const timer = setTimeout(runScan, 250);
+        this._scanTimers.push(timer);
+      }
+    };
+
+    this.zone.runOutsideAngular(() => {
+      if (delay === 0) {
+        queueIdleScan();
+      } else {
+        const timer = setTimeout(queueIdleScan, delay);
+        this._scanTimers.push(timer);
+      }
+    });
+  }
+
+  private runApplicationScan(onComplete: () => void) {
+    try {
+      this.registry.scanApplicationChunked(onComplete);
+    } catch (error) {
+      console.warn('[Genie] Application scan failed.', error);
+      onComplete();
+    }
+  }
+
+  private queueFollowUpScanIfNeeded() {
+    if (
+      this.visible()
+      && this.registry.hasPendingDeferredEvents()
+      && this._visibleScanAttempt < MAX_VISIBLE_SCAN_ATTEMPTS
+    ) {
+      this.queueVisibleScan(FOLLOW_UP_VISIBLE_SCAN_DELAY_MS);
+    }
+  }
+
+  private cancelQueuedScan() {
+    if (!this.isBrowser) return;
+
+    this._scanTimers.forEach(timer => clearTimeout(timer));
+    this._scanTimers = [];
+
+    const win = window as any;
+    if (typeof win.cancelIdleCallback === 'function') {
+      this._idleScanHandles.forEach(handle => win.cancelIdleCallback(handle));
+    }
+    this._idleScanHandles = [];
+
+    this._pendingScanCount = 0;
+    this._visibleScanAttempt = 0;
   }
 
   private saveLayoutState() {

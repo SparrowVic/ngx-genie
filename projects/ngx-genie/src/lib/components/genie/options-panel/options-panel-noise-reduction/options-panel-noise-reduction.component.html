@@ -4,26 +4,26 @@
   </div>
 
   <label class="checkbox-row">
-    <input type="checkbox" [ngModel]="hideInternals()" (ngModelChange)="updateHideInternals.emit($event)">
+    <input type="checkbox" [checked]="hideInternals()" (change)="updateHideInternals.emit($any($event.target).checked)">
     <span class="checkmark"></span>
     <span class="label-text">Hide Angular Internals</span>
   </label>
 
   <label class="checkbox-row">
-    <input type="checkbox" [ngModel]="groupSimilarSiblings()" (ngModelChange)="updateGroupSimilarSiblings.emit($event)">
+    <input type="checkbox" [checked]="groupSimilarSiblings()" (change)="updateGroupSimilarSiblings.emit($any($event.target).checked)">
     <span class="checkmark"></span>
     <span class="label-text">Group Identical Leaf Nodes</span>
   </label>
 
   <label class="checkbox-row">
-    <input type="checkbox" [ngModel]="hideUnusedDeps()" (ngModelChange)="updateHideUnusedDeps.emit($event)">
+    <input type="checkbox" [checked]="hideUnusedDeps()" (change)="updateHideUnusedDeps.emit($any($event.target).checked)">
     <span class="checkmark"></span>
     <span class="label-text">Hide Unused Deps</span>
   </label>
 
   <label class="checkbox-row">
-    <input type="checkbox" [ngModel]="hideIsolatedComponents()"
-           (ngModelChange)="updateHideIsolatedComponents.emit($event)">
+    <input type="checkbox" [checked]="hideIsolatedComponents()"
+           (change)="updateHideIsolatedComponents.emit($any($event.target).checked)">
     <span class="checkmark"></span>
     <span class="label-text">Hide Leaf Nodes (No Children)</span>
   </label>

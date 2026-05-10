@@ -59,6 +59,13 @@ export const DEFAULT_DIAGNOSTICS_CONFIG: DiagnosticsConfig = {
 @Injectable({providedIn: 'root'})
 export class GenieDiagnosticsService {
   private registry = inject(GenieRegistryService);
+  private readonly sizeEstimateCache = new WeakMap<object, number>();
+  private readonly publicPropertyCountCache = new WeakMap<object, number>();
+  private readonly injectorReferenceCache = new WeakMap<object, boolean>();
+  private readonly subscriptionStateCache = new WeakMap<object, boolean>();
+
+  private readonly maxObjectKeysToScan = 200;
+  private readonly maxArrayItemsToSample = 10;
 
   runDiagnostics(config: DiagnosticsConfig = DEFAULT_DIAGNOSTICS_CONFIG): { score: number, anomalies: Anomaly[] } {
 
@@ -66,6 +73,7 @@ export class GenieDiagnosticsService {
     const nodes = this.registry.nodes();
     const dependencies = this.registry.dependencies();
     const anomalies: Anomaly[] = [];
+    const componentServiceByNodeId = new Map<number, GenieServiceRegistration>();
 
 
     const serviceGroups = new Map<string, GenieServiceRegistration[]>();
@@ -73,6 +81,10 @@ export class GenieDiagnosticsService {
       const name = svc.label;
       if (!serviceGroups.has(name)) serviceGroups.set(name, []);
       serviceGroups.get(name)!.push(svc);
+
+      if (svc.dependencyType === 'Component' && !componentServiceByNodeId.has(svc.nodeId)) {
+        componentServiceByNodeId.set(svc.nodeId, svc);
+      }
     });
 
     if (config.checkSingleton) {
@@ -121,7 +133,7 @@ export class GenieDiagnosticsService {
 
 
         if (config.checkHeavyState) {
-          const sizeScore = this.estimateSize(svc.instance);
+          const sizeScore = this.estimateInstanceSize(svc.instance);
           if (sizeScore > config.thresholdHeavyState) {
             anomalies.push({
               id: `heavy-${svc.id}`,
@@ -187,17 +199,7 @@ export class GenieDiagnosticsService {
 
       if (config.checkCircular && !svc.isFramework && svc.instance) {
         if (!isSignal(svc.instance) && typeof svc.instance === 'object') {
-          const keys = Object.keys(svc.instance);
-          const hasInjector = keys.some(k => {
-            try {
-              const val = svc.instance[k];
-              return val && val.constructor && val.constructor.name === 'Injector';
-            } catch {
-              return false;
-            }
-          });
-
-          if (hasInjector) {
+          if (this.hasInjectorReference(svc.instance)) {
             anomalies.push({
               id: `injector-${svc.id}`,
               type: 'circular-risk',
@@ -225,7 +227,7 @@ export class GenieDiagnosticsService {
 
       if (config.checkCoupling) {
         if (depCount > config.thresholdCoupling) {
-          const svc = services.find(s => s.nodeId === node.id && s.dependencyType === 'Component');
+          const svc = componentServiceByNodeId.get(node.id);
           const relatedIds = svc ? [svc.id] : [];
           const isFramework = node.label.startsWith('ng-') || node.label.startsWith('_');
 
@@ -253,7 +255,7 @@ export class GenieDiagnosticsService {
           if (def) {
             if (def.changeDetection === 1) {
               if (depCount > 2) {
-                const svc = services.find(s => s.nodeId === node.id && s.dependencyType === 'Component');
+                const svc = componentServiceByNodeId.get(node.id);
                 anomalies.push({
                   id: `cd-${node.id}`,
                   type: 'perf-change-detection',
@@ -272,15 +274,13 @@ export class GenieDiagnosticsService {
 
         if (config.checkCleanup) {
           const instance = node.componentInstance;
-          const hasSubscriptions = Object.values(instance).some((val: any) =>
-            val && typeof val === 'object' && 'closed' in val && 'unsubscribe' in val
-          );
+          const hasSubscriptions = this.hasSubscriptionProperty(instance);
 
           const proto = Object.getPrototypeOf(instance);
           const hasOnDestroy = !!instance.ngOnDestroy || !!proto.ngOnDestroy;
 
           if (hasSubscriptions && !hasOnDestroy) {
-            const svc = services.find(s => s.nodeId === node.id && s.dependencyType === 'Component');
+            const svc = componentServiceByNodeId.get(node.id);
             anomalies.push({
               id: `destroy-${node.id}`,
               type: 'missing-cleanup',
@@ -319,45 +319,117 @@ export class GenieDiagnosticsService {
   private countPublicProperties(obj: any): number {
     if (!obj || typeof obj !== 'object') return 0;
     if (isSignal(obj)) return 1;
+    const cached = this.publicPropertyCountCache.get(obj);
+    if (cached !== undefined) return cached;
 
     let count = 0;
+    let scanned = 0;
     for (const key in obj) {
+      scanned++;
+      if (scanned > this.maxObjectKeysToScan) break;
       if (!key.startsWith('_') && !key.startsWith('ng') && !key.startsWith('ɵ') && !key.startsWith('$')) {
         count++;
       }
     }
+    this.publicPropertyCountCache.set(obj, count);
     return count;
   }
 
-  private estimateSize(obj: any, depth = 0): number {
+  private estimateInstanceSize(obj: any): number {
+    if (!obj || typeof obj !== 'object') return 0;
+    const cached = this.sizeEstimateCache.get(obj);
+    if (cached !== undefined) return cached;
+
+    const value = this.estimateSize(obj, 0, new WeakSet<object>());
+    this.sizeEstimateCache.set(obj, value);
+    return value;
+  }
+
+  private estimateSize(obj: any, depth = 0, seen: WeakSet<object>): number {
     if (!obj || depth > 3) return 0;
 
     if (isSignal(obj)) {
       try {
-        return this.estimateSize(obj(), depth);
+        return this.estimateSize(obj(), depth, seen);
       } catch {
         return 1;
       }
     }
+
+    if (typeof obj !== 'object') return 1;
+    if (seen.has(obj)) return 0;
+    seen.add(obj);
 
     let count = 0;
 
     if (Array.isArray(obj)) {
       count += obj.length;
       if (obj.length > 0 && typeof obj[0] === 'object') {
-        const sampleSize = this.estimateSize(obj[0], depth + 1);
-        count += sampleSize * Math.min(obj.length, 10);
+        const sampleSize = this.estimateSize(obj[0], depth + 1, seen);
+        count += sampleSize * Math.min(obj.length, this.maxArrayItemsToSample);
       }
     } else if (typeof obj === 'object') {
       const keys = Object.keys(obj);
       count += keys.length;
-      keys.forEach(k => {
+      const limit = Math.min(keys.length, this.maxObjectKeysToScan);
+      for (let index = 0; index < limit; index++) {
+        const k = keys[index];
 
         if (!k.startsWith('_') && !k.startsWith('ng') && !k.startsWith('ɵ') && !k.startsWith('$')) {
-          count += this.estimateSize(obj[k], depth + 1);
+          try {
+            count += this.estimateSize(obj[k], depth + 1, seen);
+          } catch {
+            count += 1;
+          }
         }
-      });
+      }
     }
     return count;
+  }
+
+  private hasInjectorReference(instance: object): boolean {
+    const cached = this.injectorReferenceCache.get(instance);
+    if (cached !== undefined) return cached;
+
+    let result = false;
+    let scanned = 0;
+    for (const key of Object.keys(instance)) {
+      scanned++;
+      if (scanned > this.maxObjectKeysToScan) break;
+      try {
+        const val = (instance as any)[key];
+        if (val && val.constructor && val.constructor.name === 'Injector') {
+          result = true;
+          break;
+        }
+      } catch {
+      }
+    }
+
+    this.injectorReferenceCache.set(instance, result);
+    return result;
+  }
+
+  private hasSubscriptionProperty(instance: object): boolean {
+    const cached = this.subscriptionStateCache.get(instance);
+    if (cached !== undefined) return cached;
+
+    let result = false;
+    let scanned = 0;
+    for (const key of Object.keys(instance)) {
+      scanned++;
+      if (scanned > this.maxObjectKeysToScan) break;
+      try {
+        const val = (instance as any)[key];
+        if (val && typeof val === 'object' && 'closed' in val && 'unsubscribe' in val) {
+          result = true;
+          break;
+        }
+      } catch {
+      }
+    }
+
+    this.subscriptionStateCache.set(instance, result);
+    return result;
   }
 }

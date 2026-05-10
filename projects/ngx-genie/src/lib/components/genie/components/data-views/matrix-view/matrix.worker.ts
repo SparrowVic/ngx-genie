@@ -47,7 +47,7 @@ export function matrixWorkerFn() {
   self.addEventListener('message', ({data}: any) => {
     if (data.type === 'CALCULATE') {
       const result = calculateMatrix(data.payload);
-      self.postMessage({type: 'RESULT', payload: result});
+      self.postMessage({type: 'RESULT', payload: result, requestId: data.requestId});
     }
   });
 
@@ -89,23 +89,15 @@ export function matrixWorkerFn() {
       }
     }
 
-    const depMap = new Map<string, any>();
-    const providerMap = new Set<string>();
     const serviceViewUsage = new Map<number, number>();
 
     dependencies.forEach((d: any) => {
-      if (visibleNodeIds.has(d.consumerNodeId)) {
-        const key = `${d.consumerNodeId}_${d.providerId}`;
-        depMap.set(key, d);
-
-        if (d.providerId) {
-          serviceViewUsage.set(d.providerId, (serviceViewUsage.get(d.providerId) || 0) + 1);
-        }
+      if (visibleNodeIds.has(d.consumerNodeId) && d.providerId) {
+        serviceViewUsage.set(d.providerId, (serviceViewUsage.get(d.providerId) || 0) + 1);
       }
     });
 
     candidateServices.forEach((s: any) => {
-      providerMap.add(`${s.nodeId}_${s.id}`);
       if (visibleNodeIds.has(s.nodeId)) {
         serviceViewUsage.set(s.id, (serviceViewUsage.get(s.id) || 0) + 1);
       }
@@ -130,30 +122,71 @@ export function matrixWorkerFn() {
 
     columns.forEach((col, idx) => col.index = idx);
 
+    const columnIndexByServiceId = new Map<number, number>();
+    columns.forEach((column, index) => {
+      columnIndexByServiceId.set(Number(column.id), index);
+    });
+
+    const cellsByNodeId = new Map<number, Map<number, {
+      dependency: any;
+      isConsumer: boolean;
+      isProvider: boolean;
+    }>>();
+
+    dependencies.forEach((dependency: any) => {
+      if (!dependency.providerId || !visibleNodeIds.has(dependency.consumerNodeId)) return;
+
+      const colIndex = columnIndexByServiceId.get(dependency.providerId);
+      if (colIndex === undefined) return;
+
+      const rowCells = getOrCreateRowCells(cellsByNodeId, dependency.consumerNodeId);
+      const existing = rowCells.get(colIndex);
+      rowCells.set(colIndex, {
+        dependency,
+        isConsumer: true,
+        isProvider: existing?.isProvider ?? false
+      });
+    });
+
+    finalServices.forEach((service: any) => {
+      if (!visibleNodeIds.has(service.nodeId)) return;
+
+      const colIndex = columnIndexByServiceId.get(service.id);
+      if (colIndex === undefined) return;
+
+      const rowCells = getOrCreateRowCells(cellsByNodeId, service.nodeId);
+      const existing = rowCells.get(colIndex);
+      rowCells.set(colIndex, {
+        dependency: existing?.dependency ?? null,
+        isConsumer: existing?.isConsumer ?? false,
+        isProvider: true
+      });
+    });
+
     const rows: ProcessedRow[] = filteredNodes
       .sort((a: any, b: any) => a.label.localeCompare(b.label))
       .map((node: any, rowIndex: number) => {
         const cells = new Map<number, ProcessedCell>();
+        const sparseCells = cellsByNodeId.get(node.id);
 
-        columns.forEach((col, colIdx) => {
-          const key = `${node.id}_${col.id}`;
-          const dependency = depMap.get(key);
-          const isProvider = providerMap.has(key);
+        if (sparseCells) {
+          sparseCells.forEach((cellData, colIdx) => {
+            const col = columns[colIdx];
+            if (!col) return;
 
-          if (dependency || isProvider) {
             cells.set(colIdx, {
-              id: key,
-              isConsumer: !!dependency,
-              isProvider,
+              id: `${node.id}_${col.id}`,
+              isConsumer: cellData.isConsumer,
+              isProvider: cellData.isProvider,
               active: true,
-              dependency,
+              dependency: cellData.dependency,
               colIndex: colIdx,
               rowIndex: rowIndex,
               typeClass: col.typeClass,
               isFramework: col.isFramework
             });
-          }
-        });
+          });
+        }
 
         return {
           id: node.id,
@@ -173,14 +206,33 @@ export function matrixWorkerFn() {
     };
   }
 
+  function getOrCreateRowCells(
+    cellsByNodeId: Map<number, Map<number, { dependency: any; isConsumer: boolean; isProvider: boolean }>>,
+    nodeId: number
+  ): Map<number, { dependency: any; isConsumer: boolean; isProvider: boolean }> {
+    let rowCells = cellsByNodeId.get(nodeId);
+    if (!rowCells) {
+      rowCells = new Map<number, { dependency: any; isConsumer: boolean; isProvider: boolean }>();
+      cellsByNodeId.set(nodeId, rowCells);
+    }
+    return rowCells;
+  }
+
   function flattenTree(nodes: any[]): any[] {
-    let result: any[] = [];
-    for (const node of nodes) {
+    const result: any[] = [];
+    const stack = [...nodes].reverse();
+
+    while (stack.length > 0) {
+      const node = stack.pop();
       result.push(node);
+
       if (node.children && node.children.length > 0) {
-        result = result.concat(flattenTree(node.children));
+        for (let index = node.children.length - 1; index >= 0; index--) {
+          stack.push(node.children[index]);
+        }
       }
     }
+
     return result;
   }
 
