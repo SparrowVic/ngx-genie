@@ -10,6 +10,30 @@
   </div>
 
   <div class="content">
+    @if (graphStats(); as stats) {
+      <div class="graph-stats" [class.huge]="stats.isHuge">
+        <div>
+          <span class="stat-val">{{ formatCount(stats.renderedNodes) }}/{{ formatCount(stats.nodes) }}</span>
+          <span class="stat-label">NODES</span>
+        </div>
+        <div>
+          <span class="stat-val">{{ formatCount(stats.renderedLinks) }}/{{ formatCount(stats.links) }}</span>
+          <span class="stat-label">LINKS</span>
+        </div>
+        <div>
+          <span class="stat-val">{{ stats.layoutMode === 'atlas' ? 'ATLAS' : formatCount(stats.simulationLinks) }}</span>
+          <span class="stat-label">{{ stats.layoutMode === 'atlas' ? 'FLOW' : 'SIM' }}</span>
+        </div>
+      </div>
+    }
+
+    @if (pinnedNodeLabel(); as label) {
+      <div class="pin-row">
+        <span class="pin-label" [title]="label">{{ label }}</span>
+        <button class="mini-btn" type="button" (click)="clearPin.emit()">CLEAR</button>
+      </div>
+    }
+
     <div class="control-row">
       <span class="label">SIMULATION</span>
       <button class="action-btn" [class.active]="!isPaused()" (click)="togglePause.emit()">
@@ -30,6 +54,29 @@
           <span class="indicator"></span>
           FOCUS
         </button>
+        <button class="toggle-icon-btn" [class.active]="autoOptimizeEnabled()" (click)="toggleAutoOptimize.emit()"
+                title="Auto LOD">
+          <span class="indicator"></span>
+          LOD
+        </button>
+      </div>
+    </div>
+
+    <div class="control-row vertical">
+      <div class="row-top">
+        <span class="label">LINK DETAIL</span>
+        <span class="val">{{ linkRenderMode().toUpperCase() }}</span>
+      </div>
+      <div class="segmented">
+        <button type="button"
+                [class.active]="linkRenderMode() === 'adaptive'"
+                (click)="linkModeChange.emit('adaptive')">AUTO</button>
+        <button type="button"
+                [class.active]="linkRenderMode() === 'focused'"
+                (click)="linkModeChange.emit('focused')">LOCAL</button>
+        <button type="button"
+                [class.active]="linkRenderMode() === 'all'"
+                (click)="linkModeChange.emit('all')">ALL</button>
       </div>
     </div>
 
@@ -49,10 +96,5 @@
     <button class="reset-btn" (click)="resetLayout.emit()">
       RESET VIEW / ENTROPY
     </button>
-
-    <div class="help-text">
-      If the constellation is messy, try setting <b>Repulsion to MAX</b> and using <b>Reset View</b> to disentangle the
-      nodes.
-    </div>
   </div>
 </div>

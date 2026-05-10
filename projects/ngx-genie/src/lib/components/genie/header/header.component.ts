@@ -2,6 +2,7 @@ import {ChangeDetectionStrategy, Component, inject, input, output, ViewEncapsula
 import {FormsModule} from '@angular/forms';
 import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
 import {GENIE_ICONS} from '../../../resources/icons/icons';
+import {GenieScanStatus} from '../../../services/genie-registry.service';
 
 @Component({
   selector: 'lib-header',
@@ -18,6 +19,7 @@ export class HeaderComponent {
   private sanitizer = inject(DomSanitizer);
 
   stats = input.required<{ nodes: number; services: number }>();
+  scanStatus = input.required<GenieScanStatus>();
   searchQuery = input.required<string>();
   isMaximized = input.required<boolean>();
   isLiveWatch = input.required<boolean>();

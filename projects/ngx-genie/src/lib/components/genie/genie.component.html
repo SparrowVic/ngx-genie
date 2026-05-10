@@ -19,6 +19,7 @@
       (positionChange)="onWindowPositionChange($event)"
       (operationEnd)="onWindowOperationEnd()"
       [stats]="state.stats()"
+      [scanStatus]="state.scanStatus()"
       [searchQuery]="state.searchQuery()"
       [isLiveWatch]="state.isLiveWatch()"
       (searchQueryChange)="updateSearch($event)"

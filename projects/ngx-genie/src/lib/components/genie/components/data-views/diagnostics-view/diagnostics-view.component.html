@@ -37,6 +37,19 @@
       </div>
     </div>
 
+    @if (isDiagnosticsRunning()) {
+      <div class="diagnostics-progress">
+        <div class="progress-copy">
+          <span>{{ diagnosticsProgress().phase | uppercase }}</span>
+          <span>{{ diagnosticsProgress().processed }} / {{ diagnosticsProgress().total }}</span>
+          <span>{{ diagnosticsProgress().anomalies }} detected</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" [style.width.%]="diagnosticsProgressPercent()"></div>
+        </div>
+      </div>
+    }
+
     <div class="metrics-grid">
       <div class="metric-card score-card">
         <div class="integrity-gauge">

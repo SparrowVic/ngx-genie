@@ -3,8 +3,10 @@ import {
   Component,
   computed,
   ElementRef,
+  effect,
   inject,
   Input,
+  OnDestroy,
   signal,
   ViewChild, ViewEncapsulation
 } from '@angular/core';
@@ -14,7 +16,9 @@ import {
   GenieDiagnosticsService,
   Anomaly,
   DiagnosticsConfig,
-  DEFAULT_DIAGNOSTICS_CONFIG
+  DEFAULT_DIAGNOSTICS_CONFIG,
+  DiagnosticsProgress,
+  DiagnosticsReport
 } from '../../../../../services/genie-diagnostics.service';
 import {GenieServiceRegistration} from '../../../../../models/genie-node.model';
 import {GenieRegistryService} from '../../../../../services/genie-registry.service';
@@ -44,7 +48,7 @@ const RENDER_LIMIT_STEP = 100;
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.ShadowDom
 })
-export class DiagnosticsViewComponent {
+export class DiagnosticsViewComponent implements OnDestroy {
   private diagnostics = inject(GenieDiagnosticsService);
   private registry = inject(GenieRegistryService);
   private state = inject(GenieExplorerStateService);
@@ -86,11 +90,23 @@ export class DiagnosticsViewComponent {
     tokens: false
   });
 
-  readonly report = computed(() => {
-    this.registry.services();
-    const currentConfig = this.config();
-    return this.diagnostics.runDiagnostics(currentConfig);
+  readonly report = signal<DiagnosticsReport>({score: 100, anomalies: []});
+  readonly diagnosticsProgress = signal<DiagnosticsProgress>({
+    phase: 'grouping',
+    processed: 0,
+    total: 0,
+    anomalies: 0
   });
+  readonly isDiagnosticsRunning = signal(false);
+  readonly diagnosticsProgressPercent = computed(() => {
+    const progress = this.diagnosticsProgress();
+    if (!progress.total) return this.isDiagnosticsRunning() ? 5 : 100;
+    return Math.max(5, Math.min(100, (progress.processed / progress.total) * 100));
+  });
+
+  private diagnosticsRunId = 0;
+  private cancelDiagnosticsRun: (() => void) | null = null;
+  private diagnosticsTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly serviceById = computed(() => {
     return new Map(this.registry.services().map(s => [s.id, s]));
@@ -204,6 +220,21 @@ export class DiagnosticsViewComponent {
     if (score >= 60) return '#f59e0b';
     return '#ef4444';
   });
+
+  constructor() {
+    effect(() => {
+      this.registry.nodes();
+      this.registry.services();
+      this.registry.dependencies();
+      const currentConfig = this.config();
+      this.scheduleDiagnosticsRun(currentConfig);
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.diagnosticsTimer) clearTimeout(this.diagnosticsTimer);
+    this.cancelDiagnosticsRun?.();
+  }
 
   onOptionsResize(delta: number) {
     this.optionsWidth.update(w => Math.max(200, Math.min(600, w + delta)));
@@ -345,6 +376,35 @@ export class DiagnosticsViewComponent {
     event.stopPropagation();
     const text = `[${item.severity.toUpperCase()}] ${item.title}\n${item.description}\nSuggestion: ${item.suggestion}`;
     this.copyToClipboard(text);
+  }
+
+  private scheduleDiagnosticsRun(config: DiagnosticsConfig): void {
+    if (this.diagnosticsTimer) clearTimeout(this.diagnosticsTimer);
+    this.cancelDiagnosticsRun?.();
+    this.isDiagnosticsRunning.set(true);
+
+    this.diagnosticsTimer = setTimeout(() => {
+      this.startDiagnosticsRun(config);
+    }, 180);
+  }
+
+  private startDiagnosticsRun(config: DiagnosticsConfig): void {
+    const runId = ++this.diagnosticsRunId;
+    this.cancelDiagnosticsRun?.();
+
+    this.cancelDiagnosticsRun = this.diagnostics.runDiagnosticsChunked(
+      config,
+      progress => {
+        if (runId !== this.diagnosticsRunId) return;
+        this.diagnosticsProgress.set(progress);
+      },
+      report => {
+        if (runId !== this.diagnosticsRunId) return;
+        this.report.set(report);
+        this.isDiagnosticsRunning.set(false);
+        this.resetRenderLimit();
+      }
+    );
   }
 
   private copyToClipboard(text: string) {

@@ -84,6 +84,44 @@ interface NodeEnrichmentJob {
   componentType: Type<any>;
 }
 
+export type GenieScanPhase = 'idle' | 'scanning' | 'deferred' | 'enriching' | 'settled';
+
+export interface GenieScanStatus {
+  phase: GenieScanPhase;
+  isActive: boolean;
+  message: string;
+  startedAt: number | null;
+  finishedAt: number | null;
+  durationMs: number;
+  nodes: number;
+  services: number;
+  dependencies: number;
+  domProcessed: number;
+  domRemaining: number;
+  deferredProcessed: number;
+  deferredTotal: number;
+  enrichmentProcessed: number;
+  enrichmentTotal: number;
+}
+
+const INITIAL_SCAN_STATUS: GenieScanStatus = {
+  phase: 'idle',
+  isActive: false,
+  message: 'IDLE',
+  startedAt: null,
+  finishedAt: null,
+  durationMs: 0,
+  nodes: 0,
+  services: 0,
+  dependencies: 0,
+  domProcessed: 0,
+  domRemaining: 0,
+  deferredProcessed: 0,
+  deferredTotal: 0,
+  enrichmentProcessed: 0,
+  enrichmentTotal: 0
+};
+
 @Injectable()
 export class GenieRegistryService {
   private readonly _isOpen = signal(false);
@@ -97,6 +135,9 @@ export class GenieRegistryService {
 
   private readonly _dependencies = signal<GenieDependency[]>([]);
   readonly dependencies = computed(() => this._dependencies());
+
+  private readonly _scanStatus = signal<GenieScanStatus>(INITIAL_SCAN_STATUS);
+  readonly scanStatus = computed(() => this._scanStatus());
 
   private _nextNodeId = 1;
   private _nextServiceId = 1;
@@ -127,6 +168,12 @@ export class GenieRegistryService {
   private _queuedNodeEnrichmentIds = new Set<number>();
   private _enrichedNodeIds = new Set<number>();
   private _isEnrichmentScheduled = false;
+  private _scanStartedAt: number | null = null;
+  private _domScanProcessed = 0;
+  private _deferredProcessed = 0;
+  private _deferredTotal = 0;
+  private _enrichmentProcessed = 0;
+  private _enrichmentTotal = 0;
 
   private readonly _nodesById = computed(() => {
     const index = new Map<number, GenieNode>();
@@ -327,6 +374,7 @@ export class GenieRegistryService {
 
   scanApplication(): void {
     this.installSpy();
+    this.startScanMetrics();
     this.beginRegistryBatch();
     this._isScanning = true;
 
@@ -347,6 +395,7 @@ export class GenieRegistryService {
     if (this._isChunkedScanActive) return;
 
     this.installSpy();
+    this.startScanMetrics();
     this.beginRegistryBatch();
     this._isChunkedScanActive = true;
 
@@ -379,6 +428,12 @@ export class GenieRegistryService {
     const remainingEvents: DeferredInjectionEvent[] = [];
     const remainingTokensByInjector = new WeakMap<Injector, Set<any>>();
     let cursor = 0;
+    this._deferredProcessed = 0;
+    this._deferredTotal = events.length;
+    this.updateScanStatus('deferred', {
+      deferredProcessed: this._deferredProcessed,
+      deferredTotal: this._deferredTotal
+    });
 
     this._deferredEvents = [];
     this._deferredTokensByInjector = new WeakMap();
@@ -397,6 +452,7 @@ export class GenieRegistryService {
           const evt = events[cursor];
           cursor++;
           processed++;
+          this._deferredProcessed++;
 
           const consumerId = this.injectorToNodeMap.get(evt.injector);
           if (consumerId) {
@@ -412,6 +468,10 @@ export class GenieRegistryService {
         }
       } finally {
         this.flushRegistryBatch();
+        this.updateScanStatus('deferred', {
+          deferredProcessed: this._deferredProcessed,
+          deferredTotal: this._deferredTotal
+        });
       }
 
       if (cursor < events.length) {
@@ -566,6 +626,7 @@ export class GenieRegistryService {
           cursor++;
           this.scanDomElement(item.element, item.parentNode, queue);
           processed++;
+          this._domScanProcessed++;
 
           if (this.now() - startedAt >= SCAN_CHUNK_BUDGET_MS) {
             break;
@@ -573,6 +634,10 @@ export class GenieRegistryService {
         }
       } finally {
         this._isScanning = false;
+        this.updateScanStatus('scanning', {
+          domProcessed: this._domScanProcessed,
+          domRemaining: Math.max(0, queue.length - cursor)
+        });
       }
 
       if (cursor < queue.length) {
@@ -661,6 +726,7 @@ export class GenieRegistryService {
     this.processDeferredEventsChunked(() => {
       this._isChunkedScanActive = false;
       this.scheduleNodeEnrichmentProcessing();
+      this.finishScanIfIdle();
 
       const callbacks = this._chunkedScanCompletionCallbacks;
       this._chunkedScanCompletionCallbacks = [];
@@ -677,18 +743,105 @@ export class GenieRegistryService {
     return typeof performance !== 'undefined' ? performance.now() : Date.now();
   }
 
+  private startScanMetrics(): void {
+    const now = this.now();
+    this._scanStartedAt = now;
+    this._domScanProcessed = 0;
+    this._deferredProcessed = 0;
+    this._deferredTotal = 0;
+    this._enrichmentProcessed = 0;
+    this._enrichmentTotal = 0;
+    this.updateScanStatus('scanning', {
+      startedAt: now,
+      finishedAt: null,
+      durationMs: 0,
+      domProcessed: 0,
+      domRemaining: 0,
+      deferredProcessed: 0,
+      deferredTotal: 0,
+      enrichmentProcessed: 0,
+      enrichmentTotal: 0
+    });
+  }
+
+  private updateScanStatus(phase: GenieScanPhase, patch: Partial<GenieScanStatus> = {}): void {
+    const now = this.now();
+    const startedAt = patch.startedAt ?? this._scanStatus().startedAt ?? this._scanStartedAt;
+    const finishedAt = patch.finishedAt ?? null;
+    const durationMs = patch.durationMs ?? (startedAt ? Math.max(0, now - startedAt) : 0);
+    const status: GenieScanStatus = {
+      ...this._scanStatus(),
+      ...patch,
+      phase,
+      isActive: phase !== 'idle' && phase !== 'settled',
+      startedAt,
+      finishedAt,
+      durationMs,
+      nodes: this._nodes().length,
+      services: this._services().length,
+      dependencies: this._dependencies().length
+    };
+
+    this._scanStatus.set({
+      ...status,
+      message: this.describeScanStatus(status)
+    });
+  }
+
+  private finishScanIfIdle(): void {
+    if (
+      this._isChunkedScanActive
+      || this._isScanning
+      || this._nodeEnrichmentQueue.length > 0
+    ) {
+      return;
+    }
+
+    const now = this.now();
+    const startedAt = this._scanStatus().startedAt ?? this._scanStartedAt;
+    this.updateScanStatus('settled', {
+      finishedAt: now,
+      durationMs: startedAt ? Math.max(0, now - startedAt) : 0,
+      domRemaining: 0,
+      deferredProcessed: this._deferredProcessed,
+      deferredTotal: this._deferredTotal,
+      enrichmentProcessed: this._enrichmentProcessed,
+      enrichmentTotal: this._enrichmentTotal
+    });
+  }
+
+  private describeScanStatus(status: GenieScanStatus): string {
+    if (status.phase === 'idle') return 'IDLE';
+    if (status.phase === 'scanning') return `SCAN ${status.domProcessed}/${status.domProcessed + status.domRemaining}`;
+    if (status.phase === 'deferred') return `DEPS ${status.deferredProcessed}/${status.deferredTotal}`;
+    if (status.phase === 'enriching') return `ENRICH ${status.enrichmentProcessed}/${status.enrichmentTotal}`;
+    const seconds = Math.max(0, status.durationMs / 1000);
+    return `READY ${seconds.toFixed(seconds >= 10 ? 0 : 1)}s`;
+  }
+
   private queueNodeEnrichment(node: GenieNode, componentType: Type<any>): void {
     if (!node.componentInstance) return;
     if (this._enrichedNodeIds.has(node.id) || this._queuedNodeEnrichmentIds.has(node.id)) return;
 
     this._queuedNodeEnrichmentIds.add(node.id);
     this._nodeEnrichmentQueue.push({nodeId: node.id, componentType});
+    this._enrichmentTotal = Math.max(
+      this._enrichmentTotal,
+      this._enrichedNodeIds.size + this._nodeEnrichmentQueue.length
+    );
+    this.updateScanStatus(this._isChunkedScanActive || this._isScanning ? 'scanning' : 'enriching', {
+      enrichmentProcessed: this._enrichmentProcessed,
+      enrichmentTotal: this._enrichmentTotal
+    });
     this.scheduleNodeEnrichmentProcessing();
   }
 
   private scheduleNodeEnrichmentProcessing(): void {
     if (this._isEnrichmentScheduled) return;
-    if (this._nodeEnrichmentQueue.length === 0) return;
+    if (this._nodeEnrichmentQueue.length === 0) {
+      this.finishScanIfIdle();
+      return;
+    }
 
     this._isEnrichmentScheduled = true;
     this.scheduleScanChunk(() => this.processNodeEnrichmentQueue());
@@ -708,6 +861,10 @@ export class GenieRegistryService {
 
     this.beginRegistryBatch();
     this._isScanning = true;
+    this.updateScanStatus('enriching', {
+      enrichmentProcessed: this._enrichmentProcessed,
+      enrichmentTotal: this._enrichmentTotal
+    });
     try {
       while (
         this._nodeEnrichmentQueue.length > 0
@@ -727,17 +884,24 @@ export class GenieRegistryService {
         this.scanInjectedProperties(node);
         this.scanTemplateDependencies(node);
         this._enrichedNodeIds.add(job.nodeId);
+        this._enrichmentProcessed = this._enrichedNodeIds.size;
         processed++;
       }
     } finally {
       this._isScanning = wasScanning;
       this.flushRegistryBatch();
+      this.updateScanStatus('enriching', {
+        enrichmentProcessed: this._enrichmentProcessed,
+        enrichmentTotal: this._enrichmentTotal
+      });
     }
 
     if (this._nodeEnrichmentQueue.length > 0) {
       this.scheduleNodeEnrichmentProcessing();
     } else if (this._deferredEvents.length > 0) {
-      this.processDeferredEventsChunked(() => {});
+      this.processDeferredEventsChunked(() => this.finishScanIfIdle());
+    } else {
+      this.finishScanIfIdle();
     }
   }
 
@@ -1217,6 +1381,13 @@ export class GenieRegistryService {
     this._queuedNodeEnrichmentIds.clear();
     this._enrichedNodeIds.clear();
     this._isEnrichmentScheduled = false;
+    this._scanStartedAt = null;
+    this._domScanProcessed = 0;
+    this._deferredProcessed = 0;
+    this._deferredTotal = 0;
+    this._enrichmentProcessed = 0;
+    this._enrichmentTotal = 0;
+    this._scanStatus.set(INITIAL_SCAN_STATUS);
   }
 
   findNodeByInjector(injector: Injector): GenieNode | null {

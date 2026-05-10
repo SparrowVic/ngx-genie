@@ -21,12 +21,14 @@ const STORAGE_KEY_LIVE_WATCH = 'genie_live_watch_enabled';
 const TREE_REBUILD_CHUNK_BUDGET_MS = 8;
 const FILTERED_SERVICES_CHUNK_BUDGET_MS = 8;
 const FILTER_REBUILD_CHUNK_BUDGET_MS = 8;
+const EXPAND_ALL_CHUNK_BUDGET_MS = 8;
 
 interface FilterTreeParams {
   root: GenieTreeNode[];
   filters: GenieFilterState;
   query: string;
   isDeepFocus: boolean;
+  isScanActive: boolean;
   selectedNode: GenieTreeNode | null;
   servicesByNodeId: Map<number, GenieServiceRegistration[]>;
 }
@@ -76,12 +78,17 @@ export class GenieExplorerStateService {
   private filterTreeRunId = 0;
   private filterTreeTimer: ReturnType<typeof setTimeout> | null = null;
   private filterTreeIdleHandle: number | null = null;
+  private expandAllRunId = 0;
+  private expandAllTimer: ReturnType<typeof setTimeout> | null = null;
+  private expandAllIdleHandle: number | null = null;
   private isDestroyed = false;
 
   readonly nodes = computed(() => this.registry.nodes());
   readonly services = computed(() => this.registry.services());
   readonly dependencies = computed(() => this.registry.dependencies());
   readonly stats = computed(() => ({nodes: this.nodes().length, services: this.services().length}));
+  readonly scanStatus = computed(() => this.registry.scanStatus());
+  private readonly isScanActive = computed(() => this.registry.scanStatus().isActive);
 
   private readonly rawTreeCache = signal<GenieTreeNode[]>([]);
   private readonly treeNodeByIdCache = signal<Map<number, GenieTreeNode>>(new Map());
@@ -228,6 +235,7 @@ export class GenieExplorerStateService {
         filters: this.filterState(),
         query: this.searchQuery(),
         isDeepFocus: this.isDeepFocusMode(),
+        isScanActive: this.isScanActive(),
         selectedNode: this.selectedNode(),
         servicesByNodeId: this.filteredServicesByNodeId()
       });
@@ -239,6 +247,7 @@ export class GenieExplorerStateService {
       this._cancelScheduledRawTreeRebuild();
       this._cancelScheduledFilteredServicesRebuild();
       this._cancelScheduledFilterTreeRebuild();
+      this._cancelScheduledExpandAll();
     });
   }
 
@@ -283,18 +292,22 @@ export class GenieExplorerStateService {
   }
 
   expandAll() {
-    const all = new Set<number>();
-    const walk = (nodes: GenieTreeNode[]) => {
-      for (const n of nodes) {
-        all.add(n.id);
-        if (n.children) walk(n.children);
-      }
-    };
-    walk(this.filteredTree());
-    this.expandedIds.set(all);
+    const tree = this.filteredTree();
+    const runId = ++this.expandAllRunId;
+    this._cancelScheduledExpandAll();
+
+    if (!this.isBrowser) {
+      this.expandedIds.set(this._collectExpandedIdsSync(tree));
+      return;
+    }
+
+    this.zone.runOutsideAngular(() => this._scheduleExpandAllChunk(() => {
+      this._collectExpandedIdsChunked(tree, runId);
+    }));
   }
 
   collapseAll() {
+    this._cancelScheduledExpandAll();
     this.expandedIds.set(new Set<number>());
   }
 
@@ -323,6 +336,7 @@ export class GenieExplorerStateService {
     filters: GenieFilterState,
     query: string,
     isDeepFocus: boolean,
+    isScanActive: boolean,
     selectedNode: GenieTreeNode | null,
     servicesByNodeId: Map<number, GenieServiceRegistration[]>
   ): GenieTreeNode[] {
@@ -350,15 +364,16 @@ export class GenieExplorerStateService {
 
       const services = servicesByNodeId.get(node.id) ?? [];
       const effectiveCount = services.length;
+      const canApplyCompletenessFilters = !isScanActive;
 
       let matchesSelf = true;
 
 
-      if (filters.hideIsolatedComponents && (!node.children || node.children.length === 0)) {
+      if (canApplyCompletenessFilters && filters.hideIsolatedComponents && (!node.children || node.children.length === 0)) {
         if (!isForcedByDeepFocus) return null;
       }
 
-      if (filters.hideUnusedDeps) {
+      if (canApplyCompletenessFilters && filters.hideUnusedDeps) {
         const activeServices = services.filter(s => (s.usageCount || 0) > 0);
         if (activeServices.length === 0 && (!node.children || node.children.length === 0)) {
           if (!isForcedByDeepFocus) return null;
@@ -455,6 +470,75 @@ export class GenieExplorerStateService {
     }
 
     return {roots, byId};
+  }
+
+  private _collectExpandedIdsSync(tree: GenieTreeNode[]): Set<number> {
+    const all = new Set<number>();
+    const stack = [...tree];
+
+    while (stack.length > 0) {
+      const node = stack.pop()!;
+      all.add(node.id);
+      if (node.children?.length) {
+        stack.push(...node.children);
+      }
+    }
+
+    return all;
+  }
+
+  private _collectExpandedIdsChunked(tree: GenieTreeNode[], runId: number): void {
+    const all = new Set<number>();
+    const stack = [...tree].reverse();
+
+    const processChunk = () => {
+      if (this.isDestroyed || runId !== this.expandAllRunId) return;
+
+      const startedAt = this._now();
+      while (stack.length > 0 && this._now() - startedAt < EXPAND_ALL_CHUNK_BUDGET_MS) {
+        const node = stack.pop()!;
+        all.add(node.id);
+
+        if (node.children?.length) {
+          for (let index = node.children.length - 1; index >= 0; index--) {
+            stack.push(node.children[index]);
+          }
+        }
+      }
+
+      if (stack.length > 0) {
+        this._scheduleExpandAllChunk(processChunk);
+        return;
+      }
+
+      if (this.isDestroyed || runId !== this.expandAllRunId) return;
+      this.zone.run(() => this.expandedIds.set(all));
+    };
+
+    processChunk();
+  }
+
+  private _scheduleExpandAllChunk(callback: () => void): void {
+    const win = typeof window !== 'undefined' ? window as any : null;
+    if (win && typeof win.requestIdleCallback === 'function') {
+      this.expandAllIdleHandle = win.requestIdleCallback(callback, {timeout: 100});
+      return;
+    }
+
+    this.expandAllTimer = setTimeout(callback, 0);
+  }
+
+  private _cancelScheduledExpandAll(): void {
+    if (this.expandAllTimer) {
+      clearTimeout(this.expandAllTimer);
+      this.expandAllTimer = null;
+    }
+
+    const win = typeof window !== 'undefined' ? window as any : null;
+    if (this.expandAllIdleHandle !== null && win && typeof win.cancelIdleCallback === 'function') {
+      win.cancelIdleCallback(this.expandAllIdleHandle);
+    }
+    this.expandAllIdleHandle = null;
   }
 
   private _buildRawTreeChunked(nodes: GenieNode[], runId: number): void {
@@ -652,6 +736,7 @@ export class GenieExplorerStateService {
         params.filters,
         params.query,
         params.isDeepFocus,
+        params.isScanActive,
         params.selectedNode,
         params.servicesByNodeId
       ));
@@ -764,12 +849,13 @@ export class GenieExplorerStateService {
     const children = node.children ?? [];
     const hasChildren = children.length > 0;
     const services = params.servicesByNodeId.get(node.id) ?? [];
+    const canApplyCompletenessFilters = !params.isScanActive;
 
-    if (filters.hideIsolatedComponents && !hasChildren && !isForcedByDeepFocus) {
+    if (canApplyCompletenessFilters && filters.hideIsolatedComponents && !hasChildren && !isForcedByDeepFocus) {
       return null;
     }
 
-    if (filters.hideUnusedDeps && !hasChildren && !isForcedByDeepFocus) {
+    if (canApplyCompletenessFilters && filters.hideUnusedDeps && !hasChildren && !isForcedByDeepFocus) {
       let hasUsedService = false;
       for (const service of services) {
         if ((service.usageCount || 0) > 0) {

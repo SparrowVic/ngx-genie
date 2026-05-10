@@ -54,6 +54,22 @@ export interface RenderLink {
   uniqueId: string;
 }
 
+export type ConstellationLinkRenderMode = 'adaptive' | 'focused' | 'all';
+
+export interface ConstellationGraphStats {
+  nodes: number;
+  renderedNodes: number;
+  links: number;
+  renderedLinks: number;
+  providerLinks: number;
+  dependencyLinks: number;
+  componentLinks: number;
+  simulationLinks: number;
+  hiddenSimulationLinks: number;
+  isHuge: boolean;
+  layoutMode: 'force' | 'atlas';
+}
+
 export interface LinkAnimState {
   state: 'IDLE' | 'SHOOTING';
   stateStartTime: number;

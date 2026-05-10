@@ -62,6 +62,43 @@
   .stat-divider {
     opacity: 0.3;
   }
+
+  .scan-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 92px;
+    color: #64748b;
+
+    .scan-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(148, 163, 184, 0.5);
+    }
+
+    .scan-label {
+      white-space: nowrap;
+      font-weight: 700;
+    }
+
+    &.active {
+      color: #38bdf8;
+
+      .scan-dot {
+        background: #38bdf8;
+        box-shadow: 0 0 8px rgba(56, 189, 248, 0.7);
+      }
+    }
+
+    &.ready {
+      color: #22c55e;
+
+      .scan-dot {
+        background: #22c55e;
+      }
+    }
+  }
 }
 
 .header-center {

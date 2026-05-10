@@ -6,6 +6,7 @@ import {
   input,
   OnDestroy,
   OnInit,
+  signal,
   ViewEncapsulation
 } from '@angular/core';
 import {CommonModule} from '@angular/common';
@@ -15,8 +16,10 @@ import {OrgChartNodeComponent} from './org-chart-node/org-chart-node.component';
 import {GenieFilterState} from '../../../options-panel/options-panel.models';
 import {OrgChartStateService} from './org-chart-state.service';
 
-const ORG_MAX_RENDERED_NODES = 450;
-const ORG_MAX_DEPTH = 6;
+const ORG_INITIAL_RENDERED_NODES = 450;
+const ORG_RENDER_STEP = 1000;
+const ORG_INITIAL_MAX_DEPTH = 6;
+const ORG_DEPTH_STEP = 3;
 const ORG_MAX_SERVICES_PER_NODE = 8;
 const ORG_SUMMARY_COUNT_CAP = 9999;
 
@@ -58,16 +61,18 @@ export class OrgChartViewComponent implements OnInit, OnDestroy {
   viewState = {x: 0, y: 0, k: 1};
   isDragging = false;
   lastMousePos = {x: 0, y: 0};
+  private readonly renderLimit = signal(ORG_INITIAL_RENDERED_NODES);
+  private readonly renderDepthLimit = signal(ORG_INITIAL_MAX_DEPTH);
 
-  readonly totalVisibleNodes = computed(() => this.countVisibleNodes(this.tree(), ORG_MAX_RENDERED_NODES + 1));
-  readonly isLargeGraph = computed(() => this.totalVisibleNodes() > ORG_MAX_RENDERED_NODES);
+  readonly totalVisibleNodes = computed(() => this.countVisibleNodes(this.tree(), this.renderLimit() + 1));
+  readonly isLargeGraph = computed(() => this.totalVisibleNodes() > this.renderLimit());
 
   readonly renderedTree = computed(() => {
     const tree = this.tree();
     if (!this.isLargeGraph()) return tree;
 
     return this.limitTreeForRender(tree, 0, null, {
-      remaining: ORG_MAX_RENDERED_NODES,
+      remaining: this.renderLimit(),
       nextSummaryId: -1
     });
   });
@@ -161,12 +166,18 @@ export class OrgChartViewComponent implements OnInit, OnDestroy {
   }
 
   onNodeClick(node: GenieTreeNode): void {
-    if (this.isSummaryNode(node)) return;
+    if (this.isSummaryNode(node)) {
+      this.revealMoreNodes();
+      return;
+    }
     this.selectNode()(node);
   }
 
   onToggleNode(node: GenieTreeNode): void {
-    if (this.isSummaryNode(node)) return;
+    if (this.isSummaryNode(node)) {
+      this.revealMoreNodes();
+      return;
+    }
     this.toggleNode()(node.id);
   }
 
@@ -212,7 +223,7 @@ export class OrgChartViewComponent implements OnInit, OnDestroy {
       let children: GenieTreeNode[] = [];
 
       if (isExpanded(node.id) && node.children?.length) {
-        if (depth >= ORG_MAX_DEPTH) {
+        if (depth >= this.renderDepthLimit()) {
           addOmittedCount(node.children);
         } else {
           children = this.limitTreeForRender(node.children, depth + 1, node, budget);
@@ -237,7 +248,7 @@ export class OrgChartViewComponent implements OnInit, OnDestroy {
   ): GenieTreeNode {
     return {
       id: budget.nextSummaryId--,
-      label: `${omittedCount}${omittedCount >= ORG_SUMMARY_COUNT_CAP ? '+' : ''} more nodes`,
+      label: `Show ${omittedCount}${omittedCount >= ORG_SUMMARY_COUNT_CAP ? '+' : ''} more nodes`,
       injector: anchor.injector,
       type: anchor.type,
       parentId: parent?.id ?? null,
@@ -250,5 +261,10 @@ export class OrgChartViewComponent implements OnInit, OnDestroy {
 
   private isSummaryNode(node: GenieTreeNode): boolean {
     return node.id < 0 && (node.groupCount || 0) > 0;
+  }
+
+  private revealMoreNodes(): void {
+    this.renderLimit.update(limit => Math.max(limit + ORG_RENDER_STEP, Math.ceil(limit * 1.75)));
+    this.renderDepthLimit.update(depth => depth + ORG_DEPTH_STEP);
   }
 }

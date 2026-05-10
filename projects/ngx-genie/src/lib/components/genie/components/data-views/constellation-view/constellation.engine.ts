@@ -1,5 +1,12 @@
 import {NgZone} from '@angular/core';
-import {CONSTELLATION_THEME, LinkAnimState, RenderLink, RenderNode} from './constellation.models';
+import {
+  CONSTELLATION_THEME,
+  ConstellationGraphStats,
+  ConstellationLinkRenderMode,
+  LinkAnimState,
+  RenderLink,
+  RenderNode
+} from './constellation.models';
 import {constellationWorkerBody} from './constellation.worker';
 
 interface ViewBounds {
@@ -8,6 +15,9 @@ interface ViewBounds {
   top: number;
   bottom: number;
 }
+
+const ATLAS_SPATIAL_CELL_SIZE = 720;
+const ATLAS_MAX_DRAWN_NODES = 9000;
 
 export class ConstellationEngine {
   private readonly _ctx: CanvasRenderingContext2D;
@@ -18,6 +28,13 @@ export class ConstellationEngine {
 
   private _renderNodes = new Map<string, RenderNode>();
   private _renderLinks: RenderLink[] = [];
+  private _providerLinks: RenderLink[] = [];
+  private _dependencyLinks: RenderLink[] = [];
+  private _componentLinks: RenderLink[] = [];
+  private _linksByNodeId = new Map<string, RenderLink[]>();
+  private _dependencyDegreeByNodeId = new Map<string, number>();
+  private _nodeSpatialIndex = new Map<string, RenderNode[]>();
+  private _graphStats: ConstellationGraphStats | null = null;
   private _linkAnimStates = new Map<string, LinkAnimState>();
 
   private _width = 800;
@@ -29,14 +46,17 @@ export class ConstellationEngine {
   private _currentFocusLevel = 0;
   private _physicsTickPending = false;
   private _lastPhysicsTickAt = 0;
+  private _renderDirty = true;
 
 
   private _unusedPattern: CanvasPattern | null = null;
 
   animationsEnabled = true;
   focusModeEnabled = true;
+  linkRenderMode: ConstellationLinkRenderMode = 'adaptive';
   isPaused = false;
   hoveredNode: RenderNode | null = null;
+  pinnedNode: RenderNode | null = null;
 
   constructor(
     private readonly _canvas: HTMLCanvasElement,
@@ -58,7 +78,10 @@ export class ConstellationEngine {
           this._lastPhysicsTickAt = now;
           this._worker.postMessage({type: 'TICK'});
         }
-        this._renderFrame();
+        if (this._shouldRenderFrame()) {
+          this._renderFrame();
+          if (this._graphStats?.layoutMode === 'atlas') this._renderDirty = false;
+        }
         this._animationFrameId = requestAnimationFrame(loop);
       };
       loop();
@@ -78,6 +101,7 @@ export class ConstellationEngine {
     this._dpiScale = dpi;
     this._canvas.width = width * dpi;
     this._canvas.height = height * dpi;
+    this._renderDirty = true;
 
     this._createUnusedPattern();
 
@@ -86,10 +110,23 @@ export class ConstellationEngine {
     }
   }
 
-  updateGraphData(nodes: any[], links: any[], renderNodes: Map<string, RenderNode>, renderLinks: RenderLink[]) {
+  updateGraphData(
+    nodes: any[],
+    links: any[],
+    renderNodes: Map<string, RenderNode>,
+    renderLinks: RenderLink[],
+    stats?: ConstellationGraphStats
+  ) {
     this._renderNodes = renderNodes;
     this._renderLinks = renderLinks;
+    this._graphStats = stats ?? null;
+    this._rebuildLinkIndexes(renderLinks);
+    this._rebuildNodeSpatialIndex();
+    if (this.hoveredNode) this.hoveredNode = this._renderNodes.get(this.hoveredNode.id) ?? null;
+    if (this.pinnedNode) this.pinnedNode = this._renderNodes.get(this.pinnedNode.id) ?? null;
+    this._updateFocusSet(this._getActiveFocusNode());
     this._physicsTickPending = false;
+    this._renderDirty = true;
 
     if (renderLinks.length > this._getAnimatedLinkLimit()) {
       this._linkAnimStates.clear();
@@ -116,10 +153,12 @@ export class ConstellationEngine {
         node.y = pos.y;
       }
     }
+    this._renderDirty = true;
   }
 
   updateTransform(transform: { x: number, y: number, k: number }) {
     this._viewTransform = transform;
+    this._renderDirty = true;
   }
 
   getViewTransform() {
@@ -135,7 +174,23 @@ export class ConstellationEngine {
     }
   }
 
+  setLinkRenderMode(mode: ConstellationLinkRenderMode) {
+    this.linkRenderMode = mode;
+    this._renderDirty = true;
+  }
+
+  setPinnedNode(node: RenderNode | null) {
+    this.pinnedNode = node;
+    this._updateFocusSet(this._getActiveFocusNode());
+    this._renderDirty = true;
+  }
+
+  requestRender() {
+    this._renderDirty = true;
+  }
+
   resetEntropy() {
+    if (this._graphStats?.layoutMode === 'atlas') return;
     if (this._worker) this._worker.postMessage({type: 'RESET_ENTROPY'});
   }
 
@@ -161,8 +216,9 @@ export class ConstellationEngine {
     let bestNode: RenderNode | null = null;
     const hitRadius = 20 / zoom;
     let minDistSq = hitRadius * hitRadius;
+    const candidates = this._getHitTestCandidates(worldX, worldY);
 
-    for (const node of this._renderNodes.values()) {
+    for (const node of candidates) {
       const dx = worldX - node.x;
       const dy = worldY - node.y;
       const distSq = dx * dx + dy * dy;
@@ -177,7 +233,12 @@ export class ConstellationEngine {
 
   setHoveredNode(node: RenderNode | null) {
     this.hoveredNode = node;
-    this._updateFocusSet(node);
+    this._updateFocusSet(this._getActiveFocusNode());
+    this._renderDirty = true;
+  }
+
+  private _getActiveFocusNode(): RenderNode | null {
+    return this.hoveredNode ?? this.pinnedNode;
   }
 
   private _initWorker() {
@@ -218,11 +279,121 @@ export class ConstellationEngine {
     }
   }
 
+  private _rebuildLinkIndexes(renderLinks: RenderLink[]) {
+    this._providerLinks = [];
+    this._dependencyLinks = [];
+    this._componentLinks = [];
+    this._linksByNodeId = new Map<string, RenderLink[]>();
+    this._dependencyDegreeByNodeId = new Map<string, number>();
+
+    for (const link of renderLinks) {
+      if (link.type === 'provider') this._providerLinks.push(link);
+      else if (link.type === 'dependency') this._dependencyLinks.push(link);
+      else this._componentLinks.push(link);
+
+      this._addIndexedLink(link.sourceId, link);
+      this._addIndexedLink(link.targetId, link);
+
+      if (link.type === 'dependency') {
+        this._dependencyDegreeByNodeId.set(link.sourceId, (this._dependencyDegreeByNodeId.get(link.sourceId) ?? 0) + 1);
+        this._dependencyDegreeByNodeId.set(link.targetId, (this._dependencyDegreeByNodeId.get(link.targetId) ?? 0) + 1);
+      }
+    }
+  }
+
+  private _addIndexedLink(nodeId: string, link: RenderLink): void {
+    const links = this._linksByNodeId.get(nodeId);
+    if (links) {
+      links.push(link);
+    } else {
+      this._linksByNodeId.set(nodeId, [link]);
+    }
+  }
+
+  private _rebuildNodeSpatialIndex(): void {
+    this._nodeSpatialIndex.clear();
+    if (this._graphStats?.layoutMode !== 'atlas') return;
+
+    for (const node of this._renderNodes.values()) {
+      const key = this._spatialKeyForPoint(node.x, node.y);
+      const bucket = this._nodeSpatialIndex.get(key);
+      if (bucket) {
+        bucket.push(node);
+      } else {
+        this._nodeSpatialIndex.set(key, [node]);
+      }
+    }
+  }
+
+  private _spatialKeyForPoint(x: number, y: number): string {
+    return `${Math.floor(x / ATLAS_SPATIAL_CELL_SIZE)}:${Math.floor(y / ATLAS_SPATIAL_CELL_SIZE)}`;
+  }
+
+  private _getHitTestCandidates(worldX: number, worldY: number): Iterable<RenderNode> {
+    if (this._graphStats?.layoutMode !== 'atlas') return this._renderNodes.values();
+
+    const cellX = Math.floor(worldX / ATLAS_SPATIAL_CELL_SIZE);
+    const cellY = Math.floor(worldY / ATLAS_SPATIAL_CELL_SIZE);
+    const candidates: RenderNode[] = [];
+
+    for (let x = cellX - 1; x <= cellX + 1; x++) {
+      for (let y = cellY - 1; y <= cellY + 1; y++) {
+        const bucket = this._nodeSpatialIndex.get(`${x}:${y}`);
+        if (bucket) candidates.push(...bucket);
+      }
+    }
+
+    return candidates;
+  }
+
+  private _getRenderableNodes(bounds: ViewBounds, zoom: number): RenderNode[] {
+    if (this._graphStats?.layoutMode !== 'atlas') {
+      const nodes: RenderNode[] = [];
+      for (const node of this._renderNodes.values()) {
+        if (this._isNodeInBounds(node, bounds)) nodes.push(node);
+      }
+      return nodes;
+    }
+
+    const minCellX = Math.floor(bounds.left / ATLAS_SPATIAL_CELL_SIZE);
+    const maxCellX = Math.floor(bounds.right / ATLAS_SPATIAL_CELL_SIZE);
+    const minCellY = Math.floor(bounds.top / ATLAS_SPATIAL_CELL_SIZE);
+    const maxCellY = Math.floor(bounds.bottom / ATLAS_SPATIAL_CELL_SIZE);
+    const nodes: RenderNode[] = [];
+
+    for (let x = minCellX; x <= maxCellX; x++) {
+      for (let y = minCellY; y <= maxCellY; y++) {
+        const bucket = this._nodeSpatialIndex.get(`${x}:${y}`);
+        if (!bucket) continue;
+
+        for (const node of bucket) {
+          if (!this._isNodeInBounds(node, bounds)) continue;
+          if (!this._passesAtlasNodeLod(node, zoom)) continue;
+          nodes.push(node);
+          if (nodes.length >= ATLAS_MAX_DRAWN_NODES) return nodes;
+        }
+      }
+    }
+
+    return nodes;
+  }
+
+  private _passesAtlasNodeLod(node: RenderNode, zoom: number): boolean {
+    if (node.type === 'injector') return true;
+    if (this.hoveredNode?.id === node.id || this.pinnedNode?.id === node.id) return true;
+    if (this._focusedNodeIds.has(node.id)) return true;
+    if (zoom >= 0.7) return true;
+
+    const degree = this._dependencyDegreeByNodeId.get(node.id) ?? 0;
+    if (zoom >= 0.45 && degree >= 8) return true;
+    return false;
+  }
+
   private _updateFocusSet(node: RenderNode | null) {
     this._focusedNodeIds.clear();
     if (!node) return;
     this._focusedNodeIds.add(node.id);
-    for (const link of this._renderLinks) {
+    for (const link of this._linksByNodeId.get(node.id) ?? []) {
       if (link.sourceId === node.id) this._focusedNodeIds.add(link.targetId);
       if (link.targetId === node.id) this._focusedNodeIds.add(link.sourceId);
     }
@@ -232,7 +403,17 @@ export class ConstellationEngine {
     return start * (1 - t) + end * t;
   }
 
+  private _shouldRenderFrame(): boolean {
+    if (this._graphStats?.layoutMode !== 'atlas') return true;
+    return this._renderDirty;
+  }
+
+  private _shouldAnimateVisuals(): boolean {
+    return this.animationsEnabled && this._graphStats?.layoutMode !== 'atlas';
+  }
+
   private _canDispatchPhysicsTick(now: number): boolean {
+    if (this._graphStats?.layoutMode === 'atlas') return false;
     if (this._physicsTickPending) return false;
     const interval = this._getPhysicsTickInterval();
     return now - this._lastPhysicsTickAt >= interval;
@@ -240,6 +421,7 @@ export class ConstellationEngine {
 
   private _getPhysicsTickInterval(): number {
     const count = this._renderNodes.size;
+    if (this._isHugeGraph()) return 220;
     if (count > 6000) return 120;
     if (count > 3000) return 80;
     if (count > 1200) return 48;
@@ -248,14 +430,23 @@ export class ConstellationEngine {
   }
 
   private _getAnimatedLinkLimit(): number {
+    if (this._isHugeGraph()) return 0;
     return 2000;
   }
 
   private _shouldRenderLabels(zoom: number, minZoom: number): boolean {
     const count = this._renderNodes.size;
+    if (this._isHugeGraph()) return zoom > minZoom + 1.45;
     if (count > 3000) return zoom > minZoom + 1.1;
     if (count > 1000) return zoom > minZoom + 0.55;
     return zoom > minZoom;
+  }
+
+  private _isHugeGraph(): boolean {
+    return this._graphStats?.layoutMode === 'atlas'
+      || !!this._graphStats?.isHuge
+      || this._renderNodes.size > 3500
+      || this._renderLinks.length > 12000;
   }
 
   private _getViewBounds(tx: number, ty: number, zoom: number, width: number, height: number): ViewBounds {
@@ -304,31 +495,128 @@ export class ConstellationEngine {
     _ctx.translate(tx, ty);
     _ctx.scale(zoom, zoom);
 
-    const targetFocusLevel = (this.focusModeEnabled && this.hoveredNode) ? 1.0 : 0.0;
-    this._currentFocusLevel = this._lerp(this._currentFocusLevel, targetFocusLevel, 0.05);
+    const activeFocusNode = this._getActiveFocusNode();
+    const targetFocusLevel = (this.focusModeEnabled && activeFocusNode) ? 1.0 : 0.0;
+    this._currentFocusLevel = this._graphStats?.layoutMode === 'atlas'
+      ? targetFocusLevel
+      : this._lerp(this._currentFocusLevel, targetFocusLevel, 0.05);
     if (this._currentFocusLevel < 0.001) this._currentFocusLevel = 0;
     const isFocusActive = this._currentFocusLevel > 0.01;
+    const renderableNodes = this._getRenderableNodes(bounds, zoom);
 
     _ctx.lineCap = 'round';
-    for (const link of this._renderLinks) {
-      this._drawLink(_ctx, link, zoom, isFocusActive, time, bounds);
-    }
+    this._drawLinksForFrame(_ctx, zoom, isFocusActive, time, bounds, activeFocusNode);
+    this._drawDependencyDensity(_ctx, zoom, bounds, isFocusActive, renderableNodes);
 
-    for (const node of this._renderNodes.values()) {
-      if (!this._isNodeInBounds(node, bounds)) continue;
+    for (const node of renderableNodes) {
       this._drawNode(_ctx, node, zoom, isFocusActive, time);
     }
   }
 
-  private _drawLink(_ctx: CanvasRenderingContext2D, link: RenderLink, zoom: number, isFocusActive: boolean, time: number, bounds: ViewBounds) {
+  private _drawLinksForFrame(
+    _ctx: CanvasRenderingContext2D,
+    zoom: number,
+    isFocusActive: boolean,
+    time: number,
+    bounds: ViewBounds,
+    activeFocusNode: RenderNode | null
+  ) {
+    if (!this._isHugeGraph()) {
+      this._drawLinkBatch(_ctx, this._renderLinks, zoom, isFocusActive, time, bounds, Number.POSITIVE_INFINITY);
+      return;
+    }
+
+    if (this.linkRenderMode === 'all') {
+      this._drawLinkBatch(_ctx, this._componentLinks, zoom, isFocusActive, time, bounds, zoom > 1.1 ? 10000 : 3500);
+      this._drawLinkBatch(_ctx, this._providerLinks, zoom, isFocusActive, time, bounds, zoom > 1.1 ? 12000 : 4500);
+      this._drawLinkBatch(_ctx, this._dependencyLinks, zoom, isFocusActive, time, bounds, zoom > 1.8 ? 14000 : 6000);
+      return;
+    }
+
+    const structuralCap = zoom > 1.1 ? 7000 : 2600;
+    this._drawLinkBatch(_ctx, this._componentLinks, zoom, isFocusActive, time, bounds, structuralCap);
+
+    if (this.linkRenderMode !== 'focused' && zoom > 0.45) {
+      this._drawLinkBatch(_ctx, this._providerLinks, zoom, isFocusActive, time, bounds, zoom > 1.2 ? 6500 : 1800);
+    }
+
+    if (activeFocusNode) {
+      const focusedLinks = this._linksByNodeId.get(activeFocusNode.id) ?? [];
+      this._drawLinkBatch(_ctx, focusedLinks, zoom, isFocusActive, time, bounds, zoom > 1.5 ? 4000 : 1800);
+      return;
+    }
+
+    if (this.linkRenderMode === 'adaptive' && zoom > 2.2) {
+      this._drawLinkBatch(_ctx, this._dependencyLinks, zoom, isFocusActive, time, bounds, this._getAdaptiveDependencyLinkCap(zoom));
+    }
+  }
+
+  private _drawLinkBatch(
+    _ctx: CanvasRenderingContext2D,
+    links: RenderLink[],
+    zoom: number,
+    isFocusActive: boolean,
+    time: number,
+    bounds: ViewBounds,
+    limit: number
+  ) {
+    let drawn = 0;
+    let checked = 0;
+    const maxChecked = Number.isFinite(limit) ? Math.max(3000, limit * 14) : Number.POSITIVE_INFINITY;
+    for (const link of links) {
+      if (drawn >= limit) return;
+      if (checked >= maxChecked) return;
+      checked++;
+      if (this._drawLink(_ctx, link, zoom, isFocusActive, time, bounds)) {
+        drawn++;
+      }
+    }
+  }
+
+  private _getAdaptiveDependencyLinkCap(zoom: number): number {
+    if (zoom > 3.5) return 6000;
+    if (zoom > 2.8) return 4200;
+    return 2400;
+  }
+
+  private _drawDependencyDensity(
+    _ctx: CanvasRenderingContext2D,
+    zoom: number,
+    bounds: ViewBounds,
+    isFocusActive: boolean,
+    renderableNodes: RenderNode[]
+  ) {
+    if (!this._isHugeGraph() || this.linkRenderMode === 'all' || zoom > 2.5) return;
+
+    _ctx.save();
+    _ctx.setLineDash([]);
+    for (const node of renderableNodes) {
+      const degree = this._dependencyDegreeByNodeId.get(node.id) ?? 0;
+      if (degree < 4) continue;
+
+      const intensity = Math.min(1, Math.log2(degree + 1) / 12);
+      const radius = node.radius + 8 + intensity * 24;
+      const alpha = (isFocusActive ? 0.06 : 0.12) * intensity;
+
+      _ctx.beginPath();
+      _ctx.arc(node.x, node.y, radius / Math.max(zoom, 0.35), 0, Math.PI * 2);
+      _ctx.strokeStyle = `rgba(56, 189, 248, ${alpha})`;
+      _ctx.lineWidth = Math.max(0.6, 1.4 / zoom);
+      _ctx.stroke();
+    }
+    _ctx.restore();
+  }
+
+  private _drawLink(_ctx: CanvasRenderingContext2D, link: RenderLink, zoom: number, isFocusActive: boolean, time: number, bounds: ViewBounds): boolean {
     const source = this._renderNodes.get(link.sourceId);
     const target = this._renderNodes.get(link.targetId);
-    if (!source || !target) return;
-    if (!this._isLinkInBounds(source, target, bounds)) return;
+    if (!source || !target) return false;
+    if (!this._isLinkInBounds(source, target, bounds)) return false;
 
     let linkOpacity = 0.6;
     if (isFocusActive) {
-      const isRelated = this.hoveredNode && (link.sourceId === this.hoveredNode.id || link.targetId === this.hoveredNode.id);
+      const activeFocusNode = this._getActiveFocusNode();
+      const isRelated = activeFocusNode && (link.sourceId === activeFocusNode.id || link.targetId === activeFocusNode.id);
       if (!isRelated) linkOpacity = this._lerp(1.0, 0.05, this._currentFocusLevel);
     }
 
@@ -373,13 +661,14 @@ export class ConstellationEngine {
         _ctx.lineWidth = 2 / zoom;
         _ctx.stroke();
 
-        if (this.animationsEnabled && this._renderLinks.length <= this._getAnimatedLinkLimit() && linkOpacity > 0.3) {
+        if (this._shouldAnimateVisuals() && this._renderLinks.length <= this._getAnimatedLinkLimit() && linkOpacity > 0.3) {
           _ctx.globalAlpha = linkOpacity;
           this._drawEnergy(_ctx, link, source, target, color, time, zoom);
         }
       }
     }
     _ctx.globalAlpha = 1.0;
+    return true;
   }
 
   private _drawEnergy(_ctx: CanvasRenderingContext2D, link: RenderLink, source: RenderNode, target: RenderNode, color: string, time: number, zoom: number) {
@@ -452,7 +741,7 @@ export class ConstellationEngine {
 
   private _drawNode(_ctx: CanvasRenderingContext2D, node: RenderNode, zoom: number, isFocusActive: boolean, time: number) {
     let nodeOpacity = 1.0;
-    const isHighlight = this.hoveredNode === node;
+    const isHighlight = this.hoveredNode === node || this.pinnedNode === node;
 
     if (isFocusActive) {
       const isNeighbor = this._focusedNodeIds.has(node.id);
@@ -479,7 +768,7 @@ export class ConstellationEngine {
   private _drawHexagon(_ctx: CanvasRenderingContext2D, node: RenderNode, zoom: number, isHighlight: boolean, time: number) {
     const {x, y, radius, baseColor, glowColor} = node;
     let currentAngle = node.angle || 0;
-    if (this.animationsEnabled) {
+    if (this._shouldAnimateVisuals()) {
       currentAngle += time * (isHighlight ? 0.002 : 0.0005);
     }
 
@@ -526,7 +815,7 @@ export class ConstellationEngine {
     const {x, y, radius, baseColor, glowColor} = node;
     let sizeAnim = radius;
 
-    if (this.animationsEnabled) {
+    if (this._shouldAnimateVisuals()) {
       const pulse = Math.sin((time + (node.pulseOffset || 0)) / (isFramework ? 600 : 400));
       sizeAnim = radius * (1 + pulse * 0.1);
     }

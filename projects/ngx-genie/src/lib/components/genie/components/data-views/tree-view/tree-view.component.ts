@@ -4,7 +4,10 @@ import {
   Component,
   computed,
   ElementRef,
+  effect,
+  inject,
   input,
+  NgZone,
   OnDestroy,
   signal,
   ViewChild,
@@ -19,6 +22,8 @@ import {OrgChartUtils} from '../org-chart-view/org-chart.utils';
 
 const TREE_ROW_HEIGHT = 34;
 const TREE_OVERSCAN_ROWS = 16;
+const TREE_FLATTEN_CHUNK_BUDGET_MS = 6;
+const TREE_FLATTEN_CHUNK_MAX_ROWS = 750;
 
 interface TreeNodeRow {
   kind: 'node';
@@ -55,6 +60,7 @@ interface VisibleTreeRow {
   encapsulation: ViewEncapsulation.ShadowDom
 })
 export class TreeViewComponent implements AfterViewInit, OnDestroy {
+  private readonly zone = inject(NgZone);
   @ViewChild('scrollContainer') private scrollContainer?: ElementRef<HTMLElement>;
 
   readonly tree = input.required<GenieTreeNode[]>();
@@ -69,52 +75,16 @@ export class TreeViewComponent implements AfterViewInit, OnDestroy {
 
   private readonly scrollTop = signal(0);
   private readonly viewportHeight = signal(600);
+  private readonly flatRowsCache = signal<TreeVirtualRow[]>([]);
   private resizeObserver?: ResizeObserver;
+  private flattenRunId = 0;
+  private flattenTimer: ReturnType<typeof setTimeout> | null = null;
+  private flattenIdleHandle: number | null = null;
+  private isDestroyed = false;
 
   readonly rowHeight = TREE_ROW_HEIGHT;
 
-  readonly flatRows = computed<TreeVirtualRow[]>(() => {
-    const rows: TreeVirtualRow[] = [];
-    const isExpanded = this.isNodeExpanded();
-    const getProviders = this.getProvidersForNode();
-
-    const walk = (nodes: GenieTreeNode[], depth: number) => {
-      for (const node of nodes) {
-        const dependencies = getProviders(node);
-        const expanded = isExpanded(node.id);
-        const hasChildren = (node.children?.length || 0) > 0;
-        const hasDependencies = dependencies.length > 0;
-
-        rows.push({
-          kind: 'node',
-          id: `node:${node.id}`,
-          node,
-          depth,
-          expanded,
-          hasExpandableContent: hasChildren || hasDependencies,
-          dependencyCount: dependencies.length
-        });
-
-        if (!expanded) continue;
-
-        for (const dependency of dependencies) {
-          rows.push({
-            kind: 'dependency',
-            id: `dep:${node.id}:${dependency.id}`,
-            dependency,
-            depth: depth + 1
-          });
-        }
-
-        if (hasChildren) {
-          walk(node.children, depth + 1);
-        }
-      }
-    };
-
-    walk(this.tree(), 0);
-    return rows;
-  });
+  readonly flatRows = computed<TreeVirtualRow[]>(() => this.flatRowsCache());
 
   readonly totalHeight = computed(() => this.flatRows().length * TREE_ROW_HEIGHT);
 
@@ -137,6 +107,15 @@ export class TreeViewComponent implements AfterViewInit, OnDestroy {
   protected readonly _selectedNodeId = computed(() => this.selectedNode()?.id ?? null);
   protected readonly _selectedDependencyId = computed(() => this.selectedDependency()?.id ?? null);
 
+  constructor() {
+    effect(() => {
+      const tree = this.tree();
+      const isExpanded = this.isNodeExpanded();
+      const getProviders = this.getProvidersForNode();
+      this.scheduleFlatRowsRebuild(tree, isExpanded, getProviders);
+    });
+  }
+
   ngAfterViewInit(): void {
     this.measureViewport();
     const element = this.scrollContainer?.nativeElement;
@@ -147,7 +126,9 @@ export class TreeViewComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.isDestroyed = true;
     this.resizeObserver?.disconnect();
+    this.cancelFlatRowsRebuild();
   }
 
   protected onScroll(event: Event): void {
@@ -197,5 +178,130 @@ export class TreeViewComponent implements AfterViewInit, OnDestroy {
     const element = this.scrollContainer?.nativeElement;
     if (!element) return;
     this.viewportHeight.set(element.clientHeight || 600);
+  }
+
+  private scheduleFlatRowsRebuild(
+    tree: GenieTreeNode[],
+    isExpanded: (id: number) => boolean,
+    getProviders: (node: GenieTreeNode) => GenieServiceRegistration[]
+  ): void {
+    const runId = ++this.flattenRunId;
+    this.cancelFlatRowsRebuild();
+
+    if (tree.length === 0) {
+      this.flatRowsCache.set([]);
+      return;
+    }
+
+    this.zone.runOutsideAngular(() => {
+      this.scheduleFlatRowsChunk(() => this.buildFlatRowsChunked(tree, isExpanded, getProviders, runId));
+    });
+  }
+
+  private buildFlatRowsChunked(
+    tree: GenieTreeNode[],
+    isExpanded: (id: number) => boolean,
+    getProviders: (node: GenieTreeNode) => GenieServiceRegistration[],
+    runId: number
+  ): void {
+    const rows: TreeVirtualRow[] = [];
+    const stack: Array<{ kind: 'node'; node: GenieTreeNode; depth: number } | TreeDependencyRow> = [];
+
+    for (let index = tree.length - 1; index >= 0; index--) {
+      stack.push({kind: 'node', node: tree[index], depth: 0});
+    }
+
+    const processChunk = () => {
+      if (this.isDestroyed || runId !== this.flattenRunId) return;
+
+      const startedAt = this.now();
+      let processedRows = 0;
+
+      while (
+        stack.length > 0
+        && processedRows < TREE_FLATTEN_CHUNK_MAX_ROWS
+        && this.now() - startedAt < TREE_FLATTEN_CHUNK_BUDGET_MS
+      ) {
+        const item = stack.pop()!;
+
+        if (item.kind === 'dependency') {
+          rows.push(item);
+          processedRows++;
+          continue;
+        }
+
+        const node = item.node;
+        const dependencies = getProviders(node);
+        const expanded = isExpanded(node.id);
+        const hasChildren = (node.children?.length || 0) > 0;
+        const hasDependencies = dependencies.length > 0;
+
+        rows.push({
+          kind: 'node',
+          id: `node:${node.id}`,
+          node,
+          depth: item.depth,
+          expanded,
+          hasExpandableContent: hasChildren || hasDependencies,
+          dependencyCount: dependencies.length
+        });
+        processedRows++;
+
+        if (!expanded) continue;
+
+        if (hasChildren) {
+          for (let childIndex = node.children!.length - 1; childIndex >= 0; childIndex--) {
+            stack.push({kind: 'node', node: node.children![childIndex], depth: item.depth + 1});
+          }
+        }
+
+        for (let depIndex = dependencies.length - 1; depIndex >= 0; depIndex--) {
+          const dependency = dependencies[depIndex];
+          stack.push({
+            kind: 'dependency',
+            id: `dep:${node.id}:${dependency.id}`,
+            dependency,
+            depth: item.depth + 1
+          });
+        }
+      }
+
+      if (stack.length > 0) {
+        this.scheduleFlatRowsChunk(processChunk);
+        return;
+      }
+
+      if (runId !== this.flattenRunId || this.isDestroyed) return;
+      this.zone.run(() => this.flatRowsCache.set(rows));
+    };
+
+    processChunk();
+  }
+
+  private scheduleFlatRowsChunk(callback: () => void): void {
+    const win = typeof window !== 'undefined' ? window as any : null;
+    if (win && typeof win.requestIdleCallback === 'function') {
+      this.flattenIdleHandle = win.requestIdleCallback(callback, {timeout: 100});
+      return;
+    }
+
+    this.flattenTimer = setTimeout(callback, 0);
+  }
+
+  private cancelFlatRowsRebuild(): void {
+    if (this.flattenTimer) {
+      clearTimeout(this.flattenTimer);
+      this.flattenTimer = null;
+    }
+
+    const win = typeof window !== 'undefined' ? window as any : null;
+    if (this.flattenIdleHandle !== null && win && typeof win.cancelIdleCallback === 'function') {
+      win.cancelIdleCallback(this.flattenIdleHandle);
+    }
+    this.flattenIdleHandle = null;
+  }
+
+  private now(): number {
+    return typeof performance !== 'undefined' ? performance.now() : Date.now();
   }
 }

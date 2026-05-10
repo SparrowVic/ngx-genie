@@ -77,6 +77,11 @@ export class GenieMatrixViewComponent implements OnInit, AfterViewInit, OnDestro
 
   readonly virtualWidth = signal(0);
   readonly virtualHeight = signal(0);
+  readonly isLargeMatrix = computed(() => {
+    const rows = this.dataService.totalRows();
+    const cols = this.dataService.totalCols();
+    return rows > 1200 || cols > 1200 || rows * cols > 350000;
+  });
 
   private hoveredCell: { r: number, c: number } | null = null;
   private hoveredHeaderCol: number = -1;
@@ -249,7 +254,10 @@ export class GenieMatrixViewComponent implements OnInit, AfterViewInit, OnDestro
       this.scrollY = scroller.scrollTop;
     }
 
-    if (this.settings().rain) {
+    const largeMatrix = this.isLargeMatrix();
+    const allowRain = this.settings().rain && !largeMatrix;
+
+    if (allowRain) {
       this.rainRenderer.updateRain(time, this.viewWidth, this.viewHeight);
       const rainCanvas = this.rainRenderer.getRainCanvas();
       if (rainCanvas) {
@@ -414,18 +422,23 @@ export class GenieMatrixViewComponent implements OnInit, AfterViewInit, OnDestro
       this.ctx.save();
       this.ctx.translate(x + cs / 2, headerH - 12);
       this.ctx.rotate(-Math.PI / 4);
-      this.ctx.font = isActive ? `bold 12px ${FONT_FAMILY}` : `12px ${FONT_FAMILY}`;
-      this.ctx.textAlign = 'left';
+      const shouldDrawText = this.shouldDrawMatrixLabel(isActive, cs, c - startCol);
 
-      const textColor = THEME.colors[col.typeClass] || THEME.textHeader;
-      this.ctx.fillStyle = isActive ? '#ffffff' : textColor;
+      if (shouldDrawText) {
+        this.ctx.font = isActive ? `bold 12px ${FONT_FAMILY}` : `12px ${FONT_FAMILY}`;
+        this.ctx.textAlign = 'left';
 
-      if (isActive) {
-        this.ctx.shadowColor = textColor;
-        this.ctx.shadowBlur = 10;
+        const textColor = THEME.colors[col.typeClass] || THEME.textHeader;
+        this.ctx.fillStyle = isActive ? '#ffffff' : textColor;
+
+        if (isActive) {
+          this.ctx.shadowColor = textColor;
+          this.ctx.shadowBlur = 10;
+        }
+
+        this.ctx.fillText(col.label, 0, 0);
       }
 
-      this.ctx.fillText(col.label, 0, 0);
       this.ctx.restore();
     }
     this.ctx.restore();
@@ -453,27 +466,31 @@ export class GenieMatrixViewComponent implements OnInit, AfterViewInit, OnDestro
         this.ctx.shadowBlur = 0;
       }
 
-      this.ctx.font = isActive ? `bold ${12 * this.scale}px ${FONT_FAMILY}` : `${12 * this.scale}px ${FONT_FAMILY}`;
-      this.ctx.textAlign = 'left';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillStyle = isActive ? '#ffffff' : THEME.textHeader;
+      const shouldDrawText = this.shouldDrawMatrixLabel(isActive, cs, r - startRow);
 
-      if (isActive) {
-        this.ctx.shadowColor = THEME.primary;
-        this.ctx.shadowBlur = 8;
-      } else {
-        this.ctx.shadowBlur = 0;
+      if (shouldDrawText) {
+        this.ctx.font = isActive ? `bold ${12 * this.scale}px ${FONT_FAMILY}` : `${12 * this.scale}px ${FONT_FAMILY}`;
+        this.ctx.textAlign = 'left';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillStyle = isActive ? '#ffffff' : THEME.textHeader;
+
+        if (isActive) {
+          this.ctx.shadowColor = THEME.primary;
+          this.ctx.shadowBlur = 8;
+        } else {
+          this.ctx.shadowBlur = 0;
+        }
+
+        const xOffset = isActive ? 18 : 12;
+
+        this.ctx.globalAlpha = 0.5;
+        this.ctx.font = `10px ${FONT_FAMILY}`;
+        this.ctx.fillText((r + 1).toString(), xOffset, y + cs / 2);
+        this.ctx.globalAlpha = 1;
+
+        this.ctx.font = `${12 * this.scale}px ${FONT_FAMILY}`;
+        this.ctx.fillText(row.label, xOffset + 30, y + cs / 2);
       }
-
-      const xOffset = isActive ? 18 : 12;
-
-      this.ctx.globalAlpha = 0.5;
-      this.ctx.font = `10px ${FONT_FAMILY}`;
-      this.ctx.fillText((r + 1).toString(), xOffset, y + cs / 2);
-      this.ctx.globalAlpha = 1;
-
-      this.ctx.font = `${12 * this.scale}px ${FONT_FAMILY}`;
-      this.ctx.fillText(row.label, xOffset + 30, y + cs / 2);
 
       this.ctx.strokeStyle = 'rgba(0, 255, 65, 0.15)';
       this.ctx.beginPath();
@@ -496,6 +513,7 @@ export class GenieMatrixViewComponent implements OnInit, AfterViewInit, OnDestro
 
     const isDirectHover = isRowHover && isColHover;
     const isUserCode = !cell.isFramework;
+    const shouldAnimate = this.settings().animation && !this.isLargeMatrix();
 
     if (isDirectHover) {
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
@@ -513,9 +531,9 @@ export class GenieMatrixViewComponent implements OnInit, AfterViewInit, OnDestro
       if (isDirectHover) {
         rotation += (time / 200);
         scale = 1.3;
-      } else if (cell.isFramework && this.settings().animation) {
+      } else if (cell.isFramework && shouldAnimate) {
         scale = 1.0 + Math.sin(time / 500) * 0.1;
-      } else if (!cell.isFramework && this.settings().animation) {
+      } else if (!cell.isFramework && shouldAnimate) {
         scale = 1.0 + Math.sin(time / 300) * 0.05;
       }
 
@@ -543,7 +561,7 @@ export class GenieMatrixViewComponent implements OnInit, AfterViewInit, OnDestro
     } else if (cell.isProvider) {
       let r = size * 0.18;
 
-      if (this.settings().animation) {
+      if (shouldAnimate) {
         const pulse = (Math.sin(time / 200) + 1) / 2;
         if (isUserCode) {
           r = size * 0.18 + (pulse * 1);
@@ -590,7 +608,14 @@ export class GenieMatrixViewComponent implements OnInit, AfterViewInit, OnDestro
     this.ctx.strokeStyle = THEME.primary;
     this.ctx.strokeRect(0, 0, w, h);
 
-    this.rainRenderer.drawCornerContent(this.ctx, w, h, time, this.settings().rain);
+    this.rainRenderer.drawCornerContent(this.ctx, w, h, time, this.settings().rain && !this.isLargeMatrix());
+  }
+
+  private shouldDrawMatrixLabel(isActive: boolean, cellSize: number, visibleIndex: number): boolean {
+    if (isActive) return true;
+    if (!this.isLargeMatrix()) return true;
+    if (cellSize >= 18) return true;
+    return visibleIndex % 5 === 0 && cellSize >= 12;
   }
 
   private getGridCoordinates(e: MouseEvent): {

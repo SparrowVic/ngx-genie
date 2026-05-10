@@ -14,6 +14,16 @@
         <span class="label">SVCS:</span>
         <span class="value">{{ stats().services }}</span>
       </div>
+      <div class="stat-divider">/</div>
+      <div
+        class="scan-status"
+        [class.active]="scanStatus().isActive"
+        [class.ready]="scanStatus().phase === 'settled'"
+        [title]="'Nodes: ' + scanStatus().nodes + ', services: ' + scanStatus().services + ', dependencies: ' + scanStatus().dependencies"
+      >
+        <span class="scan-dot"></span>
+        <span class="scan-label">{{ scanStatus().message }}</span>
+      </div>
     </div>
   </div>
 
