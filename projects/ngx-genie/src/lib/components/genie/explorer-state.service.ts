@@ -1,4 +1,15 @@
-import {computed, effect, inject, Injectable, signal, DestroyRef, PLATFORM_ID, isSignal, untracked} from '@angular/core';
+import {
+  computed,
+  effect,
+  inject,
+  Injectable,
+  signal,
+  DestroyRef,
+  PLATFORM_ID,
+  isSignal,
+  untracked,
+  NgZone
+} from '@angular/core';
 import {isPlatformBrowser} from '@angular/common';
 import {GenieRegistryService} from '../../services/genie-registry.service';
 import {GenieServiceRegistration, GenieTreeNode} from '../../models/genie-node.model';
@@ -14,6 +25,7 @@ export class GenieExplorerStateService {
   private readonly registry = inject(GenieRegistryService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly zone = inject(NgZone);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
   private liveTimer: any = null;
 
@@ -130,9 +142,11 @@ export class GenieExplorerStateService {
     effect(() => {
       if (this.isLiveWatch()) {
         if (this.liveTimer) clearInterval(this.liveTimer);
-        this.liveTimer = setInterval(() => {
-          this.refreshTrigger.update(v => v + 1);
-        }, 500);
+        this.zone.runOutsideAngular(() => {
+          this.liveTimer = setInterval(() => {
+            this.zone.run(() => this.refreshTrigger.update(v => v + 1));
+          }, 500);
+        });
       } else {
         if (this.liveTimer) {
           clearInterval(this.liveTimer);

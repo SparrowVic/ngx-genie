@@ -283,10 +283,10 @@ export class GenieRegistryService {
 
   private scanDomForComponents(element: HTMLElement, parentNode: GenieNode): void {
     // @ts-ignore
-    const ng = window.ng;
+    const ng = typeof window !== 'undefined' ? window.ng : null;
     if (!ng || !ng.getComponent || !ng.getInjector) {
       if (!this._hasWarnedAboutProduction) {
-        console.warn('[Genie] ⚠️ Debugging utilities (window.ng) are missing.');
+        console.warn('[Genie] Debugging utilities (window.ng) are missing. Child component discovery is limited in production builds.');
         this._hasWarnedAboutProduction = true;
       }
       return;

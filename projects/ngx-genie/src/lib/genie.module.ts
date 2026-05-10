@@ -1,9 +1,7 @@
 import {
   NgModule,
   ModuleWithProviders,
-  APP_INITIALIZER,
-  inject,
-  ApplicationRef
+  APP_INITIALIZER
 } from '@angular/core';
 
 import {GenieComponent} from './components/genie/genie.component';
@@ -11,6 +9,7 @@ import {GenieRegistryService} from './services/genie-registry.service';
 import {GenieConfig} from './models/genie-config.model';
 import {DEFAULT_GENIE_CONFIG} from './configs/genie-config';
 import {GENIE_CONFIG} from './tokens/genie-config.token';
+import {createGenieInitializer} from './utils/genie-initializer.util';
 
 /**
  * NgModule for ngx-genie that provides compatibility with NgModule-based applications.
@@ -63,19 +62,7 @@ export class GenieModule {
         {
           provide: APP_INITIALIZER,
           multi: true,
-          useFactory: () => {
-            const registry = inject(GenieRegistryService);
-            const appRef = inject(ApplicationRef);
-
-            return () => {
-              const sub = appRef.isStable.subscribe(isStable => {
-                if (isStable) {
-                  setTimeout(() => registry.scanApplication(), 500);
-                  sub.unsubscribe();
-                }
-              });
-            };
-          }
+          useFactory: createGenieInitializer
         }
       ]
     };
