@@ -22,6 +22,7 @@ import {InspectorPanelComponent} from './inspector-panel/inspector-panel.compone
 import {GenieExplorerStateService} from './explorer-state.service';
 import {GenieFilterState} from './options-panel/options-panel.models';
 import {GenieRegistryService} from '../../services/genie-registry.service';
+import {GeniePerformanceService} from '../../services/genie-performance.service';
 
 const STORAGE_KEY_LAYOUT = 'genie_layout_config';
 const FIRST_VISIBLE_SCAN_DELAY_MS = 350;
@@ -64,6 +65,7 @@ export class GenieComponent implements OnDestroy {
   private readonly document = inject(DOCUMENT);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly registry = inject(GenieRegistryService);
+  private readonly performance = inject(GeniePerformanceService);
   private readonly zone = inject(NgZone);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
 
@@ -275,9 +277,22 @@ export class GenieComponent implements OnDestroy {
   }
 
   private runApplicationScan(onComplete: () => void) {
+    const completePerformanceSpan = this.performance.startSpan('scan.application', {
+      attempt: this._visibleScanAttempt
+    });
+
     try {
-      this.registry.scanApplicationChunked(onComplete);
+      this.registry.scanApplicationChunked(() => {
+        completePerformanceSpan({
+          nodes: this.registry.nodes().length,
+          services: this.registry.services().length,
+          dependencies: this.registry.dependencies().length,
+          phase: this.registry.scanStatus().phase
+        });
+        onComplete();
+      });
     } catch (error) {
+      completePerformanceSpan({failed: true});
       console.warn('[Genie] Application scan failed.', error);
       onComplete();
     }

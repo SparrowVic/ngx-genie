@@ -44,6 +44,21 @@ export interface RenderNode {
     isUnused?: boolean;
     importance?: number;
     clusterSize?: number;
+    groupKey?: string;
+    groupLabel?: string;
+    groupIndex?: number;
+    groupMemberCount?: number;
+    groupCenterX?: number;
+    groupCenterY?: number;
+    groupRadius?: number;
+    groupColorSeed?: number;
+    subgroupKey?: string;
+    subgroupLabel?: string;
+    subgroupIndex?: number;
+    subgroupMemberCount?: number;
+    subgroupCenterX?: number;
+    subgroupCenterY?: number;
+    subgroupRadius?: number;
   };
   angle?: number;
   pulseOffset?: number;
@@ -52,12 +67,14 @@ export interface RenderNode {
 export interface RenderLink {
   sourceId: string;
   targetId: string;
-  type: 'provider' | 'dependency' | 'component-child';
+  type: 'provider' | 'dependency' | 'component-child' | 'aggregate-dependency';
   uniqueId: string;
+  weight?: number;
 }
 
 export type ConstellationLinkRenderMode = 'adaptive' | 'focused' | 'all';
 export type ConstellationLayoutStrategy = 'auto' | 'atlas' | 'organic';
+export type ConstellationGroupingStrategy = 'auto' | 'node-type' | 'scope' | 'tree' | 'type' | 'none';
 export type ConstellationLayoutMode = 'force' | 'atlas' | 'organic';
 
 export interface ConstellationGraphStats {
@@ -68,6 +85,7 @@ export interface ConstellationGraphStats {
   providerLinks: number;
   dependencyLinks: number;
   componentLinks: number;
+  aggregateLinks: number;
   simulationLinks: number;
   hiddenSimulationLinks: number;
   isHuge: boolean;

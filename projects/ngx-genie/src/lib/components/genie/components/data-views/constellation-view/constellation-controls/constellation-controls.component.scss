@@ -260,6 +260,14 @@ $c-accent: #06b6d4;
       background: $c-primary;
     }
   }
+
+  &.four {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  &.five {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
 
 

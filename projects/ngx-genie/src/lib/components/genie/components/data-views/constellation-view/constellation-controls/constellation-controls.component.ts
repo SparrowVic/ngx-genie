@@ -1,9 +1,9 @@
-import {ChangeDetectionStrategy, Component, input, output, signal, ViewEncapsulation} from '@angular/core';
+import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} from '@angular/core';
 
 import {FormsModule} from '@angular/forms';
 import {
+  ConstellationGroupingStrategy,
   ConstellationGraphStats,
-  ConstellationLayoutStrategy,
   ConstellationLinkRenderMode
 } from '../constellation.models';
 
@@ -23,7 +23,7 @@ export class ConstellationControlsComponent {
   focusModeEnabled = input<boolean>(true);
   repulsionValue = input<number>(400);
   linkRenderMode = input<ConstellationLinkRenderMode>('adaptive');
-  layoutStrategy = input<ConstellationLayoutStrategy>('auto');
+  groupingStrategy = input<ConstellationGroupingStrategy>('auto');
   autoOptimizeEnabled = input<boolean>(true);
   graphStats = input<ConstellationGraphStats | null>(null);
   pinnedNodeLabel = input<string | null>(null);
@@ -34,7 +34,7 @@ export class ConstellationControlsComponent {
   toggleFocus = output<void>();
   toggleAutoOptimize = output<void>();
   linkModeChange = output<ConstellationLinkRenderMode>();
-  layoutStrategyChange = output<ConstellationLayoutStrategy>();
+  groupingStrategyChange = output<ConstellationGroupingStrategy>();
   clearPin = output<void>();
   resetLayout = output<void>();
   repulsionChange = output<number>();
@@ -50,15 +50,16 @@ export class ConstellationControlsComponent {
     return String(value);
   }
 
-  protected layoutStrategyLabel(strategy: ConstellationLayoutStrategy): string {
-    if (strategy === 'atlas') return 'GRID';
-    if (strategy === 'organic') return 'FLOW';
+  protected groupingStrategyLabel(strategy: ConstellationGroupingStrategy): string {
+    if (strategy === 'node-type' || strategy === 'type') return 'NODE TYPES';
+    if (strategy === 'scope') return 'SCOPE';
+    if (strategy === 'tree') return 'TREE';
+    if (strategy === 'none') return 'OFF';
     return 'AUTO';
   }
 
   protected layoutModeValue(stats: ConstellationGraphStats): string {
     if (stats.layoutMode === 'force') return this.formatCount(stats.simulationLinks);
-    if (stats.layoutMode === 'atlas') return 'GRID';
-    return 'FLOW';
+    return 'SPREAD';
   }
 }

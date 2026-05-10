@@ -21,7 +21,9 @@ const ORG_RENDER_STEP = 1000;
 const ORG_INITIAL_MAX_DEPTH = 6;
 const ORG_DEPTH_STEP = 3;
 const ORG_MAX_SERVICES_PER_NODE = 8;
+const ORG_MAX_SERVICES_PER_LARGE_NODE = 4;
 const ORG_SUMMARY_COUNT_CAP = 9999;
+const EMPTY_SERVICE_SLICE: OrgNodeServiceSlice = {visible: [], hiddenCount: 0};
 
 interface OrgRenderBudget {
   remaining: number;
@@ -31,6 +33,23 @@ interface OrgRenderBudget {
 interface OrgNodeServiceSlice {
   visible: GenieServiceRegistration[];
   hiddenCount: number;
+}
+
+interface OrgNodeServiceSliceCacheEntry {
+  source: readonly GenieServiceRegistration[];
+  slice: OrgNodeServiceSlice;
+}
+
+interface OrgVisibleNodeScan {
+  count: number;
+  nodes: GenieTreeNode[];
+}
+
+interface OrgRenderSnapshot {
+  tree: GenieTreeNode[];
+  visibleNodes: GenieTreeNode[];
+  totalVisibleNodes: number;
+  isLargeGraph: boolean;
 }
 
 @Component({
@@ -48,6 +67,7 @@ interface OrgNodeServiceSlice {
 })
 export class OrgChartViewComponent implements OnInit, OnDestroy {
   private stateService = inject(OrgChartStateService);
+  private serviceSliceCache = new Map<number, OrgNodeServiceSliceCacheEntry>();
 
   readonly tree = input.required<GenieTreeNode[]>();
   readonly filterState = input<GenieFilterState | null>(null);
@@ -64,38 +84,69 @@ export class OrgChartViewComponent implements OnInit, OnDestroy {
   private readonly renderLimit = signal(ORG_INITIAL_RENDERED_NODES);
   private readonly renderDepthLimit = signal(ORG_INITIAL_MAX_DEPTH);
 
-  readonly totalVisibleNodes = computed(() => this.countVisibleNodes(this.tree(), this.renderLimit() + 1));
-  readonly isLargeGraph = computed(() => this.totalVisibleNodes() > this.renderLimit());
-
-  readonly renderedTree = computed(() => {
+  private readonly renderSnapshot = computed<OrgRenderSnapshot>(() => {
     const tree = this.tree();
-    if (!this.isLargeGraph()) return tree;
+    const renderLimit = this.renderLimit();
+    const depthLimit = this.renderDepthLimit();
+    const isExpanded = this.isNodeExpanded();
+    const visibleScan = this.scanVisibleNodes(tree, renderLimit + 1, isExpanded);
+    const isLargeGraph = visibleScan.count > renderLimit;
 
-    return this.limitTreeForRender(tree, 0, null, {
-      remaining: this.renderLimit(),
+    if (!isLargeGraph) {
+      return {
+        tree,
+        visibleNodes: visibleScan.nodes,
+        totalVisibleNodes: visibleScan.count,
+        isLargeGraph: false
+      };
+    }
+
+    const renderedNodes: GenieTreeNode[] = [];
+    const renderedTree = this.limitTreeForRender(tree, 0, null, {
+      remaining: renderLimit,
       nextSummaryId: -1
-    });
+    }, renderedNodes, isExpanded, depthLimit);
+
+    return {
+      tree: renderedTree,
+      visibleNodes: renderedNodes,
+      totalVisibleNodes: visibleScan.count,
+      isLargeGraph: true
+    };
   });
+
+  readonly totalVisibleNodes = computed(() => this.renderSnapshot().totalVisibleNodes);
+  readonly isLargeGraph = computed(() => this.renderSnapshot().isLargeGraph);
+  readonly renderedTree = computed(() => this.renderSnapshot().tree);
 
   readonly serviceSlicesByNodeId = computed(() => {
     const getProviders = this.getProvidersForNode();
+    const snapshot = this.renderSnapshot();
+    const serviceLimit = snapshot.isLargeGraph ? ORG_MAX_SERVICES_PER_LARGE_NODE : ORG_MAX_SERVICES_PER_NODE;
     const slices = new Map<number, OrgNodeServiceSlice>();
-    const walk = (nodes: GenieTreeNode[]) => {
-      for (const node of nodes) {
-        if (!this.isSummaryNode(node)) {
-          const services = getProviders(node);
-          slices.set(node.id, {
-            visible: services.slice(0, ORG_MAX_SERVICES_PER_NODE),
-            hiddenCount: Math.max(0, services.length - ORG_MAX_SERVICES_PER_NODE)
-          });
-        }
-        if (node.children?.length) walk(node.children);
-      }
-    };
+    const nextCache = new Map<number, OrgNodeServiceSliceCacheEntry>();
 
-    walk(this.renderedTree());
+    for (const node of snapshot.visibleNodes) {
+      if (this.isSummaryNode(node)) continue;
+
+      const services = getProviders(node);
+      const cached = this.serviceSliceCache.get(node.id);
+      const targetVisibleCount = Math.min(services.length, serviceLimit);
+      const slice = cached?.source === services && cached.slice.visible.length >= targetVisibleCount
+        ? this.reuseOrTrimServiceSlice(cached.slice, services.length, serviceLimit)
+        : this.createServiceSlice(services, serviceLimit);
+
+      slices.set(node.id, slice);
+      nextCache.set(node.id, {source: services, slice});
+    }
+
+    this.serviceSliceCache = nextCache;
     return slices;
   });
+
+  getServiceSlice(node: GenieTreeNode): OrgNodeServiceSlice {
+    return this.serviceSlicesByNodeId().get(node.id) ?? EMPTY_SERVICE_SLICE;
+  }
 
   ngOnInit() {
     if (this.stateService.hasTransform()) {
@@ -157,14 +208,6 @@ export class OrgChartViewComponent implements OnInit, OnDestroy {
     this.viewState.k = newK;
   }
 
-  getVisibleServices(node: GenieTreeNode): GenieServiceRegistration[] {
-    return this.serviceSlicesByNodeId().get(node.id)?.visible ?? [];
-  }
-
-  getHiddenServiceCount(node: GenieTreeNode): number {
-    return this.serviceSlicesByNodeId().get(node.id)?.hiddenCount ?? 0;
-  }
-
   onNodeClick(node: GenieTreeNode): void {
     if (this.isSummaryNode(node)) {
       this.revealMoreNodes();
@@ -181,10 +224,64 @@ export class OrgChartViewComponent implements OnInit, OnDestroy {
     this.toggleNode()(node.id);
   }
 
-  private countVisibleNodes(nodes: GenieTreeNode[], limit = Number.POSITIVE_INFINITY): number {
-    const isExpanded = this.isNodeExpanded();
+  private scanVisibleNodes(
+    nodes: GenieTreeNode[],
+    limit: number,
+    isExpanded: (id: number) => boolean
+  ): OrgVisibleNodeScan {
     let count = 0;
+    const visibleNodes: GenieTreeNode[] = [];
     const stack = [...nodes].reverse();
+
+    while (stack.length > 0 && count < limit) {
+      const node = stack.pop()!;
+      count++;
+      visibleNodes.push(node);
+
+      if (isExpanded(node.id) && node.children?.length) {
+        for (let index = node.children.length - 1; index >= 0; index--) {
+          stack.push(node.children[index]);
+        }
+      }
+    }
+
+    return {count, nodes: visibleNodes};
+  }
+
+  private createServiceSlice(
+    services: readonly GenieServiceRegistration[],
+    limit: number
+  ): OrgNodeServiceSlice {
+    return {
+      visible: services.slice(0, limit),
+      hiddenCount: Math.max(0, services.length - limit)
+    };
+  }
+
+  private reuseOrTrimServiceSlice(
+    slice: OrgNodeServiceSlice,
+    totalServices: number,
+    limit: number
+  ): OrgNodeServiceSlice {
+    if (slice.visible.length === Math.min(totalServices, limit)) return slice;
+
+    return {
+      visible: slice.visible.slice(0, limit),
+      hiddenCount: Math.max(0, totalServices - limit)
+    };
+  }
+
+  private countVisibleNodes(
+    nodes: GenieTreeNode[],
+    limit = Number.POSITIVE_INFINITY,
+    isExpanded = this.isNodeExpanded(),
+    startIndex = 0
+  ): number {
+    let count = 0;
+    const stack: GenieTreeNode[] = [];
+    for (let index = nodes.length - 1; index >= startIndex; index--) {
+      stack.push(nodes[index]);
+    }
 
     while (stack.length > 0 && count < limit) {
       const node = stack.pop()!;
@@ -203,34 +300,53 @@ export class OrgChartViewComponent implements OnInit, OnDestroy {
     nodes: GenieTreeNode[],
     depth: number,
     parent: GenieTreeNode | null,
-    budget: OrgRenderBudget
+    budget: OrgRenderBudget,
+    renderedNodes: GenieTreeNode[],
+    isExpanded: (id: number) => boolean,
+    depthLimit: number
   ): GenieTreeNode[] {
     const result: GenieTreeNode[] = [];
     let omittedCount = 0;
-    const isExpanded = this.isNodeExpanded();
-    const addOmittedCount = (omittedNodes: GenieTreeNode[]) => {
+    const addOmittedCount = (omittedNodes: GenieTreeNode[], startIndex = 0) => {
       if (omittedCount >= ORG_SUMMARY_COUNT_CAP) return;
-      omittedCount += this.countVisibleNodes(omittedNodes, ORG_SUMMARY_COUNT_CAP - omittedCount);
+      omittedCount += this.countVisibleNodes(
+        omittedNodes,
+        ORG_SUMMARY_COUNT_CAP - omittedCount,
+        isExpanded,
+        startIndex
+      );
     };
 
-    for (const node of nodes) {
+    for (let index = 0; index < nodes.length; index++) {
+      const node = nodes[index];
+
       if (budget.remaining <= 0) {
-        addOmittedCount([node]);
-        continue;
+        addOmittedCount(nodes, index);
+        break;
       }
 
       budget.remaining--;
       let children: GenieTreeNode[] = [];
 
       if (isExpanded(node.id) && node.children?.length) {
-        if (depth >= this.renderDepthLimit()) {
+        if (depth >= depthLimit) {
           addOmittedCount(node.children);
         } else {
-          children = this.limitTreeForRender(node.children, depth + 1, node, budget);
+          children = this.limitTreeForRender(
+            node.children,
+            depth + 1,
+            node,
+            budget,
+            renderedNodes,
+            isExpanded,
+            depthLimit
+          );
         }
       }
 
-      result.push({...node, children});
+      const renderedNode = {...node, children};
+      renderedNodes.push(renderedNode);
+      result.push(renderedNode);
     }
 
     if (omittedCount > 0) {

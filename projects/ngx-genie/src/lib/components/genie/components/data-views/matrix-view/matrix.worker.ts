@@ -1,5 +1,6 @@
 export interface WorkerInputData {
   tree: any[];
+  treeIsFlat?: boolean;
   filterState: any;
   services: any[];
   dependencies: any[];
@@ -54,7 +55,7 @@ export function matrixWorkerFn() {
   function calculateMatrix(payload: WorkerInputData): MatrixWorkerResult {
     const {tree, filterState, services, dependencies} = payload;
 
-    let allNodes = flattenTree(tree);
+    let allNodes = payload.treeIsFlat ? tree : flattenTree(tree);
     let filteredNodes = allNodes;
 
     if (filterState && filterState.searchMode === 'component') {
@@ -91,17 +92,17 @@ export function matrixWorkerFn() {
 
     const serviceViewUsage = new Map<number, number>();
 
-    dependencies.forEach((d: any) => {
-      if (visibleNodeIds.has(d.consumerNodeId) && d.providerId) {
-        serviceViewUsage.set(d.providerId, (serviceViewUsage.get(d.providerId) || 0) + 1);
+    for (const dependency of dependencies) {
+      if (visibleNodeIds.has(dependency.consumerNodeId) && dependency.providerId) {
+        serviceViewUsage.set(dependency.providerId, (serviceViewUsage.get(dependency.providerId) || 0) + 1);
       }
-    });
+    }
 
-    candidateServices.forEach((s: any) => {
-      if (visibleNodeIds.has(s.nodeId)) {
-        serviceViewUsage.set(s.id, (serviceViewUsage.get(s.id) || 0) + 1);
+    for (const service of candidateServices) {
+      if (visibleNodeIds.has(service.nodeId)) {
+        serviceViewUsage.set(service.id, (serviceViewUsage.get(service.id) || 0) + 1);
       }
-    });
+    }
 
     let finalServices = candidateServices;
     if (filterState?.hideUnusedDeps) {
@@ -123,9 +124,10 @@ export function matrixWorkerFn() {
     columns.forEach((col, idx) => col.index = idx);
 
     const columnIndexByServiceId = new Map<number, number>();
-    columns.forEach((column, index) => {
+    for (let index = 0; index < columns.length; index++) {
+      const column = columns[index];
       columnIndexByServiceId.set(Number(column.id), index);
-    });
+    }
 
     const cellsByNodeId = new Map<number, Map<number, {
       dependency: any;
@@ -133,11 +135,11 @@ export function matrixWorkerFn() {
       isProvider: boolean;
     }>>();
 
-    dependencies.forEach((dependency: any) => {
-      if (!dependency.providerId || !visibleNodeIds.has(dependency.consumerNodeId)) return;
+    for (const dependency of dependencies) {
+      if (!dependency.providerId || !visibleNodeIds.has(dependency.consumerNodeId)) continue;
 
       const colIndex = columnIndexByServiceId.get(dependency.providerId);
-      if (colIndex === undefined) return;
+      if (colIndex === undefined) continue;
 
       const rowCells = getOrCreateRowCells(cellsByNodeId, dependency.consumerNodeId);
       const existing = rowCells.get(colIndex);
@@ -146,13 +148,13 @@ export function matrixWorkerFn() {
         isConsumer: true,
         isProvider: existing?.isProvider ?? false
       });
-    });
+    }
 
-    finalServices.forEach((service: any) => {
-      if (!visibleNodeIds.has(service.nodeId)) return;
+    for (const service of finalServices) {
+      if (!visibleNodeIds.has(service.nodeId)) continue;
 
       const colIndex = columnIndexByServiceId.get(service.id);
-      if (colIndex === undefined) return;
+      if (colIndex === undefined) continue;
 
       const rowCells = getOrCreateRowCells(cellsByNodeId, service.nodeId);
       const existing = rowCells.get(colIndex);
@@ -161,7 +163,7 @@ export function matrixWorkerFn() {
         isConsumer: existing?.isConsumer ?? false,
         isProvider: true
       });
-    });
+    }
 
     const rows: ProcessedRow[] = filteredNodes
       .sort((a: any, b: any) => a.label.localeCompare(b.label))

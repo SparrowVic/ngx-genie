@@ -22,7 +22,7 @@
         </div>
         <div>
           <span class="stat-val">{{ layoutModeValue(stats) }}</span>
-          <span class="stat-label">{{ stats.layoutMode !== 'force' ? 'LAYOUT' : 'SIM' }}</span>
+          <span class="stat-label">{{ stats.layoutMode !== 'force' ? 'MAP' : 'SIM' }}</span>
         </div>
       </div>
     }
@@ -82,19 +82,25 @@
 
     <div class="control-row vertical">
       <div class="row-top">
-        <span class="label">LAYOUT</span>
-        <span class="val">{{ layoutStrategyLabel(layoutStrategy()) }}</span>
+        <span class="label">GROUPING</span>
+        <span class="val">{{ groupingStrategyLabel(groupingStrategy()) }}</span>
       </div>
-      <div class="segmented">
+      <div class="segmented five">
         <button type="button"
-                [class.active]="layoutStrategy() === 'auto'"
-                (click)="layoutStrategyChange.emit('auto')">AUTO</button>
+                [class.active]="groupingStrategy() === 'auto'"
+                (click)="groupingStrategyChange.emit('auto')">AUTO</button>
         <button type="button"
-                [class.active]="layoutStrategy() === 'atlas'"
-                (click)="layoutStrategyChange.emit('atlas')">GRID</button>
+                [class.active]="groupingStrategy() === 'node-type' || groupingStrategy() === 'type'"
+                (click)="groupingStrategyChange.emit('node-type')">NODES</button>
         <button type="button"
-                [class.active]="layoutStrategy() === 'organic'"
-                (click)="layoutStrategyChange.emit('organic')">FLOW</button>
+                [class.active]="groupingStrategy() === 'scope'"
+                (click)="groupingStrategyChange.emit('scope')">SCOPE</button>
+        <button type="button"
+                [class.active]="groupingStrategy() === 'tree'"
+                (click)="groupingStrategyChange.emit('tree')">TREE</button>
+        <button type="button"
+                [class.active]="groupingStrategy() === 'none'"
+                (click)="groupingStrategyChange.emit('none')">OFF</button>
       </div>
     </div>
 

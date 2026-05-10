@@ -1,13 +1,42 @@
 import {Injectable, inject, NgZone, signal, OnDestroy} from '@angular/core';
 import {GenieRegistryService} from '../../../../../services/genie-registry.service';
 import {GenieFilterState} from '../../../options-panel/options-panel.models';
-import {GenieTreeNode, GenieServiceRegistration} from '../../../../../models/genie-node.model';
+import {
+  GenieDependency,
+  GenieDependencyType,
+  GenieServiceRegistration,
+  GenieTreeNode
+} from '../../../../../models/genie-node.model';
 import {MatrixWorkerResult, ProcessedColumn, ProcessedRow, matrixWorkerFn} from './matrix.worker';
+import {GeniePerformanceService} from '../../../../../services/genie-performance.service';
 
 export interface MatrixViewState {
   scale: number;
   scrollX: number;
   scrollY: number;
+}
+
+interface MatrixCalculationInputKey {
+  tree: readonly GenieTreeNode[];
+  filter: GenieFilterState | null;
+  services: readonly GenieServiceRegistration[];
+  dependencies: readonly GenieDependency[];
+}
+
+interface SafeMatrixService {
+  id: number;
+  nodeId: number;
+  label: string;
+  dependencyType: GenieDependencyType;
+  usageCount: number;
+  isRoot: boolean;
+  isFramework: boolean;
+}
+
+interface SafeMatrixDependency {
+  providerId: number | null;
+  consumerNodeId: number;
+  propName?: string;
 }
 
 @Injectable({
@@ -16,10 +45,18 @@ export interface MatrixViewState {
 export class MatrixDataService implements OnDestroy {
   private readonly registry = inject(GenieRegistryService);
   private readonly ngZone = inject(NgZone);
+  private readonly performance = inject(GeniePerformanceService);
 
   private worker: Worker | null = null;
   private workerUrl: string | null = null;
   private calculationRequestId = 0;
+  private lastCalculationInput: MatrixCalculationInputKey | null = null;
+  private cachedTreeSource: readonly GenieTreeNode[] | null = null;
+  private cachedTreeRows: Array<{ id: number; label: string }> = [];
+  private cachedServicesSource: readonly GenieServiceRegistration[] | null = null;
+  private cachedSafeServices: SafeMatrixService[] = [];
+  private cachedDependenciesSource: readonly GenieDependency[] | null = null;
+  private cachedSafeDependencies: SafeMatrixDependency[] = [];
 
   readonly isWorkerDone = signal(false);
   readonly rows = signal<ProcessedRow[]>([]);
@@ -70,47 +107,124 @@ export class MatrixDataService implements OnDestroy {
   calculate(tree: GenieTreeNode[], filter: GenieFilterState | null) {
     if (!this.worker) return;
 
+    const allServices = this.registry.services();
+    const dependencies = this.registry.dependencies();
+
+    if (this.isSameCalculationInput(tree, filter, allServices, dependencies)) {
+      this.performance.recordSample('matrix.calculate.skip', {
+        treeRoots: tree.length,
+        services: allServices.length,
+        dependencies: dependencies.length
+      });
+      return;
+    }
+
+    this.lastCalculationInput = {tree, filter, services: allServices, dependencies};
     const requestId = ++this.calculationRequestId;
 
     if (this.rows().length === 0) {
       this.isWorkerDone.set(false);
     }
 
-    const allServices = this.registry.services();
-    const filteredServices = allServices.filter(s => this.shouldShowService(s, filter));
-
-    const safeServices = filteredServices.map(s => {
-      let isRoot = s.isRoot;
-      if (!isRoot && s.token && (s.token as any)['ɵprov']) {
-        isRoot = (s.token as any)['ɵprov'].providedIn === 'root';
-      }
-      return {
-        id: s.id,
-        nodeId: s.nodeId,
-        label: s.label,
-        dependencyType: s.dependencyType,
-        isRoot,
-        isFramework: s.isFramework,
-      };
+    const completePrepareSpan = this.performance.startSpan('matrix.preparePayload', {
+      treeRoots: tree.length,
+      services: allServices.length,
+      dependencies: dependencies.length
     });
-
-    const safeDependencies = this.registry.dependencies().map(d => ({
-      providerId: d.providerId,
-      consumerNodeId: d.consumerNodeId,
-      propName: d.propName
-    }));
+    const safeServices = this.getSafeServices(allServices);
+    const filteredServices = safeServices.filter(s => this.shouldShowSafeService(s, filter));
+    const safeDependencies = this.getSafeDependencies(dependencies);
+    const treeRows = this.getTreeRowsForWorker(tree);
 
     const payload = {
-      tree: this.flattenNodesForWorker(tree),
+      tree: treeRows,
+      treeIsFlat: true,
       filterState: filter,
-      services: safeServices,
+      services: filteredServices,
       dependencies: safeDependencies
     };
+
+    completePrepareSpan({
+      rows: treeRows.length,
+      columns: filteredServices.length,
+      dependencies: safeDependencies.length
+    });
 
     this.worker.postMessage({type: 'CALCULATE', requestId, payload});
   }
 
-  private flattenNodesForWorker(tree: GenieTreeNode[]): Array<{ id: number; label: string }> {
+  private isSameCalculationInput(
+    tree: readonly GenieTreeNode[],
+    filter: GenieFilterState | null,
+    services: readonly GenieServiceRegistration[],
+    dependencies: readonly GenieDependency[]
+  ): boolean {
+    const last = this.lastCalculationInput;
+    return !!last
+      && last.tree === tree
+      && last.filter === filter
+      && last.services === services
+      && last.dependencies === dependencies;
+  }
+
+  private getTreeRowsForWorker(tree: readonly GenieTreeNode[]): Array<{ id: number; label: string }> {
+    if (this.cachedTreeSource === tree) return this.cachedTreeRows;
+
+    this.cachedTreeSource = tree;
+    this.cachedTreeRows = this.flattenNodesForWorker(tree);
+    return this.cachedTreeRows;
+  }
+
+  private getSafeServices(services: readonly GenieServiceRegistration[]): SafeMatrixService[] {
+    if (this.cachedServicesSource === services) return this.cachedSafeServices;
+
+    const safeServices: SafeMatrixService[] = new Array(services.length);
+    for (let index = 0; index < services.length; index++) {
+      const service = services[index];
+      safeServices[index] = this.toSafeService(service);
+    }
+
+    this.cachedServicesSource = services;
+    this.cachedSafeServices = safeServices;
+    return safeServices;
+  }
+
+  private getSafeDependencies(dependencies: readonly GenieDependency[]): SafeMatrixDependency[] {
+    if (this.cachedDependenciesSource === dependencies) return this.cachedSafeDependencies;
+
+    const safeDependencies: SafeMatrixDependency[] = new Array(dependencies.length);
+    for (let index = 0; index < dependencies.length; index++) {
+      const dependency = dependencies[index];
+      safeDependencies[index] = {
+        providerId: dependency.providerId,
+        consumerNodeId: dependency.consumerNodeId,
+        propName: dependency.propName
+      };
+    }
+
+    this.cachedDependenciesSource = dependencies;
+    this.cachedSafeDependencies = safeDependencies;
+    return safeDependencies;
+  }
+
+  private toSafeService(service: GenieServiceRegistration): SafeMatrixService {
+    let isRoot = service.isRoot === true;
+    if (!isRoot && service.token && (service.token as any)['ɵprov']) {
+      isRoot = (service.token as any)['ɵprov'].providedIn === 'root';
+    }
+
+    return {
+      id: service.id,
+      nodeId: service.nodeId,
+      label: service.label,
+      dependencyType: service.dependencyType,
+      usageCount: service.usageCount,
+      isRoot,
+      isFramework: service.isFramework,
+    };
+  }
+
+  private flattenNodesForWorker(tree: readonly GenieTreeNode[]): Array<{ id: number; label: string }> {
     const rows: Array<{ id: number; label: string }> = [];
     const stack = [...tree].reverse();
 
@@ -128,16 +242,14 @@ export class MatrixDataService implements OnDestroy {
     return rows;
   }
 
-  private shouldShowService(s: GenieServiceRegistration, filters: GenieFilterState | null): boolean {
+  private shouldShowSafeService(s: SafeMatrixService, filters: GenieFilterState | null): boolean {
     if (!filters) return true;
 
     if (filters.showRootOnly) {
-      const isRoot = s.isRoot === true || s.token?.['ɵprov']?.providedIn === 'root';
-      if (!isRoot) return false;
+      if (!s.isRoot) return false;
     }
     if (filters.showLocalOnly) {
-      const isRoot = s.isRoot === true || s.token?.['ɵprov']?.providedIn === 'root';
-      if (isRoot) return false;
+      if (s.isRoot) return false;
     }
 
     if (filters.hideUnusedDeps && (s.usageCount || 0) === 0) return false;

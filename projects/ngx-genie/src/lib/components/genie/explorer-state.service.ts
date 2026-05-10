@@ -12,7 +12,8 @@ import {
 } from '@angular/core';
 import {isPlatformBrowser} from '@angular/common';
 import {GenieRegistryService} from '../../services/genie-registry.service';
-import {GenieNode, GenieServiceRegistration, GenieTreeNode} from '../../models/genie-node.model';
+import {GeniePerformanceService} from '../../services/genie-performance.service';
+import {GenieDependency, GenieNode, GenieServiceRegistration, GenieTreeNode} from '../../models/genie-node.model';
 import {GenieFilterState} from './options-panel/options-panel.models';
 
 export type GenieViewType = 'tree' | 'org' | 'matrix' | 'constellation' | 'diagnostics';
@@ -61,12 +62,18 @@ interface RawTreeBuildState {
   cursor: number;
 }
 
+interface FilteredServicesIndexResult {
+  index: Map<number, GenieServiceRegistration[]>;
+  maxDeps: number;
+}
+
 @Injectable()
 export class GenieExplorerStateService {
   private readonly registry = inject(GenieRegistryService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly zone = inject(NgZone);
+  private readonly performance = inject(GeniePerformanceService);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
   private liveTimer: any = null;
   private rawTreeRunId = 0;
@@ -82,6 +89,8 @@ export class GenieExplorerStateService {
   private expandAllTimer: ReturnType<typeof setTimeout> | null = null;
   private expandAllIdleHandle: number | null = null;
   private isDestroyed = false;
+  private serviceConsumerNamesCacheSource: readonly GenieDependency[] | null = null;
+  private readonly serviceConsumerNamesCache = new Map<number, string[]>();
 
   readonly nodes = computed(() => this.registry.nodes());
   readonly services = computed(() => this.registry.services());
@@ -93,32 +102,11 @@ export class GenieExplorerStateService {
   private readonly rawTreeCache = signal<GenieTreeNode[]>([]);
   private readonly treeNodeByIdCache = signal<Map<number, GenieTreeNode>>(new Map());
   private readonly filteredServicesByNodeIdCache = signal<Map<number, GenieServiceRegistration[]>>(new Map());
+  private readonly maxFilteredServicesByNodeCache = signal(0);
   private readonly rawTree = computed<GenieTreeNode[]>(() => this.rawTreeCache());
   private readonly treeNodeById = computed(() => this.treeNodeByIdCache());
   private readonly filteredServicesByNodeId = computed(() => this.filteredServicesByNodeIdCache());
 
-
-  readonly serviceConsumersMap = computed(() => {
-    const deps = this.dependencies();
-    const sets = new Map<number, Set<string>>();
-
-    deps.forEach(dep => {
-      if (dep.providerId !== null) {
-        if (!sets.has(dep.providerId)) {
-          sets.set(dep.providerId, new Set<string>());
-        }
-        const consumerNode = this.registry.getNodeById(dep.consumerNodeId);
-        const consumerName = consumerNode?.label || `Node #${dep.consumerNodeId}`;
-        sets.get(dep.providerId)!.add(consumerName);
-      }
-    });
-
-    const map = new Map<number, string[]>();
-    sets.forEach((consumerNames, serviceId) => {
-      map.set(serviceId, Array.from(consumerNames));
-    });
-    return map;
-  });
 
   readonly uniqueComponentNames = computed(() => {
     const nodes = this.nodes();
@@ -271,15 +259,7 @@ export class GenieExplorerStateService {
 
   readonly selectedServiceState = computed(() => this._snapshotCache());
 
-  readonly maxNodeDeps = computed(() => {
-    const servicesByNodeId = this.filteredServicesByNodeId();
-    let max = 0;
-    for (const services of servicesByNodeId.values()) {
-      const count = services.length;
-      if (count > max) max = count;
-    }
-    return max;
-  });
+  readonly maxNodeDeps = computed(() => this.maxFilteredServicesByNodeCache());
 
   setView(view: GenieViewType) {
     this.activeView.set(view);
@@ -325,6 +305,27 @@ export class GenieExplorerStateService {
   clearSelection() {
     this.selectedNode.set(null);
     this.selectedService.set(null);
+  }
+
+  getConsumerNamesForService(serviceId: number): string[] {
+    const dependencies = this.dependencies();
+    if (this.serviceConsumerNamesCacheSource !== dependencies) {
+      this.serviceConsumerNamesCacheSource = dependencies;
+      this.serviceConsumerNamesCache.clear();
+    }
+
+    const cached = this.serviceConsumerNamesCache.get(serviceId);
+    if (cached) return cached;
+
+    const consumerNames = new Set<string>();
+    for (const dependency of this.registry.getDependenciesForService(serviceId)) {
+      const consumerNode = this.registry.getNodeById(dependency.consumerNodeId);
+      consumerNames.add(consumerNode?.label || `Node #${dependency.consumerNodeId}`);
+    }
+
+    const names = Array.from(consumerNames);
+    this.serviceConsumerNamesCache.set(serviceId, names);
+    return names;
   }
 
   getProvidersForNode(nodeId: number): GenieServiceRegistration[] {
@@ -437,9 +438,11 @@ export class GenieExplorerStateService {
     this._cancelScheduledFilterTreeRebuild();
 
     if (!this.isBrowser) {
+      const completeSpan = this.performance.startSpan('tree.raw.sync', {nodes: nodes.length});
       const result = this._buildRawTreeSync(nodes);
       this.rawTreeCache.set(result.roots);
       this.treeNodeByIdCache.set(result.byId);
+      completeSpan({roots: result.roots.length, treeNodes: result.byId.size});
       return;
     }
 
@@ -542,6 +545,7 @@ export class GenieExplorerStateService {
   }
 
   private _buildRawTreeChunked(nodes: GenieNode[], runId: number): void {
+    const completeSpan = this.performance.startSpan('tree.raw.chunked', {nodes: nodes.length});
     const state: RawTreeBuildState = {
       sourceNodes: nodes,
       byId: new Map<number, GenieTreeNode>(),
@@ -574,6 +578,7 @@ export class GenieExplorerStateService {
           this.zone.run(() => {
             this.treeNodeByIdCache.set(state.byId);
             this.rawTreeCache.set(state.roots);
+            completeSpan({roots: state.roots.length, treeNodes: state.byId.size});
           });
           return;
         }
@@ -633,7 +638,11 @@ export class GenieExplorerStateService {
     this._cancelScheduledFilterTreeRebuild();
 
     if (!this.isBrowser) {
-      this.filteredServicesByNodeIdCache.set(this._buildFilteredServicesByNodeId(services, filters));
+      const completeSpan = this.performance.startSpan('tree.filteredServices.sync', {services: services.length});
+      const result = this._buildFilteredServicesByNodeId(services, filters);
+      this.filteredServicesByNodeIdCache.set(result.index);
+      this.maxFilteredServicesByNodeCache.set(result.maxDeps);
+      completeSpan({nodes: result.index.size, maxDeps: result.maxDeps});
       return;
     }
 
@@ -647,12 +656,14 @@ export class GenieExplorerStateService {
   private _buildFilteredServicesByNodeId(
     services: GenieServiceRegistration[],
     filters: GenieFilterState
-  ): Map<number, GenieServiceRegistration[]> {
+  ): FilteredServicesIndexResult {
     const index = new Map<number, GenieServiceRegistration[]>();
+    let maxDeps = 0;
     for (const service of services) {
-      this._addFilteredServiceToIndex(service, filters, index);
+      const count = this._addFilteredServiceToIndex(service, filters, index);
+      if (count > maxDeps) maxDeps = count;
     }
-    return index;
+    return {index, maxDeps};
   }
 
   private _buildFilteredServicesByNodeIdChunked(
@@ -660,15 +671,18 @@ export class GenieExplorerStateService {
     filters: GenieFilterState,
     runId: number
   ): void {
+    const completeSpan = this.performance.startSpan('tree.filteredServices.chunked', {services: services.length});
     const index = new Map<number, GenieServiceRegistration[]>();
     let cursor = 0;
+    let maxDeps = 0;
 
     const processChunk = () => {
       if (this.isDestroyed || runId !== this.filteredServicesRunId) return;
 
       const startedAt = this._now();
       while (cursor < services.length && this._now() - startedAt < FILTERED_SERVICES_CHUNK_BUDGET_MS) {
-        this._addFilteredServiceToIndex(services[cursor], filters, index);
+        const count = this._addFilteredServiceToIndex(services[cursor], filters, index);
+        if (count > maxDeps) maxDeps = count;
         cursor++;
       }
 
@@ -678,7 +692,11 @@ export class GenieExplorerStateService {
       }
 
       if (runId !== this.filteredServicesRunId || this.isDestroyed) return;
-      this.zone.run(() => this.filteredServicesByNodeIdCache.set(index));
+      this.zone.run(() => {
+        this.filteredServicesByNodeIdCache.set(index);
+        this.maxFilteredServicesByNodeCache.set(maxDeps);
+        completeSpan({nodes: index.size, maxDeps});
+      });
     };
 
     processChunk();
@@ -688,14 +706,16 @@ export class GenieExplorerStateService {
     service: GenieServiceRegistration,
     filters: GenieFilterState,
     index: Map<number, GenieServiceRegistration[]>
-  ): void {
-    if (!this._serviceMatchesFilters(service, filters)) return;
+  ): number {
+    if (!this._serviceMatchesFilters(service, filters)) return 0;
 
     const list = index.get(service.nodeId);
     if (list) {
       list.push(service);
+      return list.length;
     } else {
       index.set(service.nodeId, [service]);
+      return 1;
     }
   }
 
@@ -731,7 +751,11 @@ export class GenieExplorerStateService {
     this._cancelScheduledFilterTreeRebuild();
 
     if (!this.isBrowser) {
-      this.filteredTreeCache.set(this._calculateFilteredTree(
+      const completeSpan = this.performance.startSpan('tree.filtered.sync', {
+        roots: params.root.length,
+        servicesByNode: params.servicesByNodeId.size
+      });
+      const filteredTree = this._calculateFilteredTree(
         params.root,
         params.filters,
         params.query,
@@ -739,7 +763,9 @@ export class GenieExplorerStateService {
         params.isScanActive,
         params.selectedNode,
         params.servicesByNodeId
-      ));
+      );
+      this.filteredTreeCache.set(filteredTree);
+      completeSpan({roots: filteredTree.length});
       return;
     }
 
@@ -749,6 +775,10 @@ export class GenieExplorerStateService {
   }
 
   private _calculateFilteredTreeChunked(params: FilterTreeParams, runId: number): void {
+    const completeSpan = this.performance.startSpan('tree.filtered.chunked', {
+      roots: params.root.length,
+      servicesByNode: params.servicesByNodeId.size
+    });
     const prepared = this._prepareFilterParams(params);
     const rootFrame: FilterTreeFrame = {
       node: null,
@@ -796,7 +826,10 @@ export class GenieExplorerStateService {
 
       if (runId !== this.filterTreeRunId || this.isDestroyed) return;
       const nextTree = rootFrame.filteredChildren;
-      this.zone.run(() => this.filteredTreeCache.set(nextTree));
+      this.zone.run(() => {
+        this.filteredTreeCache.set(nextTree);
+        completeSpan({roots: nextTree.length});
+      });
     };
 
     processChunk();

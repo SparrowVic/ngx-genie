@@ -8,7 +8,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "build:genie": "npm run gen:svg-to-ts --prefix projects/ngx-genie && ng build ngx-genie",
-    "build:demo": "ng build ngx-genie-demo --configuration demo"
+    "build:demo": "ng build ngx-genie-demo --configuration demo",
+    "perf:constellation": "node tools/perf/constellation-harness.js"
   },
   "prettier": {
     "printWidth": 100,

@@ -13,15 +13,16 @@ import {
 } from '@angular/core';
 import {isPlatformBrowser} from '@angular/common';
 
-import {GenieServiceRegistration, GenieTreeNode} from '../../../../../models/genie-node.model';
+import {GenieDependency, GenieServiceRegistration, GenieTreeNode} from '../../../../../models/genie-node.model';
 import {GenieRegistryService} from '../../../../../services/genie-registry.service';
+import {GeniePerformanceService} from '../../../../../services/genie-performance.service';
 import {ConstellationModeSwitchComponent} from './constellation-mode-switch/constellation-mode-switch.component';
 import {ConstellationControlsComponent} from './constellation-controls/constellation-controls.component';
 import {ConstellationLegendComponent} from './constellation-legend/constellation-legend.component';
 import {ConstellationTooltipComponent} from './constellation-tooltip/constellation-tooltip.component';
 import {
+  ConstellationGroupingStrategy,
   ConstellationGraphStats,
-  ConstellationLayoutStrategy,
   ConstellationLinkRenderMode,
   RenderNode
 } from './constellation.models';
@@ -32,7 +33,7 @@ import {ConstellationStateService} from './constellation-state.service';
 
 const STORAGE_KEY_CONSTELLATION_MODE = 'genie_constellation_show_component_tree';
 const STORAGE_KEY_CONSTELLATION_LINK_MODE = 'genie_constellation_link_render_mode';
-const STORAGE_KEY_CONSTELLATION_LAYOUT_STRATEGY = 'genie_constellation_layout_strategy';
+const STORAGE_KEY_CONSTELLATION_GROUPING_STRATEGY = 'genie_constellation_grouping_strategy';
 const STORAGE_KEY_CONSTELLATION_AUTO_OPTIMIZE = 'genie_constellation_auto_optimize';
 const LARGE_GRAPH_HOVER_THROTTLE_MS = 48;
 const LARGE_GRAPH_HOVER_NODE_THRESHOLD = 1500;
@@ -41,11 +42,25 @@ const MAX_CONSTELLATION_ZOOM = 8;
 const ZOOM_SYNC_EPSILON = 0.0005;
 const ZOOM_TRANSITION_MS = 170;
 const ZOOM_ANIMATION_EPSILON = 0.001;
+const EMPTY_PROVIDER_LIST: GenieServiceRegistration[] = [];
 
 interface ViewState {
   x: number;
   y: number;
   k: number;
+}
+
+type ProvidersGetter = (node: GenieTreeNode) => GenieServiceRegistration[];
+
+interface GraphDataInputKey {
+  tree: GenieTreeNode[];
+  filterState: GenieFilterState | null;
+  services: readonly GenieServiceRegistration[];
+  dependencies: readonly GenieDependency[];
+  width: number;
+  height: number;
+  showComponentTree: boolean;
+  groupingStrategy: ConstellationGroupingStrategy;
 }
 
 @Component({
@@ -64,6 +79,7 @@ interface ViewState {
 })
 export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   private registry = inject(GenieRegistryService);
+  private performance = inject(GeniePerformanceService);
   private ngZone = inject(NgZone);
   private stateService = inject(ConstellationStateService);
   private platformId = inject(PLATFORM_ID);
@@ -91,7 +107,7 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   readonly focusModeEnabled = signal(true);
   readonly showControlsPanel = signal(true);
   readonly linkRenderMode = signal<ConstellationLinkRenderMode>(this.loadLinkRenderMode());
-  readonly layoutStrategy = signal<ConstellationLayoutStrategy>(this.loadLayoutStrategy());
+  readonly groupingStrategy = signal<ConstellationGroupingStrategy>(this.loadGroupingStrategy());
   readonly autoOptimizeEnabled = signal(this.loadAutoOptimizeState());
 
   readonly tooltipPos = signal({x: 0, y: 0});
@@ -112,13 +128,18 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   private graphUpdateRunId = 0;
   private graphUpdateTimer: ReturnType<typeof setTimeout> | null = null;
   private graphUpdateIdleHandle: number | null = null;
+  private lastGraphDataInputKey: GraphDataInputKey | null = null;
+  private servicesByNodeIndex: ReadonlyMap<number, GenieServiceRegistration[]> = new Map();
+  private readonly registryProvidersGetter: ProvidersGetter = (node) => {
+    return this.servicesByNodeIndex.get(node.id) ?? EMPTY_PROVIDER_LIST;
+  };
 
   constructor() {
     effect(() => {
       this.tree();
       this.filterState();
       this.showComponentTree();
-      this.layoutStrategy();
+      this.groupingStrategy();
 
       untracked(() => {
         if (this.engine) {
@@ -139,8 +160,8 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
     });
 
     effect(() => {
-      const strategy = this.layoutStrategy();
-      this.saveLayoutStrategy(strategy);
+      const strategy = this.groupingStrategy();
+      this.saveGroupingStrategy(strategy);
     });
 
     effect(() => {
@@ -168,6 +189,7 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   ngAfterViewInit() {
     this.initEngine();
     this.initResizeObserver();
+    this.scheduleGraphDataUpdate();
 
     this.canvasRef().nativeElement.addEventListener('wheel', this.wheelListener, {passive: false});
   }
@@ -330,8 +352,9 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
     this.engine?.setLinkRenderMode(mode);
   }
 
-  updateLayoutStrategy(strategy: ConstellationLayoutStrategy) {
-    this.layoutStrategy.set(strategy);
+  updateGroupingStrategy(strategy: ConstellationGroupingStrategy) {
+    this.groupingStrategy.set(strategy);
+    this.stateService.clear();
     this.scheduleGraphDataUpdate();
   }
 
@@ -360,7 +383,18 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
     this.engine = new ConstellationEngine(
       this.canvasRef().nativeElement,
       this.ngZone,
-      (positions) => this.engine?.updatePositions(positions)
+      (positions) => this.engine?.updatePositions(positions),
+      this.performance.isEnabled()
+        ? (sample) => this.performance.recordDuration('constellation.frame', sample.durationMs, {
+          frameDeltaMs: sample.frameDeltaMs,
+          renderableNodes: sample.renderableNodes,
+          totalNodes: sample.totalNodes,
+          totalLinks: sample.totalLinks,
+          zoom: sample.zoom,
+          layoutMode: sample.layoutMode,
+          lensAnimating: sample.lensAnimating
+        })
+        : undefined
     );
     this.engine.setLinkRenderMode(this.linkRenderMode());
     this.engine.start();
@@ -372,7 +406,6 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
       this.zoomLevelChange.emit(this.viewState.k);
     }
 
-    this.updateGraphData();
   }
 
   private initResizeObserver() {
@@ -545,27 +578,106 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
       height = rect.height;
     }
 
+    const registryServices = this.registry.services();
+    const registryDependencies = this.registry.dependencies();
+    this.servicesByNodeIndex = this.registry.getServicesByNodeIdIndex();
+    const providersGetter = this.registryProvidersGetter;
+    const graphDataInputKey = this.createGraphDataInputKey(
+      width,
+      height,
+      registryServices,
+      registryDependencies
+    );
+    if (this.shouldSkipGraphDataUpdate(graphDataInputKey)) {
+      this.performance.recordSample('constellation.prepareGraphData.skip', {
+        width: graphDataInputKey.width,
+        height: graphDataInputKey.height,
+        showComponentTree: graphDataInputKey.showComponentTree,
+        groupingStrategy: graphDataInputKey.groupingStrategy
+      });
+      return;
+    }
+
     const engineNodes = this.engine.getRenderNodes();
     const positionsSource = (engineNodes.size > 0)
       ? engineNodes
       : this.stateService.positions;
 
+    const completePrepareSpan = this.performance.startSpan('constellation.prepareGraphData', {
+      treeRoots: this.tree().length,
+      width,
+      height,
+      showComponentTree: this.showComponentTree(),
+      groupingStrategy: this.groupingStrategy()
+    });
+
     const data = ConstellationMapper.prepareGraphData(
       this.tree(),
       this.filterState(),
-      this.registry,
-      this.getProvidersForNode(),
+      registryDependencies,
+      providersGetter,
       width,
       height,
       this.showComponentTree(),
       positionsSource,
-      this.layoutStrategy()
+      undefined,
+      this.groupingStrategy()
     );
+    completePrepareSpan({
+      renderNodes: data.renderNodes.size,
+      renderLinks: data.renderLinks.length,
+      workerNodes: data.workerNodes.length,
+      workerLinks: data.workerLinks.length,
+      layoutMode: data.stats.layoutMode,
+      isHuge: data.stats.isHuge
+    });
 
     this.graphStats.set(data.stats);
     this.applyAutoOptimizer(data.stats);
     this.engine.setLinkRenderMode(this.linkRenderMode());
+
+    const completeEngineSpan = this.performance.startSpan('constellation.engine.updateGraphData', {
+      renderNodes: data.renderNodes.size,
+      renderLinks: data.renderLinks.length,
+      workerNodes: data.workerNodes.length,
+      workerLinks: data.workerLinks.length,
+      layoutMode: data.stats.layoutMode
+    });
     this.engine.updateGraphData(data.workerNodes, data.workerLinks, data.renderNodes, data.renderLinks, data.stats);
+    completeEngineSpan();
+    this.lastGraphDataInputKey = graphDataInputKey;
+  }
+
+  private createGraphDataInputKey(
+    width: number,
+    height: number,
+    services: readonly GenieServiceRegistration[],
+    dependencies: readonly GenieDependency[]
+  ): GraphDataInputKey {
+    return {
+      tree: this.tree(),
+      filterState: this.filterState(),
+      services,
+      dependencies,
+      width: Math.max(1, Math.round(width)),
+      height: Math.max(1, Math.round(height)),
+      showComponentTree: this.showComponentTree(),
+      groupingStrategy: this.groupingStrategy()
+    };
+  }
+
+  private shouldSkipGraphDataUpdate(next: GraphDataInputKey): boolean {
+    const prev = this.lastGraphDataInputKey;
+    if (!prev) return false;
+
+    return prev.tree === next.tree
+      && prev.filterState === next.filterState
+      && prev.services === next.services
+      && prev.dependencies === next.dependencies
+      && prev.width === next.width
+      && prev.height === next.height
+      && prev.showComponentTree === next.showComponentTree
+      && prev.groupingStrategy === next.groupingStrategy;
   }
 
   private applyAutoOptimizer(stats: ConstellationGraphStats): void {
@@ -613,11 +725,20 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
     }
   }
 
-  private loadLayoutStrategy(): ConstellationLayoutStrategy {
+  private loadGroupingStrategy(): ConstellationGroupingStrategy {
     if (!this.isBrowser) return 'auto';
     try {
-      const stored = localStorage.getItem(STORAGE_KEY_CONSTELLATION_LAYOUT_STRATEGY);
-      if (stored === 'auto' || stored === 'atlas' || stored === 'organic') return stored;
+      const stored = localStorage.getItem(STORAGE_KEY_CONSTELLATION_GROUPING_STRATEGY);
+      if (stored === 'type') return 'node-type';
+      if (
+        stored === 'auto'
+        || stored === 'node-type'
+        || stored === 'scope'
+        || stored === 'tree'
+        || stored === 'none'
+      ) {
+        return stored;
+      }
       return 'auto';
     } catch (e) {
       return 'auto';
@@ -652,12 +773,12 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
     }
   }
 
-  private saveLayoutStrategy(strategy: ConstellationLayoutStrategy): void {
+  private saveGroupingStrategy(strategy: ConstellationGroupingStrategy): void {
     if (!this.isBrowser) return;
     try {
-      localStorage.setItem(STORAGE_KEY_CONSTELLATION_LAYOUT_STRATEGY, strategy);
+      localStorage.setItem(STORAGE_KEY_CONSTELLATION_GROUPING_STRATEGY, strategy);
     } catch (e) {
-      console.warn('Genie: Failed to save constellation layout state', e);
+      console.warn('Genie: Failed to save constellation grouping state', e);
     }
   }
 

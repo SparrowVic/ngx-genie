@@ -26,11 +26,12 @@
 
 <ng-template #nodeTemplate let-node>
   <li>
+    @let serviceSlice = getServiceSlice(node);
 
     <lib-org-chart-node
       [node]="node"
-      [services]="getVisibleServices(node)"
-      [hiddenServiceCount]="getHiddenServiceCount(node)"
+      [services]="serviceSlice.visible"
+      [hiddenServiceCount]="serviceSlice.hiddenCount"
       [expanded]="isNodeExpanded()(node.id)"
       [performanceMode]="isLargeGraph()"
       (nodeClick)="onNodeClick(node)"

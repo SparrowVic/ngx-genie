@@ -82,8 +82,7 @@ export class TreeDependencyItemComponent {
     const usage = this.dependency().usageCount;
     if (usage === 0) return [];
 
-    const consumers = this.state.serviceConsumersMap().get(id) || [];
-    return consumers;
+    return this.state.getConsumerNamesForService(id);
   });
 
   protected _handleClick(event: MouseEvent): void {

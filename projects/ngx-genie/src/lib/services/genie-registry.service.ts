@@ -54,6 +54,7 @@ const DEFERRED_EVENT_CHUNK_BUDGET_MS = 6;
 const DEFERRED_EVENT_CHUNK_MAX_ITEMS = 1000;
 const ENRICHMENT_CHUNK_BUDGET_MS = 6;
 const ENRICHMENT_CHUNK_MAX_NODES = 30;
+const SCAN_STATUS_MIN_INTERVAL_MS = 80;
 
 const NATIVE_JS_CONSTRUCTORS = new Set([
   'String', 'Number', 'Boolean', 'Object', 'Array', 'Symbol', 'Function',
@@ -150,6 +151,7 @@ export class GenieRegistryService {
   private injectorToNodeMap = new WeakMap<Injector, number>();
   private componentInstanceToNodeMap = new WeakMap<object, number>();
   private instanceToServiceMap = new WeakMap<any, number>();
+  private tokenNameCache = new WeakMap<object, string>();
   private dependencyKeySet = new Set<string>();
   private nodeById = new Map<number, GenieNode>();
   private serviceById = new Map<number, GenieServiceRegistration>();
@@ -158,6 +160,7 @@ export class GenieRegistryService {
   private _isRegistryBatchActive = false;
   private _pendingNodes: GenieNode[] = [];
   private _pendingServices: GenieServiceRegistration[] = [];
+  private _pendingServiceIndexById = new Map<number, number>();
   private _pendingDependencies: GenieDependency[] = [];
   private _pendingServiceUsage = new Map<number, number>();
   private _isChunkedScanActive = false;
@@ -169,6 +172,7 @@ export class GenieRegistryService {
   private _enrichedNodeIds = new Set<number>();
   private _isEnrichmentScheduled = false;
   private _scanStartedAt: number | null = null;
+  private _lastScanStatusUpdateAt = 0;
   private _domScanProcessed = 0;
   private _deferredProcessed = 0;
   private _deferredTotal = 0;
@@ -570,8 +574,9 @@ export class GenieRegistryService {
       }
       return;
     }
-    const children = Array.from(element.children);
-    for (const child of children) {
+    const children = element.children;
+    for (let index = 0; index < children.length; index++) {
+      const child = children[index] as HTMLElement;
       // @ts-ignore
       const context = ng.getComponent(child);
       if (context) {
@@ -601,11 +606,11 @@ export class GenieRegistryService {
             this.bindComponentInstanceToNode(context, node);
             this.queueNodeEnrichment(node, componentType);
           }
-          this.scanDomForComponents(child as HTMLElement, node);
+          this.scanDomForComponents(child, node);
           continue;
         }
       }
-      this.scanDomForComponents(child as HTMLElement, parentNode);
+      this.scanDomForComponents(child, parentNode);
     }
   }
 
@@ -704,9 +709,9 @@ export class GenieRegistryService {
   }
 
   private enqueueChildElements(element: HTMLElement, parentNode: GenieNode, queue: DomScanQueueItem[]): void {
-    const children = Array.from(element.children) as HTMLElement[];
-    for (const child of children) {
-      queue.push({element: child, parentNode});
+    const children = element.children;
+    for (let index = 0; index < children.length; index++) {
+      queue.push({element: children[index] as HTMLElement, parentNode});
     }
   }
 
@@ -746,6 +751,7 @@ export class GenieRegistryService {
   private startScanMetrics(): void {
     const now = this.now();
     this._scanStartedAt = now;
+    this._lastScanStatusUpdateAt = 0;
     this._domScanProcessed = 0;
     this._deferredProcessed = 0;
     this._deferredTotal = 0;
@@ -766,6 +772,7 @@ export class GenieRegistryService {
 
   private updateScanStatus(phase: GenieScanPhase, patch: Partial<GenieScanStatus> = {}): void {
     const now = this.now();
+    this._lastScanStatusUpdateAt = now;
     const startedAt = patch.startedAt ?? this._scanStatus().startedAt ?? this._scanStartedAt;
     const finishedAt = patch.finishedAt ?? null;
     const durationMs = patch.durationMs ?? (startedAt ? Math.max(0, now - startedAt) : 0);
@@ -786,6 +793,12 @@ export class GenieRegistryService {
       ...status,
       message: this.describeScanStatus(status)
     });
+  }
+
+  private updateScanStatusThrottled(phase: GenieScanPhase, patch: Partial<GenieScanStatus> = {}): void {
+    const now = this.now();
+    if (now - this._lastScanStatusUpdateAt < SCAN_STATUS_MIN_INTERVAL_MS) return;
+    this.updateScanStatus(phase, patch);
   }
 
   private finishScanIfIdle(): void {
@@ -829,7 +842,7 @@ export class GenieRegistryService {
       this._enrichmentTotal,
       this._enrichedNodeIds.size + this._nodeEnrichmentQueue.length
     );
-    this.updateScanStatus(this._isChunkedScanActive || this._isScanning ? 'scanning' : 'enriching', {
+    this.updateScanStatusThrottled(this._isChunkedScanActive || this._isScanning ? 'scanning' : 'enriching', {
       enrichmentProcessed: this._enrichmentProcessed,
       enrichmentTotal: this._enrichmentTotal
     });
@@ -871,7 +884,7 @@ export class GenieRegistryService {
         && processed < ENRICHMENT_CHUNK_MAX_NODES
         && this.now() - startedAt < ENRICHMENT_CHUNK_BUDGET_MS
       ) {
-        const job = this._nodeEnrichmentQueue.shift()!;
+        const job = this._nodeEnrichmentQueue.pop()!;
         this._queuedNodeEnrichmentIds.delete(job.nodeId);
 
         if (this._enrichedNodeIds.has(job.nodeId)) continue;
@@ -1126,7 +1139,7 @@ export class GenieRegistryService {
       const reg: GenieServiceRegistration = {
         id, nodeId: node.id, token, instance, label: label,
         dependencyType: depType, providerType: providerType, usageCount: 0,
-        properties: this.snapshotProperties(instance),
+        properties: this.shouldSnapshotServiceProperties() ? this.snapshotProperties(instance) : {},
         isRoot: this.checkIsRoot(token), isFramework: isFramework
       };
       this.instanceToServiceMap.set(instance, id);
@@ -1136,6 +1149,10 @@ export class GenieRegistryService {
     if (newServices.length > 0) {
       this.addServices(newServices);
     }
+  }
+
+  private shouldSnapshotServiceProperties(): boolean {
+    return !this._isScanning && !this._isChunkedScanActive && this._nodeEnrichmentQueue.length === 0;
   }
 
   private getDependencyType(instance: any, token: any): GenieDependencyType {
@@ -1293,12 +1310,24 @@ export class GenieRegistryService {
     return this._servicesByNodeId().get(nodeId) ?? EMPTY_SERVICES;
   }
 
+  getServicesByNodeIdIndex(): ReadonlyMap<number, GenieServiceRegistration[]> {
+    return this._servicesByNodeId();
+  }
+
   getDependenciesForNode(nodeId: number): GenieDependency[] {
     return this._dependenciesByConsumerNodeId().get(nodeId) ?? EMPTY_DEPENDENCIES;
   }
 
+  getDependenciesByConsumerNodeIdIndex(): ReadonlyMap<number, GenieDependency[]> {
+    return this._dependenciesByConsumerNodeId();
+  }
+
   getDependenciesForService(serviceId: number): GenieDependency[] {
     return this._dependenciesByProviderId().get(serviceId) ?? EMPTY_DEPENDENCIES;
+  }
+
+  getDependenciesByProviderIdIndex(): ReadonlyMap<number, GenieDependency[]> {
+    return this._dependenciesByProviderId();
   }
 
   getServiceById(serviceId: number): GenieServiceRegistration | null {
@@ -1314,8 +1343,8 @@ export class GenieRegistryService {
   }
 
   incrementServiceUsage(serviceId: number): void {
-    const pendingIndex = this._pendingServices.findIndex(service => service.id === serviceId);
-    if (pendingIndex !== -1) {
+    const pendingIndex = this._pendingServiceIndexById.get(serviceId);
+    if (pendingIndex !== undefined) {
       const updated = {
         ...this._pendingServices[pendingIndex],
         usageCount: this._pendingServices[pendingIndex].usageCount + 1
@@ -1366,12 +1395,14 @@ export class GenieRegistryService {
     this.injectorToNodeMap = new WeakMap();
     this.componentInstanceToNodeMap = new WeakMap();
     this.instanceToServiceMap = new WeakMap();
+    this.tokenNameCache = new WeakMap();
     this.nodeById.clear();
     this.serviceById.clear();
     this.dependencyKeySet.clear();
     this.serviceIndexById.clear();
     this._pendingNodes = [];
     this._pendingServices = [];
+    this._pendingServiceIndexById.clear();
     this._pendingDependencies = [];
     this._pendingServiceUsage.clear();
     this._isRegistryBatchActive = false;
@@ -1413,6 +1444,7 @@ export class GenieRegistryService {
   private beginRegistryBatch(): void {
     this._pendingNodes = [];
     this._pendingServices = [];
+    this._pendingServiceIndexById.clear();
     this._pendingDependencies = [];
     this._pendingServiceUsage.clear();
     this._isRegistryBatchActive = true;
@@ -1427,24 +1459,55 @@ export class GenieRegistryService {
     }
 
     if (this._pendingServices.length > 0 || this._pendingServiceUsage.size > 0) {
-      let nextServices = this._pendingServices.length > 0
-        ? [...this._services(), ...this._pendingServices]
-        : this._services();
+      let nextServices = this._services();
+      let servicesChanged = false;
 
-      if (this._pendingServiceUsage.size > 0) {
-        nextServices = nextServices.map(service => {
-          const usageDelta = this._pendingServiceUsage.get(service.id);
-          if (!usageDelta) return service;
-          const updated = {...service, usageCount: service.usageCount + usageDelta};
-          this.serviceById.set(service.id, updated);
-          return updated;
-        });
-        this._pendingServiceUsage.clear();
+      if (this._pendingServices.length > 0) {
+        const baseIndex = nextServices.length;
+        nextServices = [...nextServices, ...this._pendingServices];
+        for (let index = 0; index < this._pendingServices.length; index++) {
+          this.serviceIndexById.set(this._pendingServices[index].id, baseIndex + index);
+        }
+        this._pendingServices = [];
+        this._pendingServiceIndexById.clear();
+        servicesChanged = true;
       }
 
-      this.rebuildServiceIndex(nextServices);
-      this._services.set(nextServices);
-      this._pendingServices = [];
+      if (this._pendingServiceUsage.size > 0) {
+        const updatedServices = servicesChanged ? nextServices : nextServices.slice();
+        let hasUsageChanges = false;
+
+        for (const [serviceId, usageDelta] of this._pendingServiceUsage) {
+          if (!usageDelta) continue;
+          let index = this.serviceIndexById.get(serviceId);
+          if (index === undefined || updatedServices[index]?.id !== serviceId) {
+            index = updatedServices.findIndex(service => service.id === serviceId);
+            if (index === -1) {
+              this.serviceIndexById.delete(serviceId);
+              continue;
+            }
+            this.serviceIndexById.set(serviceId, index);
+          }
+
+          const updated = {
+            ...updatedServices[index],
+            usageCount: updatedServices[index].usageCount + usageDelta
+          };
+          updatedServices[index] = updated;
+          this.serviceById.set(serviceId, updated);
+          hasUsageChanges = true;
+        }
+
+        this._pendingServiceUsage.clear();
+        if (hasUsageChanges) {
+          nextServices = updatedServices;
+          servicesChanged = true;
+        }
+      }
+
+      if (servicesChanged) {
+        this._services.set(nextServices);
+      }
     }
 
     if (this._pendingDependencies.length > 0) {
@@ -1463,12 +1526,18 @@ export class GenieRegistryService {
 
   private addServices(services: GenieServiceRegistration[]): void {
     if (this._isRegistryBatchActive) {
-      this._pendingServices.push(...services);
+      for (const service of services) {
+        this._pendingServiceIndexById.set(service.id, this._pendingServices.length);
+        this._pendingServices.push(service);
+      }
       return;
     }
 
-    const nextServices = [...this._services(), ...services];
-    this.rebuildServiceIndex(nextServices);
+    const currentServices = this._services();
+    const nextServices = [...currentServices, ...services];
+    for (let index = 0; index < services.length; index++) {
+      this.serviceIndexById.set(services[index].id, currentServices.length + index);
+    }
     this._services.set(nextServices);
   }
 
@@ -1504,13 +1573,31 @@ export class GenieRegistryService {
 
   private describeToken(token: unknown): string {
     if (!token) return 'Unknown';
+    const tokenType = typeof token;
+
+    if (tokenType === 'object' || tokenType === 'function') {
+      const objectToken = token as object;
+      const cached = this.tokenNameCache.get(objectToken);
+      if (cached) return cached;
+
+      const name = this.resolveTokenName(token);
+      this.tokenNameCache.set(objectToken, name);
+      return name;
+    }
+
+    if (tokenType === 'string') return token as string;
+    return 'Unknown';
+  }
+
+  private resolveTokenName(token: unknown): string {
     if (token instanceof InjectionToken) return token.toString().replace('InjectionToken ', '');
     if (typeof token === 'function' && (token as any).name) return (token as any).name;
-    if (typeof token === 'string') return token;
-    if (typeof token === 'object') {
+    if (typeof token === 'object' && token) {
       if ((token as any).name) return (token as any).name;
-      if ((token as any).constructor?.name && (token as any).constructor.name !== 'Object') return (token as any).constructor.name;
+      const constructorName = (token as any).constructor?.name;
+      if (constructorName && constructorName !== 'Object') return constructorName;
     }
+
     return 'Unknown';
   }
 }

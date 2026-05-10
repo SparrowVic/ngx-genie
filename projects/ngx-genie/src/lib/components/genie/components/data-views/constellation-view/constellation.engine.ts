@@ -21,6 +21,17 @@ interface DisplayPosition {
   y: number;
 }
 
+interface GraphBounds {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  centerX: number;
+  centerY: number;
+  width: number;
+  height: number;
+}
+
 interface RelationSlot {
   angle: number;
   ringIndex: number;
@@ -35,6 +46,54 @@ interface ViewportCluster {
   radius: number;
 }
 
+interface VisibleLinkCandidates {
+  providerLinks: RenderLink[];
+  dependencyLinks: RenderLink[];
+  componentLinks: RenderLink[];
+  aggregateLinks: RenderLink[];
+}
+
+interface RenderableNodesCache {
+  key: string;
+  nodes: RenderNode[];
+}
+
+interface VisibleLinkCandidatesCache {
+  key: string;
+  candidates: VisibleLinkCandidates;
+}
+
+interface CollisionNode {
+  node: RenderNode;
+  movable: boolean;
+  radius: number;
+  x: number;
+  y: number;
+}
+
+interface GroupRegion {
+  key: string;
+  label: string;
+  level: 'group' | 'subgroup';
+  x: number;
+  y: number;
+  radius: number;
+  memberCount: number;
+  colorSeed: number;
+  importance: number;
+}
+
+export interface ConstellationEnginePerformanceSample {
+  durationMs: number;
+  frameDeltaMs: number;
+  renderableNodes: number;
+  totalNodes: number;
+  totalLinks: number;
+  zoom: number;
+  layoutMode: ConstellationGraphStats['layoutMode'] | 'unknown';
+  lensAnimating: boolean;
+}
+
 const ATLAS_SPATIAL_CELL_SIZE = 720;
 const ATLAS_MAX_DRAWN_NODES = 9000;
 const ATLAS_MAX_SPATIAL_CELLS_PER_FRAME = 25000;
@@ -47,6 +106,9 @@ const VIEWPORT_LENS_MAX_STRENGTH = 0.94;
 const VIEWPORT_LENS_TRANSITION_MS = 760;
 const VIEWPORT_LENS_MIN_STEP_PX = 4;
 const VIEWPORT_LENS_MAX_STEP_PX = 18;
+const ZOOM_OUT_SPREAD_TARGET_WIDTH = 1.42;
+const ZOOM_OUT_SPREAD_TARGET_HEIGHT = 1.34;
+const ZOOM_OUT_SPREAD_MAX_SCALE = 8;
 const RELATION_RING_CLOSE_ZOOM_START = 1.05;
 const RELATION_RING_CLOSE_ZOOM_END = 2.45;
 const RELATION_RING_COMPACT_ZOOM_START = 0.02;
@@ -62,6 +124,10 @@ const VIEWPORT_CLUSTER_OVERVIEW_TARGET_SCALE = 0.20;
 const RELATION_RING_FIRST_RADIUS_PX = 118;
 const RELATION_RING_GAP_PX = 86;
 const RELATION_RING_MIN_SPACING_PX = 68;
+const VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE = 36000;
+const COLLISION_GRID_MIN_CELL_PX = 72;
+const GROUP_REGION_MAX_DRAWN = 160;
+const SUBGROUP_REGION_MAX_DRAWN = 260;
 
 export class ConstellationEngine {
   private readonly _ctx: CanvasRenderingContext2D;
@@ -75,12 +141,17 @@ export class ConstellationEngine {
   private _providerLinks: RenderLink[] = [];
   private _dependencyLinks: RenderLink[] = [];
   private _componentLinks: RenderLink[] = [];
+  private _aggregateLinks: RenderLink[] = [];
   private _linksByNodeId = new Map<string, RenderLink[]>();
   private _relationChildIdsByParentId = new Map<string, string[]>();
+  private _relationChildIdSetsByParentId = new Map<string, Set<string>>();
   private _relationSlotCache = new Map<string, RelationSlot>();
   private _relationGroupSignatures = new Map<string, string>();
   private _dependencyDegreeByNodeId = new Map<string, number>();
   private _nodeSpatialIndex = new Map<string, RenderNode[]>();
+  private _groupRegions: GroupRegion[] = [];
+  private _subgroupRegions: GroupRegion[] = [];
+  private _graphBounds: GraphBounds | null = null;
   private _graphStats: ConstellationGraphStats | null = null;
   private _linkAnimStates = new Map<string, LinkAnimState>();
 
@@ -92,11 +163,18 @@ export class ConstellationEngine {
   private _focusedNodeIds = new Set<string>();
   private _currentFocusLevel = 0;
   private _displayPositions = new Map<string, DisplayPosition>();
+  private _zoomOutSpreadScale = 1;
   private _viewportLensAnimating = false;
   private _lastFrameAt = 0;
   private _physicsTickPending = false;
   private _lastPhysicsTickAt = 0;
   private _renderDirty = true;
+  private _performanceFrameIndex = 0;
+  private _renderDataVersion = 0;
+  private _displayPositionVersion = 0;
+  private _renderableNodesCache: RenderableNodesCache | null = null;
+  private _visibleLinkCandidatesCache: VisibleLinkCandidatesCache | null = null;
+  private _lastRenderableNodesKey = '';
 
 
   private _unusedPattern: CanvasPattern | null = null;
@@ -111,7 +189,8 @@ export class ConstellationEngine {
   constructor(
     private readonly _canvas: HTMLCanvasElement,
     private readonly _zone: NgZone,
-    private readonly _onTickPositionsUpdate: (positions: { id: string, x: number, y: number }[]) => void
+    private readonly _onTickPositionsUpdate: (positions: { id: string, x: number, y: number }[]) => void,
+    private readonly _onPerformanceSample?: (sample: ConstellationEnginePerformanceSample) => void
   ) {
     this._ctx = this._canvas.getContext('2d', {alpha: false}) as CanvasRenderingContext2D;
     this._initWorker();
@@ -170,6 +249,7 @@ export class ConstellationEngine {
     this._renderNodes = renderNodes;
     this._renderLinks = renderLinks;
     this._graphStats = stats ?? null;
+    this._renderDataVersion++;
     for (const id of this._displayPositions.keys()) {
       if (!renderNodes.has(id)) this._displayPositions.delete(id);
     }
@@ -177,16 +257,21 @@ export class ConstellationEngine {
     this._relationGroupSignatures.clear();
     this._rebuildLinkIndexes(renderLinks);
     this._rebuildNodeSpatialIndex();
+    this._rebuildGroupRegions();
+    this._rebuildGraphBounds();
+    this._zoomOutSpreadScale = 1;
     if (this.hoveredNode) this.hoveredNode = this._renderNodes.get(this.hoveredNode.id) ?? null;
     if (this.pinnedNode) this.pinnedNode = this._renderNodes.get(this.pinnedNode.id) ?? null;
     this._updateFocusSet(this._getActiveFocusNode());
     this._physicsTickPending = false;
     this._renderDirty = true;
+    this._invalidateFrameCaches();
 
     if (renderLinks.length > this._getAnimatedLinkLimit()) {
       this._linkAnimStates.clear();
     } else {
-      const currentLinkIds = new Set(renderLinks.map(l => l.uniqueId));
+      const currentLinkIds = new Set<string>();
+      for (const link of renderLinks) currentLinkIds.add(link.uniqueId);
       for (const id of this._linkAnimStates.keys()) {
         if (!currentLinkIds.has(id)) this._linkAnimStates.delete(id);
       }
@@ -208,6 +293,9 @@ export class ConstellationEngine {
         node.y = pos.y;
       }
     }
+    this._rebuildGraphBounds();
+    this._renderDataVersion++;
+    this._invalidateFrameCaches();
     this._renderDirty = true;
   }
 
@@ -242,6 +330,12 @@ export class ConstellationEngine {
 
   requestRender() {
     this._renderDirty = true;
+  }
+
+  private _invalidateFrameCaches(): void {
+    this._renderableNodesCache = null;
+    this._visibleLinkCandidatesCache = null;
+    this._lastRenderableNodesKey = '';
   }
 
   resetEntropy() {
@@ -343,14 +437,17 @@ export class ConstellationEngine {
     this._providerLinks = [];
     this._dependencyLinks = [];
     this._componentLinks = [];
+    this._aggregateLinks = [];
     this._linksByNodeId = new Map<string, RenderLink[]>();
     this._relationChildIdsByParentId = new Map<string, string[]>();
+    this._relationChildIdSetsByParentId = new Map<string, Set<string>>();
     this._dependencyDegreeByNodeId = new Map<string, number>();
 
     for (const link of renderLinks) {
       if (link.type === 'provider') this._providerLinks.push(link);
       else if (link.type === 'dependency') this._dependencyLinks.push(link);
-      else this._componentLinks.push(link);
+      else if (link.type === 'component-child') this._componentLinks.push(link);
+      else this._aggregateLinks.push(link);
 
       this._addIndexedLink(link.sourceId, link);
       this._addIndexedLink(link.targetId, link);
@@ -375,13 +472,20 @@ export class ConstellationEngine {
   }
 
   private _addRelationChild(parentId: string, childId: string): void {
-    const children = this._relationChildIdsByParentId.get(parentId);
-    if (children) {
-      if (!children.includes(childId)) children.push(childId);
-      return;
+    let childSet = this._relationChildIdSetsByParentId.get(parentId);
+    let children = this._relationChildIdsByParentId.get(parentId);
+
+    if (!childSet || !children) {
+      childSet = new Set<string>();
+      children = [];
+      this._relationChildIdSetsByParentId.set(parentId, childSet);
+      this._relationChildIdsByParentId.set(parentId, children);
     }
 
-    this._relationChildIdsByParentId.set(parentId, [childId]);
+    if (childSet.has(childId)) return;
+
+    childSet.add(childId);
+    children.push(childId);
   }
 
   private _rebuildNodeSpatialIndex(): void {
@@ -399,12 +503,128 @@ export class ConstellationEngine {
     }
   }
 
+  private _rebuildGraphBounds(): void {
+    if (this._renderNodes.size === 0) {
+      this._graphBounds = null;
+      return;
+    }
+
+    let left = Number.POSITIVE_INFINITY;
+    let right = Number.NEGATIVE_INFINITY;
+    let top = Number.POSITIVE_INFINITY;
+    let bottom = Number.NEGATIVE_INFINITY;
+
+    for (const node of this._renderNodes.values()) {
+      const radius = Math.max(24, node.radius ?? 0);
+      left = Math.min(left, node.x - radius);
+      right = Math.max(right, node.x + radius);
+      top = Math.min(top, node.y - radius);
+      bottom = Math.max(bottom, node.y + radius);
+    }
+
+    const width = Math.max(1, right - left);
+    const height = Math.max(1, bottom - top);
+    this._graphBounds = {
+      left,
+      right,
+      top,
+      bottom,
+      centerX: left + width / 2,
+      centerY: top + height / 2,
+      width,
+      height
+    };
+  }
+
+  private _rebuildGroupRegions(): void {
+    const regionsByKey = new Map<string, GroupRegion>();
+    const subgroupRegionsByKey = new Map<string, GroupRegion>();
+
+    for (const node of this._renderNodes.values()) {
+      const key = node.meta?.groupKey;
+      if (key && key !== 'root') {
+        const centerX = node.meta?.groupCenterX;
+        const centerY = node.meta?.groupCenterY;
+        const radius = node.meta?.groupRadius;
+        if (centerX !== undefined && centerY !== undefined && radius !== undefined) {
+          const existing = regionsByKey.get(key);
+          const importance = this._getNodeImportance(node);
+          const memberCount = Math.max(1, node.meta?.groupMemberCount ?? 1);
+          if (existing) {
+            existing.memberCount = Math.max(existing.memberCount, memberCount);
+            existing.importance = Math.max(existing.importance, importance);
+            existing.radius = Math.max(existing.radius, radius);
+          } else {
+            regionsByKey.set(key, {
+              key,
+              label: node.meta?.groupLabel ?? key,
+              level: 'group',
+              x: centerX,
+              y: centerY,
+              radius,
+              memberCount,
+              colorSeed: node.meta?.groupColorSeed ?? this._stableHash(key),
+              importance
+            });
+          }
+        }
+      }
+
+      const subgroupKey = node.meta?.subgroupKey;
+      if (!subgroupKey || subgroupKey === 'root') continue;
+
+      const subgroupCenterX = node.meta?.subgroupCenterX;
+      const subgroupCenterY = node.meta?.subgroupCenterY;
+      const subgroupRadius = node.meta?.subgroupRadius;
+      if (subgroupCenterX === undefined || subgroupCenterY === undefined || subgroupRadius === undefined) continue;
+
+      const regionKey = `${key ?? 'group'}:${subgroupKey}`;
+      const existingSubgroup = subgroupRegionsByKey.get(regionKey);
+      const importance = this._getNodeImportance(node);
+      const memberCount = Math.max(1, node.meta?.subgroupMemberCount ?? 1);
+      if (existingSubgroup) {
+        existingSubgroup.memberCount = Math.max(existingSubgroup.memberCount, memberCount);
+        existingSubgroup.importance = Math.max(existingSubgroup.importance, importance);
+        existingSubgroup.radius = Math.max(existingSubgroup.radius, subgroupRadius);
+      } else {
+        subgroupRegionsByKey.set(regionKey, {
+          key: regionKey,
+          label: node.meta?.subgroupLabel ?? subgroupKey,
+          level: 'subgroup',
+          x: subgroupCenterX,
+          y: subgroupCenterY,
+          radius: subgroupRadius,
+          memberCount,
+          colorSeed: this._stableHash(regionKey),
+          importance
+        });
+      }
+    }
+
+    this._groupRegions = Array.from(regionsByKey.values())
+      .sort((a, b) => {
+        const radiusDiff = b.radius - a.radius;
+        if (Math.abs(radiusDiff) > 1) return radiusDiff;
+        return b.importance - a.importance;
+      })
+      .slice(0, GROUP_REGION_MAX_DRAWN);
+
+    this._subgroupRegions = Array.from(subgroupRegionsByKey.values())
+      .sort((a, b) => {
+        const radiusDiff = b.radius - a.radius;
+        if (Math.abs(radiusDiff) > 1) return radiusDiff;
+        return b.importance - a.importance;
+      })
+      .slice(0, SUBGROUP_REGION_MAX_DRAWN);
+  }
+
   private _spatialKeyForPoint(x: number, y: number): string {
     return `${Math.floor(x / ATLAS_SPATIAL_CELL_SIZE)}:${Math.floor(y / ATLAS_SPATIAL_CELL_SIZE)}`;
   }
 
   private _getHitTestCandidates(worldX: number, worldY: number): Iterable<RenderNode> {
     if (!this._isStaticLayout()) return this._renderNodes.values();
+    if (this._zoomOutSpreadScale > 1.01) return this._renderNodes.values();
 
     const cellX = Math.floor(worldX / ATLAS_SPATIAL_CELL_SIZE);
     const cellY = Math.floor(worldY / ATLAS_SPATIAL_CELL_SIZE);
@@ -435,11 +655,18 @@ export class ConstellationEngine {
 
   private _getRenderableNodes(bounds: ViewBounds, zoom: number): RenderNode[] {
     if (!this._isStaticLayout()) {
+      this._lastRenderableNodesKey = `force:${this._renderDataVersion}:${this._lastFrameAt}`;
       const nodes: RenderNode[] = [];
       for (const node of this._renderNodes.values()) {
         if (this._isNodeInBounds(node, bounds, zoom)) nodes.push(node);
       }
       return nodes;
+    }
+
+    const cacheKey = this._renderableNodesCacheKey(bounds, zoom);
+    this._lastRenderableNodesKey = cacheKey;
+    if (this._renderableNodesCache?.key === cacheKey) {
+      return this._renderableNodesCache.nodes;
     }
 
     const minCellX = Math.floor(bounds.left / ATLAS_SPATIAL_CELL_SIZE);
@@ -450,7 +677,7 @@ export class ConstellationEngine {
     const collectLimit = zoom < 0.72 ? ATLAS_MAX_DRAWN_NODES * 2 : ATLAS_MAX_DRAWN_NODES;
     const cellCount = (maxCellX - minCellX + 1) * (maxCellY - minCellY + 1);
     if (cellCount > ATLAS_MAX_SPATIAL_CELLS_PER_FRAME) {
-      return this._scanRenderableNodes(bounds, zoom, collectLimit);
+      return this._cacheRenderableNodes(cacheKey, this._scanRenderableNodes(bounds, zoom, collectLimit));
     }
 
     for (let x = minCellX; x <= maxCellX; x++) {
@@ -462,12 +689,31 @@ export class ConstellationEngine {
           if (!this._isNodeInBounds(node, bounds, zoom)) continue;
           if (!this._passesAtlasNodeLod(node, zoom)) continue;
           nodes.push(node);
-          if (nodes.length >= collectLimit) return this._finalizeRenderableNodes(nodes, bounds, zoom);
+          if (nodes.length >= collectLimit) {
+            return this._cacheRenderableNodes(cacheKey, this._finalizeRenderableNodes(nodes, bounds, zoom));
+          }
         }
       }
     }
 
-    return this._finalizeRenderableNodes(nodes, bounds, zoom);
+    return this._cacheRenderableNodes(cacheKey, this._finalizeRenderableNodes(nodes, bounds, zoom));
+  }
+
+  private _renderableNodesCacheKey(bounds: ViewBounds, zoom: number): string {
+    return [
+      this._renderDataVersion,
+      this._displayPositionVersion,
+      zoom.toFixed(4),
+      Math.round(bounds.left),
+      Math.round(bounds.right),
+      Math.round(bounds.top),
+      Math.round(bounds.bottom)
+    ].join(':');
+  }
+
+  private _cacheRenderableNodes(key: string, nodes: RenderNode[]): RenderNode[] {
+    this._renderableNodesCache = {key, nodes};
+    return nodes;
   }
 
   private _scanRenderableNodes(bounds: ViewBounds, zoom: number, collectLimit: number): RenderNode[] {
@@ -498,9 +744,9 @@ export class ConstellationEngine {
       }
     }
 
-    if (zoom < 0.72) {
+    if (zoom < 0.72 && nodes.length > ATLAS_MAX_DRAWN_NODES) {
       nodes.sort((a, b) => this._getNodeImportance(a) - this._getNodeImportance(b));
-      if (nodes.length > ATLAS_MAX_DRAWN_NODES) return nodes.slice(nodes.length - ATLAS_MAX_DRAWN_NODES);
+      return nodes.slice(nodes.length - ATLAS_MAX_DRAWN_NODES);
     }
 
     return nodes;
@@ -667,45 +913,93 @@ export class ConstellationEngine {
     if (Math.abs(this._currentFocusLevel - targetFocusLevel) < 0.002) this._currentFocusLevel = targetFocusLevel;
     const isFocusActive = this._currentFocusLevel > 0.01;
     const renderableNodes = this._getRenderableNodes(bounds, zoom);
-    this._prepareViewportLens(renderableNodes, zoom, frameDelta);
+    const visibleLinkCandidates = this._isHugeGraph()
+      ? this._collectVisibleLinkCandidates(renderableNodes)
+      : null;
+    this._prepareViewportLens(renderableNodes, zoom, frameDelta, visibleLinkCandidates);
 
     _ctx.lineCap = 'round';
-    this._drawLinksForFrame(_ctx, zoom, isFocusActive, time, bounds, activeFocusNode);
+    this._drawGroupRegions(_ctx, zoom, bounds);
+    this._drawLinksForFrame(_ctx, zoom, isFocusActive, time, bounds, activeFocusNode, renderableNodes, visibleLinkCandidates);
     this._drawDependencyDensity(_ctx, zoom, bounds, isFocusActive, renderableNodes);
 
     for (const node of renderableNodes) {
       this._drawNode(_ctx, node, zoom, isFocusActive, time);
     }
+
+    this._recordFramePerformance(time, frameDelta, zoom, renderableNodes.length);
   }
 
-  private _prepareViewportLens(renderableNodes: RenderNode[], zoom: number, frameDelta: number): void {
-    const targets = this._buildRelationalLensTargets(renderableNodes, zoom);
-    const activeIds = new Set<string>();
+  private _recordFramePerformance(
+    startedAt: number,
+    frameDeltaMs: number,
+    zoom: number,
+    renderableNodes: number
+  ): void {
+    if (!this._onPerformanceSample) return;
+
+    const durationMs = performance.now() - startedAt;
+    this._performanceFrameIndex++;
+    if (durationMs < 18 && this._performanceFrameIndex % 30 !== 0) return;
+
+    this._onPerformanceSample({
+      durationMs,
+      frameDeltaMs,
+      renderableNodes,
+      totalNodes: this._renderNodes.size,
+      totalLinks: this._renderLinks.length,
+      zoom,
+      layoutMode: this._graphStats?.layoutMode ?? 'unknown',
+      lensAnimating: this._viewportLensAnimating
+    });
+  }
+
+  private _prepareViewportLens(
+    renderableNodes: RenderNode[],
+    zoom: number,
+    frameDelta: number,
+    visibleLinkCandidates: VisibleLinkCandidates | null
+  ): void {
+    void renderableNodes;
+    void visibleLinkCandidates;
+
+    if (this._displayPositions.size > 0) {
+      this._displayPositions.clear();
+      this._displayPositionVersion++;
+      this._invalidateFrameCaches();
+    }
+
+    const targetScale = this._targetZoomOutSpreadScale(zoom);
     const ease = this._easedFrameStep(frameDelta, VIEWPORT_LENS_TRANSITION_MS);
+    const previousScale = this._zoomOutSpreadScale;
+    this._zoomOutSpreadScale = this._lerp(previousScale, targetScale, ease);
 
-    let maxScreenDelta = 0;
-    for (const node of renderableNodes) {
-      activeIds.add(node.id);
-      const target = targets.get(node.id) ?? node;
-      const current = this._displayPositions.get(node.id) ?? {x: node.x, y: node.y};
-      const next = this._advanceDisplayPosition(current, target, ease, zoom, frameDelta);
-      const screenDelta = Math.hypot(target.x - next.x, target.y - next.y) * zoom;
-
-      if (screenDelta > maxScreenDelta) maxScreenDelta = screenDelta;
-      if (targets.has(node.id) || screenDelta > 0.2) {
-        this._displayPositions.set(node.id, next);
-      } else {
-        this._displayPositions.delete(node.id);
-      }
+    if (Math.abs(this._zoomOutSpreadScale - targetScale) < 0.002) {
+      this._zoomOutSpreadScale = targetScale;
     }
 
-    if (this._displayPositions.size > renderableNodes.length * 2 + 200) {
-      for (const id of this._displayPositions.keys()) {
-        if (!activeIds.has(id)) this._displayPositions.delete(id);
-      }
+    this._viewportLensAnimating = Math.abs(this._zoomOutSpreadScale - targetScale) > 0.002;
+    if (Math.abs(this._zoomOutSpreadScale - previousScale) > 0.001) {
+      this._displayPositionVersion++;
+      this._renderDirty = true;
     }
+  }
 
-    this._viewportLensAnimating = maxScreenDelta > 0.35;
+  private _targetZoomOutSpreadScale(zoom: number): number {
+    const bounds = this._graphBounds;
+    if (!bounds || this._width <= 0 || this._height <= 0) return 1;
+
+    const safeZoom = Math.max(zoom, 0.0005);
+    const screenWidth = bounds.width * safeZoom;
+    const screenHeight = bounds.height * safeZoom;
+    if (screenWidth <= 0 || screenHeight <= 0) return 1;
+
+    const widthScale = (this._width * ZOOM_OUT_SPREAD_TARGET_WIDTH) / screenWidth;
+    const heightScale = (this._height * ZOOM_OUT_SPREAD_TARGET_HEIGHT) / screenHeight;
+    const targetScale = Math.min(widthScale, heightScale);
+
+    if (targetScale <= 1.02) return 1;
+    return Math.min(ZOOM_OUT_SPREAD_MAX_SCALE, targetScale);
   }
 
   private _advanceDisplayPosition(
@@ -743,7 +1037,11 @@ export class ConstellationEngine {
     );
   }
 
-  private _buildRelationalLensTargets(renderableNodes: RenderNode[], zoom: number): Map<string, DisplayPosition> {
+  private _buildRelationalLensTargets(
+    renderableNodes: RenderNode[],
+    zoom: number,
+    visibleLinkCandidates: VisibleLinkCandidates | null
+  ): Map<string, DisplayPosition> {
     const targets = new Map<string, DisplayPosition>();
     if (!this._isStaticLayout()) return targets;
     if (zoom < VIEWPORT_LENS_MIN_ZOOM) return targets;
@@ -759,8 +1057,10 @@ export class ConstellationEngine {
 
     const groupedChildren = new Map<string, RenderNode[]>();
     const assignedChildren = new Set<string>();
-    this._collectRelationLensGroups(this._providerLinks, visibleNodes, groupedChildren, assignedChildren);
-    this._collectRelationLensGroups(this._componentLinks, visibleNodes, groupedChildren, assignedChildren);
+    const providerLinks = visibleLinkCandidates?.providerLinks ?? this._providerLinks;
+    const componentLinks = visibleLinkCandidates?.componentLinks ?? this._componentLinks;
+    this._collectRelationLensGroups(providerLinks, visibleNodes, groupedChildren, assignedChildren);
+    this._collectRelationLensGroups(componentLinks, visibleNodes, groupedChildren, assignedChildren);
 
     this._applyViewportParentPacking(visibleNodes, targets, zoom);
 
@@ -1328,58 +1628,47 @@ export class ConstellationEngine {
     if (targets.size === 0 || renderableNodes.length > VIEWPORT_LENS_MAX_NODES) return targets;
 
     const movableIds = new Set(targets.keys());
-    const nodes = renderableNodes.map(node => {
+    let maxRadius = COLLISION_GRID_MIN_CELL_PX * 0.5;
+    const nodes: CollisionNode[] = renderableNodes.map(node => {
       const target = targets.get(node.id) ?? node;
+      const radius = this._nodeCollisionRadiusPx(node, zoom);
+      maxRadius = Math.max(maxRadius, radius);
       return {
         node,
         movable: movableIds.has(node.id),
-        radius: this._nodeCollisionRadiusPx(node, zoom),
+        radius,
         x: target.x * zoom,
         y: target.y * zoom
       };
     });
+    const collisionGap = this._collisionGapPx(zoom);
+    const cellSize = Math.max(COLLISION_GRID_MIN_CELL_PX, Math.ceil((maxRadius * 2 + collisionGap) * 1.08));
+    const iterations = nodes.length > 520 ? 5 : nodes.length > 320 ? 6 : 8;
 
-    for (let iteration = 0; iteration < 8; iteration++) {
+    for (let iteration = 0; iteration < iterations; iteration++) {
       let hadOverlap = false;
-      for (let i = 0; i < nodes.length; i++) {
-        const a = nodes[i];
-        for (let j = i + 1; j < nodes.length; j++) {
-          const b = nodes[j];
-          if (!a.movable && !b.movable) continue;
+      const grid = this._buildCollisionGrid(nodes, cellSize);
 
-          let dx = b.x - a.x;
-          let dy = b.y - a.y;
-          let dist = Math.hypot(dx, dy);
-          const minDistance = a.radius + b.radius + this._collisionGapPx(zoom);
-          if (dist >= minDistance) continue;
+      for (let index = 0; index < nodes.length; index++) {
+        const a = nodes[index];
+        const cellX = Math.floor(a.x / cellSize);
+        const cellY = Math.floor(a.y / cellSize);
 
-          if (dist < 0.001) {
-            const hash = this._stableHash(`${a.node.id}:${b.node.id}`);
-            const angle = (hash % 6283) / 1000;
-            dx = Math.cos(angle);
-            dy = Math.sin(angle);
-            dist = 1;
-          }
+        for (let x = cellX - 1; x <= cellX + 1; x++) {
+          for (let y = cellY - 1; y <= cellY + 1; y++) {
+            const bucket = grid.get(`${x}:${y}`);
+            if (!bucket) continue;
 
-          const overlap = (minDistance - dist) * 0.56;
-          const ux = dx / dist;
-          const uy = dy / dist;
-          hadOverlap = true;
-
-          if (a.movable && b.movable) {
-            a.x -= ux * overlap * 0.5;
-            a.y -= uy * overlap * 0.5;
-            b.x += ux * overlap * 0.5;
-            b.y += uy * overlap * 0.5;
-          } else if (a.movable) {
-            a.x -= ux * overlap;
-            a.y -= uy * overlap;
-          } else {
-            b.x += ux * overlap;
-            b.y += uy * overlap;
+            for (const otherIndex of bucket) {
+              if (otherIndex <= index) continue;
+              if (this._resolveCollisionPair(a, nodes[otherIndex], collisionGap)) {
+                hadOverlap = true;
+              }
+            }
           }
         }
       }
+
       if (!hadOverlap) break;
     }
 
@@ -1393,6 +1682,60 @@ export class ConstellationEngine {
     }
 
     return resolvedTargets;
+  }
+
+  private _buildCollisionGrid(nodes: CollisionNode[], cellSize: number): Map<string, number[]> {
+    const grid = new Map<string, number[]>();
+
+    for (let index = 0; index < nodes.length; index++) {
+      const node = nodes[index];
+      const key = `${Math.floor(node.x / cellSize)}:${Math.floor(node.y / cellSize)}`;
+      const bucket = grid.get(key);
+      if (bucket) {
+        bucket.push(index);
+      } else {
+        grid.set(key, [index]);
+      }
+    }
+
+    return grid;
+  }
+
+  private _resolveCollisionPair(a: CollisionNode, b: CollisionNode, collisionGap: number): boolean {
+    if (!a.movable && !b.movable) return false;
+
+    let dx = b.x - a.x;
+    let dy = b.y - a.y;
+    let dist = Math.hypot(dx, dy);
+    const minDistance = a.radius + b.radius + collisionGap;
+    if (dist >= minDistance) return false;
+
+    if (dist < 0.001) {
+      const hash = this._stableHash(`${a.node.id}:${b.node.id}`);
+      const angle = (hash % 6283) / 1000;
+      dx = Math.cos(angle);
+      dy = Math.sin(angle);
+      dist = 1;
+    }
+
+    const overlap = (minDistance - dist) * 0.56;
+    const ux = dx / dist;
+    const uy = dy / dist;
+
+    if (a.movable && b.movable) {
+      a.x -= ux * overlap * 0.5;
+      a.y -= uy * overlap * 0.5;
+      b.x += ux * overlap * 0.5;
+      b.y += uy * overlap * 0.5;
+    } else if (a.movable) {
+      a.x -= ux * overlap;
+      a.y -= uy * overlap;
+    } else {
+      b.x += ux * overlap;
+      b.y += uy * overlap;
+    }
+
+    return true;
   }
 
   private _nodeFootprintRadiusPx(node: RenderNode, zoom: number): number {
@@ -1445,7 +1788,24 @@ export class ConstellationEngine {
   }
 
   private _getDisplayPosition(node: RenderNode): DisplayPosition {
-    return this._displayPositions.get(node.id) ?? node;
+    const position = this._displayPositions.get(node.id) ?? node;
+    if (!this._graphBounds || this._zoomOutSpreadScale <= 1.001) return position;
+    return this._applyZoomOutSpread(position.x, position.y);
+  }
+
+  private _applyZoomOutSpread(x: number, y: number): DisplayPosition {
+    const bounds = this._graphBounds;
+    const scale = this._zoomOutSpreadScale;
+    if (!bounds || scale <= 1.001) return {x, y};
+
+    return {
+      x: bounds.centerX + (x - bounds.centerX) * scale,
+      y: bounds.centerY + (y - bounds.centerY) * scale
+    };
+  }
+
+  private _scaleZoomOutDistance(value: number): number {
+    return value * (this._zoomOutSpreadScale > 1.001 ? this._zoomOutSpreadScale : 1);
   }
 
   private _worldToScreen(position: DisplayPosition): DisplayPosition {
@@ -1500,25 +1860,33 @@ export class ConstellationEngine {
     isFocusActive: boolean,
     time: number,
     bounds: ViewBounds,
-    activeFocusNode: RenderNode | null
+    activeFocusNode: RenderNode | null,
+    renderableNodes: RenderNode[],
+    visibleLinkCandidates: VisibleLinkCandidates | null
   ) {
     if (!this._isHugeGraph()) {
       this._drawLinkBatch(_ctx, this._renderLinks, zoom, isFocusActive, time, bounds, Number.POSITIVE_INFINITY);
       return;
     }
 
+    const visibleLinks = visibleLinkCandidates ?? this._collectVisibleLinkCandidates(renderableNodes);
+
     if (this.linkRenderMode === 'all') {
-      this._drawLinkBatch(_ctx, this._componentLinks, zoom, isFocusActive, time, bounds, zoom > 1.1 ? 10000 : 3500);
-      this._drawLinkBatch(_ctx, this._providerLinks, zoom, isFocusActive, time, bounds, zoom > 1.1 ? 12000 : 4500);
-      this._drawLinkBatch(_ctx, this._dependencyLinks, zoom, isFocusActive, time, bounds, zoom > 1.8 ? 14000 : 6000);
+      if (zoom < 2.2) this._drawLinkBatch(_ctx, visibleLinks.aggregateLinks, zoom, isFocusActive, time, bounds, zoom > 1.1 ? 7000 : 3600);
+      this._drawLinkBatch(_ctx, visibleLinks.componentLinks, zoom, isFocusActive, time, bounds, zoom > 1.1 ? 10000 : 3500);
+      this._drawLinkBatch(_ctx, visibleLinks.providerLinks, zoom, isFocusActive, time, bounds, zoom > 1.1 ? 12000 : 4500);
+      this._drawLinkBatch(_ctx, visibleLinks.dependencyLinks, zoom, isFocusActive, time, bounds, zoom > 1.8 ? 14000 : 6000);
       return;
     }
 
     const structuralCap = zoom > 1.1 ? 7000 : 2600;
-    this._drawLinkBatch(_ctx, this._componentLinks, zoom, isFocusActive, time, bounds, structuralCap);
+    if (zoom < 2.1) {
+      this._drawLinkBatch(_ctx, visibleLinks.aggregateLinks, zoom, isFocusActive, time, bounds, zoom > 0.9 ? 5200 : 2800);
+    }
+    this._drawLinkBatch(_ctx, visibleLinks.componentLinks, zoom, isFocusActive, time, bounds, structuralCap);
 
     if (this.linkRenderMode !== 'focused' && zoom > 0.45) {
-      this._drawLinkBatch(_ctx, this._providerLinks, zoom, isFocusActive, time, bounds, zoom > 1.2 ? 6500 : 1800);
+      this._drawLinkBatch(_ctx, visibleLinks.providerLinks, zoom, isFocusActive, time, bounds, zoom > 1.2 ? 6500 : 1800);
     }
 
     if (activeFocusNode) {
@@ -1528,8 +1896,69 @@ export class ConstellationEngine {
     }
 
     if (this.linkRenderMode === 'adaptive' && zoom > 2.2) {
-      this._drawLinkBatch(_ctx, this._dependencyLinks, zoom, isFocusActive, time, bounds, this._getAdaptiveDependencyLinkCap(zoom));
+      this._drawLinkBatch(_ctx, visibleLinks.dependencyLinks, zoom, isFocusActive, time, bounds, this._getAdaptiveDependencyLinkCap(zoom));
     }
+  }
+
+  private _collectVisibleLinkCandidates(renderableNodes: RenderNode[]): VisibleLinkCandidates {
+    const cacheKey = `${this._renderDataVersion}:${this._lastRenderableNodesKey}:${renderableNodes.length}`;
+    if (this._visibleLinkCandidatesCache?.key === cacheKey) {
+      return this._visibleLinkCandidatesCache.candidates;
+    }
+
+    const providerLinks: RenderLink[] = [];
+    const dependencyLinks: RenderLink[] = [];
+    const componentLinks: RenderLink[] = [];
+    const aggregateLinks: RenderLink[] = [];
+    const visibleIds = new Set<string>();
+    const seenLinkIds = new Set<string>();
+
+    for (const node of renderableNodes) {
+      visibleIds.add(node.id);
+    }
+
+    for (const node of renderableNodes) {
+      const links = this._linksByNodeId.get(node.id);
+      if (!links) continue;
+
+      for (const link of links) {
+        if (seenLinkIds.has(link.uniqueId)) continue;
+        if (!visibleIds.has(link.sourceId) || !visibleIds.has(link.targetId)) continue;
+
+        seenLinkIds.add(link.uniqueId);
+
+        if (link.type === 'provider') {
+          if (providerLinks.length < VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE) providerLinks.push(link);
+        } else if (link.type === 'dependency') {
+          if (dependencyLinks.length < VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE) dependencyLinks.push(link);
+        } else if (link.type === 'component-child') {
+          if (componentLinks.length < VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE) componentLinks.push(link);
+        } else if (aggregateLinks.length < VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE) {
+          aggregateLinks.push(link);
+        }
+
+        if (
+          providerLinks.length >= VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE
+          && dependencyLinks.length >= VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE
+          && componentLinks.length >= VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE
+          && aggregateLinks.length >= VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE
+        ) {
+          return this._cacheVisibleLinkCandidates(cacheKey, {
+            providerLinks,
+            dependencyLinks,
+            componentLinks,
+            aggregateLinks
+          });
+        }
+      }
+    }
+
+    return this._cacheVisibleLinkCandidates(cacheKey, {providerLinks, dependencyLinks, componentLinks, aggregateLinks});
+  }
+
+  private _cacheVisibleLinkCandidates(key: string, candidates: VisibleLinkCandidates): VisibleLinkCandidates {
+    this._visibleLinkCandidatesCache = {key, candidates};
+    return candidates;
   }
 
   private _drawLinkBatch(
@@ -1558,6 +1987,159 @@ export class ConstellationEngine {
     if (zoom > 3.5) return 6000;
     if (zoom > 2.8) return 4200;
     return 2400;
+  }
+
+  private _drawGroupRegions(
+    _ctx: CanvasRenderingContext2D,
+    zoom: number,
+    bounds: ViewBounds
+  ): void {
+    if (!this._isStaticLayout()) return;
+
+    const groupVisibility = this._groupRegionVisibility(zoom);
+    const subgroupVisibility = this._subgroupRegionVisibility(zoom);
+    if (groupVisibility <= 0 && subgroupVisibility <= 0) return;
+
+    _ctx.save();
+    _ctx.setLineDash([]);
+    _ctx.lineJoin = 'round';
+
+    if (groupVisibility > 0) {
+      this._drawRegionCollection(_ctx, this._groupRegions, zoom, bounds, groupVisibility, GROUP_REGION_MAX_DRAWN);
+    }
+    if (subgroupVisibility > 0) {
+      this._drawRegionCollection(_ctx, this._subgroupRegions, zoom, bounds, subgroupVisibility, SUBGROUP_REGION_MAX_DRAWN);
+    }
+
+    _ctx.restore();
+  }
+
+  private _drawRegionCollection(
+    _ctx: CanvasRenderingContext2D,
+    regions: GroupRegion[],
+    zoom: number,
+    bounds: ViewBounds,
+    visibility: number,
+    limit: number
+  ): void {
+    let drawn = 0;
+    for (let index = regions.length - 1; index >= 0; index--) {
+      const region = regions[index];
+      if (!this._isGroupRegionInBounds(region, bounds)) continue;
+      if (drawn++ >= limit) break;
+
+      const hue = this._groupRegionHue(region.colorSeed);
+      const isSubgroup = region.level === 'subgroup';
+      const radius = region.radius * this._lerp(isSubgroup ? 0.90 : 0.82, isSubgroup ? 1.02 : 1.10, visibility);
+      const fillAlpha = Math.min(
+        isSubgroup ? 0.075 : 0.16,
+        ((isSubgroup ? 0.016 : 0.035) + Math.log2(region.memberCount + 1) * (isSubgroup ? 0.006 : 0.012)) * visibility
+      );
+      const strokeAlpha = Math.min(
+        isSubgroup ? 0.24 : 0.42,
+        ((isSubgroup ? 0.06 : 0.12) + region.importance * (isSubgroup ? 0.08 : 0.14)) * visibility
+      );
+
+      this._drawOrganicGroupBlob(_ctx, region, radius, hue, fillAlpha, strokeAlpha);
+
+      if (!isSubgroup && zoom < 0.36 && (region.importance >= 0.58 || region.memberCount >= 14)) {
+        this._drawGroupRegionLabel(_ctx, region, zoom, hue, visibility);
+      }
+    }
+  }
+
+  private _drawOrganicGroupBlob(
+    _ctx: CanvasRenderingContext2D,
+    region: GroupRegion,
+    radius: number,
+    hue: number,
+    fillAlpha: number,
+    strokeAlpha: number
+  ): void {
+    const points = region.level === 'subgroup' ? 18 : 28;
+    const seedA = (region.colorSeed % 6283) / 1000;
+    const seedB = ((region.colorSeed >>> 8) % 6283) / 1000;
+    const xScale = (region.level === 'subgroup' ? 0.96 : 1.04) + ((region.colorSeed % 17) - 8) * 0.008;
+    const yScale = (region.level === 'subgroup' ? 0.86 : 0.78) + (((region.colorSeed >>> 5) % 21) - 10) * 0.009;
+    const center = this._applyZoomOutSpread(region.x, region.y);
+    const spreadRadius = this._scaleZoomOutDistance(radius);
+
+    _ctx.beginPath();
+    for (let index = 0; index <= points; index++) {
+      const angle = index * (Math.PI * 2 / points);
+      const organic = 1
+        + Math.sin(angle * 3 + seedA) * 0.075
+        + Math.cos(angle * 5 + seedB) * 0.045;
+      const x = center.x + Math.cos(angle) * spreadRadius * xScale * organic;
+      const y = center.y + Math.sin(angle) * spreadRadius * yScale * organic;
+      if (index === 0) _ctx.moveTo(x, y);
+      else _ctx.lineTo(x, y);
+    }
+    _ctx.closePath();
+    _ctx.fillStyle = `hsla(${hue}, 86%, 45%, ${fillAlpha})`;
+    _ctx.fill();
+    _ctx.strokeStyle = `hsla(${hue}, 95%, 62%, ${strokeAlpha})`;
+    _ctx.lineWidth = Math.max(1, 1.35 / Math.max(this._viewTransform.k, 0.0005));
+    _ctx.stroke();
+
+    _ctx.globalAlpha = Math.min(0.20, strokeAlpha * 0.52);
+    _ctx.beginPath();
+    _ctx.ellipse(center.x, center.y, spreadRadius * xScale * 0.58, spreadRadius * yScale * 0.45, seedA * 0.12, 0, Math.PI * 2);
+    _ctx.strokeStyle = `hsla(${hue}, 95%, 68%, 1)`;
+    _ctx.lineWidth = Math.max(0.8, 0.9 / Math.max(this._viewTransform.k, 0.0005));
+    _ctx.stroke();
+    _ctx.globalAlpha = 1;
+  }
+
+  private _drawGroupRegionLabel(
+    _ctx: CanvasRenderingContext2D,
+    region: GroupRegion,
+    zoom: number,
+    hue: number,
+    visibility: number
+  ): void {
+    const previousAlpha = _ctx.globalAlpha;
+    const safeZoom = Math.max(zoom, 0.0005);
+    const label = region.label.length > 26 ? `${region.label.slice(0, 24)}...` : region.label;
+    const fontSize = Math.max(10, Math.min(16, 10 + region.importance * 5)) / safeZoom;
+    const center = this._applyZoomOutSpread(region.x, region.y);
+
+    _ctx.globalAlpha = Math.min(0.82, visibility * 0.62);
+    _ctx.font = `800 ${fontSize}px JetBrains Mono, monospace`;
+    _ctx.textAlign = 'center';
+    _ctx.textBaseline = 'middle';
+    _ctx.fillStyle = `hsla(${hue}, 95%, 74%, 1)`;
+    _ctx.fillText(label.toUpperCase(), center.x, center.y);
+    _ctx.font = `700 ${Math.max(8, fontSize * safeZoom * 0.72) / safeZoom}px JetBrains Mono, monospace`;
+    _ctx.fillStyle = `hsla(${hue}, 95%, 78%, 0.68)`;
+    _ctx.fillText(`${region.memberCount} nodes`, center.x, center.y + fontSize * 1.05);
+    _ctx.globalAlpha = previousAlpha;
+  }
+
+  private _groupRegionVisibility(zoom: number): number {
+    if (zoom >= 0.92) return 0;
+    if (zoom <= 0.16) return 1;
+    return this._smoothStep(this._clamp01((0.92 - zoom) / 0.76));
+  }
+
+  private _subgroupRegionVisibility(zoom: number): number {
+    if (zoom >= 0.72) return 0;
+    if (zoom <= 0.20) return 0.72;
+    return 0.72 * this._smoothStep(this._clamp01((0.72 - zoom) / 0.52));
+  }
+
+  private _isGroupRegionInBounds(region: GroupRegion, bounds: ViewBounds): boolean {
+    const center = this._applyZoomOutSpread(region.x, region.y);
+    const radius = this._scaleZoomOutDistance(region.radius * 1.22);
+    return center.x + radius >= bounds.left
+      && center.x - radius <= bounds.right
+      && center.y + radius >= bounds.top
+      && center.y - radius <= bounds.bottom;
+  }
+
+  private _groupRegionHue(seed: number): number {
+    const palette = [188, 164, 204, 138, 48, 220, 174, 198];
+    return palette[seed % palette.length];
   }
 
   private _drawDependencyDensity(
@@ -1632,6 +2214,8 @@ export class ConstellationEngine {
         _ctx.strokeStyle = CONSTELLATION_THEME.injector.color;
         _ctx.lineWidth = 0.8 / zoom;
         _ctx.stroke();
+      } else if (link.type === 'aggregate-dependency') {
+        this._drawAggregateDependencyLink(_ctx, source, target, link, zoom, linkOpacity);
       } else {
         const isUnused = target.meta?.isUnused;
         if (isUnused) {
@@ -1666,6 +2250,46 @@ export class ConstellationEngine {
       source.y = sourceOriginal.y;
       target.x = targetOriginal.x;
       target.y = targetOriginal.y;
+    }
+  }
+
+  private _drawAggregateDependencyLink(
+    _ctx: CanvasRenderingContext2D,
+    source: RenderNode,
+    target: RenderNode,
+    link: RenderLink,
+    zoom: number,
+    linkOpacity: number
+  ): void {
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+    const distance = Math.hypot(dx, dy) || 1;
+    const normalX = -dy / distance;
+    const normalY = dx / distance;
+    const hash = this._stableHash(link.uniqueId);
+    const direction = (hash & 1) === 0 ? 1 : -1;
+    const curve = Math.min(220, Math.max(34, distance * 0.12)) * direction;
+    const controlX = (source.x + target.x) / 2 + normalX * curve;
+    const controlY = (source.y + target.y) / 2 + normalY * curve;
+    const weight = Math.max(1, link.weight ?? 1);
+    const intensity = Math.min(1, Math.log2(weight + 1) / 9);
+
+    _ctx.beginPath();
+    _ctx.moveTo(source.x, source.y);
+    _ctx.quadraticCurveTo(controlX, controlY, target.x, target.y);
+    _ctx.strokeStyle = `rgba(20, 184, 166, ${0.12 + intensity * 0.28})`;
+    _ctx.globalAlpha = linkOpacity * (0.46 + intensity * 0.32);
+    _ctx.lineWidth = Math.max(1.1, 1.2 + intensity * 4.4) / Math.max(zoom, 0.0005);
+    _ctx.stroke();
+
+    if (intensity > 0.35) {
+      _ctx.globalAlpha = linkOpacity * 0.14 * intensity;
+      _ctx.beginPath();
+      _ctx.moveTo(source.x, source.y);
+      _ctx.quadraticCurveTo(controlX, controlY, target.x, target.y);
+      _ctx.strokeStyle = '#5eead4';
+      _ctx.lineWidth = Math.max(2.8, 4.8 * intensity) / Math.max(zoom, 0.0005);
+      _ctx.stroke();
     }
   }
 

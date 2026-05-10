@@ -12,7 +12,7 @@ export interface WorkerNode {
 export interface WorkerLink {
   sourceId: string;
   targetId: string;
-  type: 'provider' | 'dependency' | 'component-child';
+  type: 'provider' | 'dependency' | 'component-child' | 'aggregate-dependency';
 }
 
 export interface SimulationData {
