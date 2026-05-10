@@ -1,7 +1,6 @@
 import {ChangeDetectionStrategy, Component, computed, input, output, ViewEncapsulation} from '@angular/core';
 import {OrgChartUtils} from '../org-chart.utils';
 import {GenieTreeNode, GenieServiceRegistration} from '../../../../../../models/genie-node.model';
-import { NgClass } from '@angular/common';
 
 @Component({
   selector: 'lib-org-chart-node',
@@ -18,6 +17,7 @@ export class OrgChartNodeComponent {
   readonly services = input.required<GenieServiceRegistration[]>();
   readonly hiddenServiceCount = input<number>(0);
   readonly expanded = input<boolean>(false);
+  readonly performanceMode = input<boolean>(false);
 
 
   readonly nodeClick = output<GenieTreeNode>();

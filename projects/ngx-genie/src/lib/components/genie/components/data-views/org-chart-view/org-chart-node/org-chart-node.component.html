@@ -3,6 +3,7 @@
     class="genie-card"
     [class.has-children]="hasChildren()"
     [class.is-cluster]="isCluster()"
+    [class.performance-mode]="performanceMode()"
     (click)="nodeClick.emit(node())"
   >
 

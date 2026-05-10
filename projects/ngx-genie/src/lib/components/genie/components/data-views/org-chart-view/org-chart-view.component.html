@@ -1,4 +1,5 @@
 <div class="genie-chart-container"
+     [class.large-graph]="isLargeGraph()"
      (mousedown)="onMouseDown($event)"
      (window:mouseup)="onMouseUp()"
      (mousemove)="onMouseMove($event)"
@@ -31,6 +32,7 @@
       [services]="getVisibleServices(node)"
       [hiddenServiceCount]="getHiddenServiceCount(node)"
       [expanded]="isNodeExpanded()(node.id)"
+      [performanceMode]="isLargeGraph()"
       (nodeClick)="onNodeClick(node)"
       (serviceClick)="selectService()($event)"
       (toggleClick)="onToggleNode(node)"
