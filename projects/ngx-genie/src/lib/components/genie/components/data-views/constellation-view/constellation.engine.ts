@@ -57,8 +57,8 @@ const DETAIL_MIN_SCALE = 0.56;
 const VIEWPORT_CLUSTER_PACKING_MAX_CLUSTERS = 96;
 const VIEWPORT_PARENT_PACKING_MAX_CLUSTERS = 360;
 const VIEWPORT_CLUSTER_PACKING_MIN_SPREAD = 0.26;
-const VIEWPORT_CLUSTER_PACKING_TARGET_SCALE = 0.36;
-const VIEWPORT_CLUSTER_OVERVIEW_TARGET_SCALE = 0.26;
+const VIEWPORT_CLUSTER_PACKING_TARGET_SCALE = 0.30;
+const VIEWPORT_CLUSTER_OVERVIEW_TARGET_SCALE = 0.20;
 const RELATION_RING_FIRST_RADIUS_PX = 118;
 const RELATION_RING_GAP_PX = 86;
 const RELATION_RING_MIN_SPACING_PX = 68;
@@ -978,8 +978,13 @@ export class ConstellationEngine {
     const relationRadius = this._relationRingRadiusPx(ringIndex, parentFootprint, childFootprint)
       * this._relationRingCompactionScale(zoom, childCount);
     const hiddenChildrenRadius = base + Math.min(96, 18 + Math.sqrt(childCount) * 8.5);
+    const footprintRelaxation = this._lerp(0.82, 0.70, overview);
+    const relaxedBase = base * this._lerp(0.84, 0.74, overview);
 
-    return this._lerp(relationRadius, hiddenChildrenRadius, overview * 0.92);
+    return Math.max(
+      relaxedBase,
+      this._lerp(relationRadius, hiddenChildrenRadius, overview * 0.92) * footprintRelaxation
+    );
   }
 
   private _viewportClusterPackingScale(clusters: ViewportCluster[], zoom: number): number {
@@ -1003,9 +1008,9 @@ export class ConstellationEngine {
       (right - left) / Math.max(1, this._width),
       (bottom - top) / Math.max(1, this._height)
     );
-    const sparseFactor = 1 - this._smoothStep(this._clamp01((occupancy - 0.18) / 0.34));
+    const sparseFactor = 1 - this._smoothStep(this._clamp01((occupancy - 0.24) / 0.38));
     const spreadFactor = this._smoothStep(this._clamp01((spread - VIEWPORT_CLUSTER_PACKING_MIN_SPREAD) / 0.52));
-    const countFactor = this._lerp(1, 0.72, this._clamp01((clusters.length - 8) / 56));
+    const countFactor = this._lerp(1, 0.78, this._clamp01((clusters.length - 8) / 56));
     const pull = sparseFactor * spreadFactor * countFactor;
     if (pull <= 0.04) return 1;
 
@@ -1031,8 +1036,8 @@ export class ConstellationEngine {
           continue;
         }
 
-        const safeDistance = a.radius + b.radius + 20;
-        if (distance <= safeDistance * 1.04) continue;
+        const safeDistance = a.radius + b.radius + 8;
+        if (distance <= safeDistance * 1.02) continue;
 
         minScale = Math.max(minScale, safeDistance / distance);
       }
