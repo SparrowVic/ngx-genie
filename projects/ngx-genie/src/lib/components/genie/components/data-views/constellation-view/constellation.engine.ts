@@ -21,6 +21,11 @@ interface DisplayPosition {
   y: number;
 }
 
+interface RelationSlot {
+  angle: number;
+  ringIndex: number;
+}
+
 const ATLAS_SPATIAL_CELL_SIZE = 720;
 const ATLAS_MAX_DRAWN_NODES = 9000;
 const ATLAS_MAX_SPATIAL_CELLS_PER_FRAME = 25000;
@@ -29,8 +34,8 @@ const FOCUS_DIM_NODE_OPACITY = 0.34;
 const FOCUS_DIM_LINK_OPACITY = 0.24;
 const VIEWPORT_LENS_MAX_NODES = 420;
 const VIEWPORT_LENS_MIN_ZOOM = 0.08;
-const VIEWPORT_LENS_MAX_STRENGTH = 0.86;
-const VIEWPORT_LENS_TRANSITION_MS = 280;
+const VIEWPORT_LENS_MAX_STRENGTH = 0.94;
+const VIEWPORT_LENS_TRANSITION_MS = 420;
 const RELATION_RING_FIRST_RADIUS_PX = 118;
 const RELATION_RING_GAP_PX = 86;
 const RELATION_RING_MIN_SPACING_PX = 68;
@@ -48,6 +53,9 @@ export class ConstellationEngine {
   private _dependencyLinks: RenderLink[] = [];
   private _componentLinks: RenderLink[] = [];
   private _linksByNodeId = new Map<string, RenderLink[]>();
+  private _relationChildIdsByParentId = new Map<string, string[]>();
+  private _relationSlotCache = new Map<string, RelationSlot>();
+  private _relationGroupSignatures = new Map<string, string>();
   private _dependencyDegreeByNodeId = new Map<string, number>();
   private _nodeSpatialIndex = new Map<string, RenderNode[]>();
   private _graphStats: ConstellationGraphStats | null = null;
@@ -142,6 +150,8 @@ export class ConstellationEngine {
     for (const id of this._displayPositions.keys()) {
       if (!renderNodes.has(id)) this._displayPositions.delete(id);
     }
+    this._relationSlotCache.clear();
+    this._relationGroupSignatures.clear();
     this._rebuildLinkIndexes(renderLinks);
     this._rebuildNodeSpatialIndex();
     if (this.hoveredNode) this.hoveredNode = this._renderNodes.get(this.hoveredNode.id) ?? null;
@@ -311,6 +321,7 @@ export class ConstellationEngine {
     this._dependencyLinks = [];
     this._componentLinks = [];
     this._linksByNodeId = new Map<string, RenderLink[]>();
+    this._relationChildIdsByParentId = new Map<string, string[]>();
     this._dependencyDegreeByNodeId = new Map<string, number>();
 
     for (const link of renderLinks) {
@@ -320,6 +331,9 @@ export class ConstellationEngine {
 
       this._addIndexedLink(link.sourceId, link);
       this._addIndexedLink(link.targetId, link);
+      if (link.type === 'provider' || link.type === 'component-child') {
+        this._addRelationChild(link.sourceId, link.targetId);
+      }
 
       if (link.type === 'dependency') {
         this._dependencyDegreeByNodeId.set(link.sourceId, (this._dependencyDegreeByNodeId.get(link.sourceId) ?? 0) + 1);
@@ -335,6 +349,16 @@ export class ConstellationEngine {
     } else {
       this._linksByNodeId.set(nodeId, [link]);
     }
+  }
+
+  private _addRelationChild(parentId: string, childId: string): void {
+    const children = this._relationChildIdsByParentId.get(parentId);
+    if (children) {
+      if (!children.includes(childId)) children.push(childId);
+      return;
+    }
+
+    this._relationChildIdsByParentId.set(parentId, [childId]);
   }
 
   private _rebuildNodeSpatialIndex(): void {
@@ -542,11 +566,7 @@ export class ConstellationEngine {
   }
 
   private _shouldRenderLabels(zoom: number, minZoom: number): boolean {
-    const count = this._renderNodes.size;
-    if (this._isHugeGraph()) return zoom > minZoom + 1.45;
-    if (count > 3000) return zoom > minZoom + 1.1;
-    if (count > 1000) return zoom > minZoom + 0.55;
-    return zoom > minZoom;
+    return zoom > this._labelRenderThreshold(minZoom);
   }
 
   private _shouldRenderOverviewLabel(node: RenderNode, zoom: number): boolean {
@@ -722,45 +742,117 @@ export class ConstellationEngine {
     zoom: number,
     targets: Map<string, DisplayPosition>
   ): void {
-    const orderedChildren = [...children].sort((a, b) => {
-      const angleA = Math.atan2(a.y - parent.y, a.x - parent.x);
-      const angleB = Math.atan2(b.y - parent.y, b.x - parent.x);
-      if (Math.abs(angleA - angleB) > 0.0001) return angleA - angleB;
-      return a.id.localeCompare(b.id);
-    });
-    const strength = this._relationLensStrength(parent, orderedChildren, zoom);
+    const slotChildren = this._getRelationSlotChildren(parent.id, children);
+    const orderedSlotChildren = this._orderRelationSlotChildren(parent, slotChildren);
+    const slots = this._ensureRelationSlots(parent, orderedSlotChildren);
+    const strength = this._relationLensStrength(parent, children, zoom);
     if (strength <= 0) return;
 
     const parentFootprint = this._nodeFootprintRadiusPx(parent, zoom);
-    const maxChildFootprint = orderedChildren.reduce(
+    const maxChildFootprint = orderedSlotChildren.reduce(
       (max, child) => Math.max(max, this._nodeFootprintRadiusPx(child, zoom)),
       RELATION_RING_MIN_SPACING_PX * 0.5
     );
-    let ringIndex = 0;
-    let slotIndex = 0;
-    let ringRadiusPx = this._relationRingRadiusPx(ringIndex, parentFootprint, maxChildFootprint);
-    let ringCapacity = this._relationRingCapacity(ringRadiusPx, maxChildFootprint);
-    for (const child of orderedChildren) {
-      if (slotIndex >= ringCapacity) {
-        ringIndex++;
-        slotIndex = 0;
-        ringRadiusPx = this._relationRingRadiusPx(ringIndex, parentFootprint, maxChildFootprint);
-        ringCapacity = this._relationRingCapacity(ringRadiusPx, maxChildFootprint);
-      }
+    const safeZoom = Math.max(zoom, VIEWPORT_LENS_MIN_ZOOM);
 
-      const angle = this._relationRingAngle(slotIndex, ringCapacity, ringIndex);
-      const radius = ringRadiusPx / Math.max(zoom, VIEWPORT_LENS_MIN_ZOOM);
+    for (const child of children) {
+      const slot = slots.get(child.id);
+      if (!slot) continue;
+
+      const ringRadiusPx = this._relationRingRadiusPx(slot.ringIndex, parentFootprint, maxChildFootprint);
+      const radius = ringRadiusPx / safeZoom;
       const ringTarget = {
-        x: parent.x + Math.cos(angle) * radius,
-        y: parent.y + Math.sin(angle) * radius
+        x: parent.x + Math.cos(slot.angle) * radius,
+        y: parent.y + Math.sin(slot.angle) * radius
       };
 
       targets.set(child.id, {
         x: this._lerp(child.x, ringTarget.x, strength),
         y: this._lerp(child.y, ringTarget.y, strength)
       });
-      slotIndex++;
     }
+  }
+
+  private _getRelationSlotChildren(parentId: string, fallbackChildren: RenderNode[]): RenderNode[] {
+    const childIds = this._relationChildIdsByParentId.get(parentId);
+    if (!childIds?.length) return fallbackChildren;
+
+    const children: RenderNode[] = [];
+    for (const childId of childIds) {
+      const child = this._renderNodes.get(childId);
+      if (child) children.push(child);
+    }
+
+    return children.length > 0 ? children : fallbackChildren;
+  }
+
+  private _orderRelationSlotChildren(parent: RenderNode, children: RenderNode[]): RenderNode[] {
+    return [...children].sort((a, b) => {
+      const angleA = Math.atan2(a.y - parent.y, a.x - parent.x);
+      const angleB = Math.atan2(b.y - parent.y, b.x - parent.x);
+      if (Math.abs(angleA - angleB) > 0.0001) return angleA - angleB;
+      return a.id.localeCompare(b.id);
+    });
+  }
+
+  private _ensureRelationSlots(parent: RenderNode, orderedChildren: RenderNode[]): Map<string, RelationSlot> {
+    const signature = orderedChildren.map(child => child.id).join('|');
+    const cachedSignature = this._relationGroupSignatures.get(parent.id);
+    if (cachedSignature === signature) {
+      return this._readRelationSlots(parent.id, orderedChildren);
+    }
+
+    this._relationGroupSignatures.set(parent.id, signature);
+    const parentFootprint = this._relationSlotFootprintRadiusPx(parent);
+    const maxChildFootprint = orderedChildren.reduce(
+      (max, child) => Math.max(max, this._relationSlotFootprintRadiusPx(child)),
+      RELATION_RING_MIN_SPACING_PX * 0.5
+    );
+
+    let ringIndex = 0;
+    let cursor = 0;
+    let ringRadiusPx = this._relationRingRadiusPx(ringIndex, parentFootprint, maxChildFootprint);
+    let ringCapacity = this._relationRingCapacity(ringRadiusPx, maxChildFootprint);
+
+    while (cursor < orderedChildren.length) {
+      const ringChildren = orderedChildren.slice(cursor, cursor + ringCapacity);
+      const angleSlots = ringChildren.length;
+      for (let slotIndex = 0; slotIndex < ringChildren.length; slotIndex++) {
+        const child = ringChildren[slotIndex];
+        this._relationSlotCache.set(
+          this._relationSlotKey(parent.id, child.id),
+          {
+            angle: this._relationRingAngle(slotIndex, angleSlots, ringIndex),
+            ringIndex
+          }
+        );
+      }
+
+      cursor += ringChildren.length;
+      ringIndex++;
+      ringRadiusPx = this._relationRingRadiusPx(ringIndex, parentFootprint, maxChildFootprint);
+      ringCapacity = this._relationRingCapacity(ringRadiusPx, maxChildFootprint);
+    }
+
+    return this._readRelationSlots(parent.id, orderedChildren);
+  }
+
+  private _readRelationSlots(parentId: string, children: RenderNode[]): Map<string, RelationSlot> {
+    const slots = new Map<string, RelationSlot>();
+    for (const child of children) {
+      const slot = this._relationSlotCache.get(this._relationSlotKey(parentId, child.id));
+      if (slot) slots.set(child.id, slot);
+    }
+    return slots;
+  }
+
+  private _relationSlotKey(parentId: string, childId: string): string {
+    return `${parentId}->${childId}`;
+  }
+
+  private _relationSlotFootprintRadiusPx(node: RenderNode): number {
+    const baseRadius = node.type === 'injector' ? node.radius + 20 : node.radius + 18;
+    return Math.max(RELATION_RING_MIN_SPACING_PX * 0.5, baseRadius);
   }
 
   private _relationLensStrength(parent: RenderNode, children: RenderNode[], zoom: number): number {
@@ -788,9 +880,9 @@ export class ConstellationEngine {
     );
     const distanceFactor = this._clamp01((avgDistancePx - idealDistance * 0.72) / Math.max(1, idealDistance * 2.2));
     const groupFactor = this._clamp01((children.length - 1) / 10);
-    const zoomFactor = this._clamp01((zoom - VIEWPORT_LENS_MIN_ZOOM) / 0.7);
+    const zoomFactor = this._smoothStep(this._clamp01((zoom - VIEWPORT_LENS_MIN_ZOOM) / 0.24));
 
-    return VIEWPORT_LENS_MAX_STRENGTH * zoomFactor * (0.50 + distanceFactor * 0.30 + groupFactor * 0.20);
+    return VIEWPORT_LENS_MAX_STRENGTH * zoomFactor * (0.62 + distanceFactor * 0.20 + groupFactor * 0.18);
   }
 
   private _relationRingRadiusPx(ringIndex: number, parentFootprintPx: number, childFootprintPx: number): number {
@@ -889,18 +981,34 @@ export class ConstellationEngine {
 
   private _nodeFootprintRadiusPx(node: RenderNode, zoom: number): number {
     const visualRadiusPx = this._getVisualRadius(node, zoom) * zoom;
-    const labelVisible = this._shouldRenderLabels(zoom, node.type === 'injector' ? 0.6 : 0.8)
-      || this._shouldRenderOverviewLabel(node, zoom);
-    if (!labelVisible) return visualRadiusPx + 12;
+    const labelFactor = this._labelFootprintFactor(node, zoom);
+    if (labelFactor <= 0.01) return visualRadiusPx + 12;
 
     const label = node.meta?.label ?? '';
     const fontSizePx = Math.max(9 * zoom, 11);
     const labelWidth = Math.min(340, label.length * fontSizePx * 0.62);
-
-    return Math.max(
+    const labelRadius = Math.max(
       visualRadiusPx + 14,
       labelWidth * 0.5 + 16
     );
+
+    return this._lerp(visualRadiusPx + 12, labelRadius, labelFactor);
+  }
+
+  private _labelFootprintFactor(node: RenderNode, zoom: number): number {
+    if (this._shouldRenderOverviewLabel(node, zoom)) return 0.72;
+
+    const minZoom = node.type === 'injector' ? 0.6 : 0.8;
+    const threshold = this._labelRenderThreshold(minZoom);
+    return this._smoothStep(this._clamp01((zoom - (threshold - 0.36)) / 0.72));
+  }
+
+  private _labelRenderThreshold(minZoom: number): number {
+    const count = this._renderNodes.size;
+    if (this._isHugeGraph()) return minZoom + 1.45;
+    if (count > 3000) return minZoom + 1.1;
+    if (count > 1000) return minZoom + 0.55;
+    return minZoom;
   }
 
   private _getDisplayPosition(node: RenderNode): DisplayPosition {
@@ -909,6 +1017,11 @@ export class ConstellationEngine {
 
   private _clamp01(value: number): number {
     return Math.max(0, Math.min(1, value));
+  }
+
+  private _smoothStep(value: number): number {
+    const t = this._clamp01(value);
+    return t * t * (3 - 2 * t);
   }
 
   private _stableHash(value: string): number {
