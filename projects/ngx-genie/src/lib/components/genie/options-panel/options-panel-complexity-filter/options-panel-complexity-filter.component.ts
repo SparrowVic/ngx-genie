@@ -17,4 +17,5 @@ export class OptionsPanelComplexityFilterComponent {
   readonly maxDetectedDeps = input.required<number>();
 
   readonly updateMinDeps = output<number>();
+  readonly updateMaxDeps = output<number>();
 }

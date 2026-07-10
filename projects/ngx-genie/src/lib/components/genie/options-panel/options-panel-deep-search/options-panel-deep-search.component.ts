@@ -42,6 +42,9 @@ export class OptionsPanelDeepSearchComponent {
 
   readonly showServices = input<boolean>(true);
   readonly showTokens = input<boolean>(true);
+  readonly showValues = input<boolean>(true);
+  readonly showObservables = input<boolean>(true);
+  readonly showSignals = input<boolean>(false);
   readonly showComponents = input<boolean>(true);
   readonly showDirectives = input<boolean>(true);
   readonly showPipes = input<boolean>(true);
@@ -84,6 +87,9 @@ export class OptionsPanelDeepSearchComponent {
 
       const showSvc = this.showServices();
       const showTok = this.showTokens();
+      const showVal = this.showValues();
+      const showObs = this.showObservables();
+      const showSig = this.showSignals();
       const showComp = this.showComponents();
       const showDir = this.showDirectives();
       const showPipe = this.showPipes();
@@ -96,7 +102,10 @@ export class OptionsPanelDeepSearchComponent {
 
           const type = s.dependencyType || 'Service';
           if (type === 'Service' && !showSvc) return false;
-          if ((type === 'Token' || type === 'Value') && !showTok) return false;
+          if (type === 'Token' && !showTok) return false;
+          if (type === 'Value' && !showVal) return false;
+          if (type === 'Observable' && !showObs) return false;
+          if (type === 'Signal' && !showSig) return false;
           if (type === 'Component' && !showComp) return false;
           if (type === 'Directive' && !showDir) return false;
           if (type === 'Pipe' && !showPipe) return false;
@@ -129,7 +138,7 @@ export class OptionsPanelDeepSearchComponent {
     this._isDropdownOpen.set(true);
   }
 
-  protected _toggleTag(tag: string, event: MouseEvent): void {
+  protected _toggleTag(tag: string, event: Event): void {
     event.stopPropagation();
     event.preventDefault();
 
