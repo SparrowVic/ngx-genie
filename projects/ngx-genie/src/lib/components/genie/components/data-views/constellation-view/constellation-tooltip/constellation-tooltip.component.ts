@@ -3,7 +3,6 @@ import {RenderNode} from '../constellation.models';
 
 @Component({
   selector: 'lib-constellation-tooltip',
-  standalone: true,
   imports: [],
   templateUrl: './constellation-tooltip.component.html',
   styleUrl: './constellation-tooltip.component.scss',

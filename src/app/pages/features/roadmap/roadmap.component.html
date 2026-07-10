@@ -1,0 +1,73 @@
+<section class="section roadmap" id="roadmap">
+  <div class="container">
+    <ui-section-header
+      eyebrow="Trajectory"
+      heading="The GenieOS *roadmap*"
+      subtitle="From the six shipped views to time-travel debugging — where the observatory is heading next."
+      align="center"
+    >
+      <p class="roadmap__lede mono">
+        {{ shippedTotal() | pluralize: 'milestone' }} already shipped
+      </p>
+    </ui-section-header>
+
+    <ol class="roadmap__track">
+      <span class="roadmap__spine" aria-hidden="true"></span>
+
+      @for (phase of phaseViews(); track phase.title; let i = $index) {
+        <li
+          class="roadmap__phase"
+          [style.--accent]="phase.meta.accent"
+          [appReveal]="i * 120"
+        >
+          <span class="roadmap__marker" aria-hidden="true">
+            <ui-icon [name]="phase.meta.icon" [size]="16" [strokeWidth]="2.2" />
+          </span>
+
+          <article class="roadmap__card panel">
+            <header class="roadmap__head">
+              <div class="roadmap__heading">
+                <span class="roadmap__quarter eyebrow">{{ phase.quarter }}</span>
+                <h3 class="roadmap__title">{{ phase.title }}</h3>
+              </div>
+              <ui-chip [icon]="phase.meta.icon" [accent]="phase.meta.accent">
+                {{ phase.meta.label }}
+              </ui-chip>
+            </header>
+
+            <div class="roadmap__progress">
+              <div
+                class="roadmap__bar"
+                role="progressbar"
+                [attr.aria-valuenow]="phase.percent"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                [attr.aria-label]="phase.title + ' completion'"
+              >
+                <span class="roadmap__bar-fill" [style.width.%]="phase.percent"></span>
+              </div>
+              <span class="roadmap__progress-label mono">
+                {{ phase.doneCount }}/{{ phase.total }} · {{ phase.percent }}%
+              </span>
+            </div>
+
+            <ul class="roadmap__items">
+              @for (item of phase.items; track item.text) {
+                <li class="roadmap__item" [class.roadmap__item--done]="item.done">
+                  <span class="roadmap__item-icon" aria-hidden="true">
+                    <ui-icon
+                      [name]="item.done ? 'check' : 'circle'"
+                      [size]="14"
+                      [strokeWidth]="item.done ? 2.4 : 1.8"
+                    />
+                  </span>
+                  <span class="roadmap__item-text">{{ item.text }}</span>
+                </li>
+              }
+            </ul>
+          </article>
+        </li>
+      }
+    </ol>
+  </div>
+</section>

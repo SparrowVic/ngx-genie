@@ -31,7 +31,6 @@ import {BASE_CELL_SIZE, BASE_HEADER_HEIGHT, BASE_ROW_WIDTH, FONT_FAMILY, THEME} 
 
 @Component({
   selector: 'gen-matrix-view',
-  standalone: true,
   imports: [
     MatrixSettingsComponent,
     MatrixLoadingComponent,

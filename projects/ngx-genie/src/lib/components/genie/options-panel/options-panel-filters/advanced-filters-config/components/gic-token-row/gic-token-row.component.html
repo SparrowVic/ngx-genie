@@ -1,0 +1,36 @@
+<div class="tok-row" [class.is-hidden]="item().hidden">
+  <div class="tok-status" [attr.data-reason]="item().hidden ? item().reason : null"
+       [title]="item().hidden ? ('Hidden · ' + (item().detail || item().reason)) : (item().manual ? 'Pinned visible' : 'Visible')"></div>
+
+  <div class="tok-id">
+    <span class="tok-name" [title]="item().name">{{ item().name }}</span>
+    <div class="tok-sub">
+      <span class="tok-type" [attr.data-type]="item().type">{{ item().type }}</span>
+      @if (item().override) { <span class="tok-override" title="Type overridden by you">override</span> }
+      <span class="tok-usage">×{{ item().usageCount }}</span>
+      @if (item().hidden) {
+        <span class="tok-reason" [attr.data-reason]="item().reason">{{ item().detail || item().reason }}</span>
+      } @else if (item().manual) {
+        <span class="tok-reason" data-reason="Manual">Pinned visible</span>
+      }
+    </div>
+  </div>
+
+  <select class="type-select" [ngModel]="item().override ?? 'auto'"
+          (ngModelChange)="store.setType(item().name, $event)" title="Reclassify type">
+    <option value="auto">Auto type</option>
+    @for (t of store.depTypes; track t) { <option [value]="t">{{ t }}</option> }
+  </select>
+
+  <div class="tok-actions">
+    @if (item().hidden) {
+      <button class="act act--show" (click)="store.showToken(item().name)" title="Force visible">Show</button>
+    } @else {
+      <button class="act act--hide" (click)="store.hideToken(item().name)" title="Hide (once)">Hide</button>
+      <button class="act act--rule" (click)="store.alwaysHide(item().name)" title="Add an exact hide rule">Always hide</button>
+    }
+    @if (item().manual) {
+      <button class="act act--ghost" (click)="store.clearToken(item().name)" title="Reset to auto (remove your override)">Clear</button>
+    }
+  </div>
+</div>

@@ -1,0 +1,19 @@
+<div class="step" [style.--step-accent]="step().accent" [appReveal]="revealDelay()">
+  <div class="step__rail">
+    @if (showConnector()) {
+      <span class="step__connector" aria-hidden="true"></span>
+    }
+    <span class="step__node">
+      <span class="step__node-num">{{ label() }}</span>
+      <span class="step__node-ring" aria-hidden="true"></span>
+    </span>
+  </div>
+
+  <div class="step__body">
+    <span class="step__icon" aria-hidden="true">
+      <ui-icon [name]="step().icon" [size]="22" />
+    </span>
+    <h3 class="step__title">{{ step().title }}</h3>
+    <p class="step__desc">{{ step().description }}</p>
+  </div>
+</div>

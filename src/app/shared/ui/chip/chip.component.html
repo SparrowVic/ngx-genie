@@ -1,0 +1,6 @@
+<span class="chip" [style.--chip-accent]="accent()">
+  @if (icon(); as ic) {
+    <ui-icon class="chip__icon" [name]="ic" [size]="14" />
+  }
+  <span class="chip__label"><ng-content /></span>
+</span>

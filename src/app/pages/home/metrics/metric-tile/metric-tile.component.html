@@ -1,0 +1,39 @@
+<article
+  class="metric-tile panel glow-hover"
+  [style.--accent]="metric().accent"
+  [appTilt]="6"
+>
+  <header class="metric-tile__head">
+    <span class="metric-tile__icon" aria-hidden="true">
+      <ui-icon [name]="metric().icon" [size]="18" />
+    </span>
+    <span class="metric-tile__label">{{ metric().label }}</span>
+  </header>
+
+  <div class="metric-tile__body">
+    <p class="metric-tile__value">
+      <span class="metric-tile__number">{{ metric().value | compactNumber }}</span>
+      @if (hasUnit()) {
+        <span class="metric-tile__unit">{{ metric().unit }}</span>
+      }
+    </p>
+
+    <span
+      class="metric-tile__trend"
+      [class.metric-tile__trend--up]="tone() === 'up'"
+      [class.metric-tile__trend--down]="tone() === 'down'"
+      [class.metric-tile__trend--flat]="tone() === 'flat'"
+    >
+      <ui-icon class="metric-tile__trend-icon" [name]="trendIcon()" [size]="13" />
+      {{ trendLabel() }}
+    </span>
+  </div>
+
+  <ui-sparkline
+    class="metric-tile__spark"
+    [data]="metric().history"
+    [accent]="metric().accent"
+    [width]="240"
+    [height]="46"
+  />
+</article>

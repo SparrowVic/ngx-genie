@@ -5,12 +5,12 @@ import {
   ElementRef,
   effect,
   inject,
-  Input,
+  input,
   OnDestroy,
   signal,
-  ViewChild, ViewEncapsulation
+  viewChild, ViewEncapsulation
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+import {NgClass, UpperCasePipe} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {
   GenieDiagnosticsService,
@@ -41,8 +41,7 @@ const RENDER_LIMIT_STEP = 100;
 
 @Component({
   selector: 'lib-diagnostics-view',
-  standalone: true,
-  imports: [CommonModule, FormsModule, DiagnosticOptionsComponent, GenieResizableDirective],
+  imports: [NgClass, UpperCasePipe, FormsModule, DiagnosticOptionsComponent, GenieResizableDirective],
   templateUrl: './diagnostics-view.component.html',
   styleUrl: './diagnostics-view.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -53,8 +52,8 @@ export class DiagnosticsViewComponent implements OnDestroy {
   private registry = inject(GenieRegistryService);
   private state = inject(GenieExplorerStateService);
 
-  @Input() selectService!: (svc: GenieServiceRegistration) => void;
-  @ViewChild('searchInput') searchInput!: ElementRef<HTMLInputElement>;
+  readonly selectService = input.required<(svc: GenieServiceRegistration) => void>();
+  readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
   readonly config = signal<DiagnosticsConfig>(DEFAULT_DIAGNOSTICS_CONFIG);
   readonly optionsWidth = signal(280);
@@ -248,7 +247,7 @@ export class DiagnosticsViewComponent implements OnDestroy {
     });
     this.inputValue.set('');
     this.resetRenderLimit();
-    this.searchInput.nativeElement.focus();
+    this.searchInput()?.nativeElement.focus();
   }
 
   removeTag(tag: string) {
@@ -282,7 +281,7 @@ export class DiagnosticsViewComponent implements OnDestroy {
       }
     } else if (event.key === 'Escape') {
       this.isDropdownOpen.set(false);
-      this.searchInput.nativeElement.blur();
+      this.searchInput()?.nativeElement.blur();
     }
   }
 
@@ -344,7 +343,7 @@ export class DiagnosticsViewComponent implements OnDestroy {
       const svcId = anomaly.relatedServiceIds[0];
       const svc = this.registry.getServiceById(svcId);
       if (svc) {
-        this.selectService(svc);
+        this.selectService()(svc);
       }
     }
   }
@@ -408,6 +407,10 @@ export class DiagnosticsViewComponent implements OnDestroy {
   }
 
   private copyToClipboard(text: string) {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      return;
+    }
     const textarea = document.createElement('textarea');
     textarea.value = text;
     document.body.appendChild(textarea);

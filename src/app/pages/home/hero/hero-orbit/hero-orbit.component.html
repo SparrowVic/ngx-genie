@@ -1,0 +1,37 @@
+<div class="orbit" role="img" aria-label="Dependency providers orbiting the GenieOS core">
+  <div class="orbit-glow" aria-hidden="true"></div>
+
+  @for (ring of rings(); track ring.id) {
+    <div
+      class="ring"
+      [class.ring--reverse]="ring.reverse"
+      [style.--dur]="ring.duration"
+      [style.--r]="ring.radius"
+    >
+      <span class="ring-track" aria-hidden="true"></span>
+      @for (node of ring.nodes; track node.id) {
+        <div class="slot" [style.--angle]="node.angle" [style.--r]="ring.radius">
+          <div class="counter" [style.--angle]="node.angle">
+            <div class="spin" [class.spin--rev]="ring.reverse" [style.--dur]="ring.duration">
+              <span
+                class="node"
+                [style.--dot]="node.accent"
+                (pointerenter)="focus(node.label)"
+                (pointerleave)="clear()"
+              >
+                <span class="node-label" [class]="'is-' + node.kind">{{ node.label }}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <div class="core">
+    <div class="core-halo" aria-hidden="true"></div>
+    <ui-logo [size]="60" />
+  </div>
+
+  <div class="orbit-caption">{{ caption() }}</div>
+</div>

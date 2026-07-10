@@ -1,0 +1,32 @@
+import { Directive, ElementRef, OnInit, PLATFORM_ID, inject, input, numberAttribute } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+
+/** Translates the host on scroll for a depth effect. Factor < 1 = slower. */
+@Directive({
+  selector: '[appParallax]',
+  host: { '(window:scroll)': 'onScroll()' },
+})
+export class ParallaxDirective implements OnInit {
+  private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  readonly factor = input(0.2, { alias: 'appParallax', transform: (v: unknown) => numberAttribute(v, 0.2) });
+  private ticking = false;
+
+  ngOnInit(): void {
+    if (this.isBrowser) this.apply();
+  }
+
+  onScroll(): void {
+    if (!this.isBrowser || this.ticking) return;
+    this.ticking = true;
+    requestAnimationFrame(() => {
+      this.apply();
+      this.ticking = false;
+    });
+  }
+
+  private apply(): void {
+    const y = window.scrollY * this.factor();
+    this.el.nativeElement.style.transform = `translate3d(0, ${y}px, 0)`;
+  }
+}

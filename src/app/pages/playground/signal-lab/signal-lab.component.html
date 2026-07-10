@@ -1,0 +1,77 @@
+<article class="lab panel">
+  <header class="lab__head">
+    <span class="lab__badge" aria-hidden="true">
+      <ui-icon name="bolt" [size]="18" />
+    </span>
+    <div class="lab__heading">
+      <h3 class="lab__title">Signal lab</h3>
+      <p class="lab__sub">A component-scoped reactive store</p>
+    </div>
+    <ui-chip icon="layers" accent="var(--cyan)">element injector</ui-chip>
+  </header>
+
+  <!-- Big live count + parity -->
+  <div class="lab__hero" [style.--accent]="lab.isEven() ? 'var(--emerald)' : 'var(--amber)'">
+    <span class="lab__count">{{ lab.count() }}</span>
+    <div class="lab__hero-meta">
+      <span class="lab__parity">{{ lab.parity() }}</span>
+      <span class="lab__doubled">×2 = {{ lab.doubled() }}</span>
+    </div>
+  </div>
+
+  <!-- Mutators -->
+  <div class="lab__controls">
+    <ui-button variant="outline" size="sm" icon="arrow-right" (press)="decrement()">
+      − {{ lab.step() }}
+    </ui-button>
+    <ui-button variant="primary" size="sm" icon="arrow-up-right" (press)="increment()">
+      + {{ lab.step() }}
+    </ui-button>
+    <ui-button variant="ghost" size="sm" icon="recycle" (press)="reset()">Reset</ui-button>
+  </div>
+
+  <!-- model()-bound step input -->
+  <label class="lab__step">
+    <span class="lab__step-label">step signal</span>
+    <input
+      class="lab__step-input"
+      type="number"
+      min="1"
+      step="1"
+      inputmode="numeric"
+      [value]="step()"
+      (input)="onStepInput($event)"
+      aria-label="Step size"
+    />
+    <span class="lab__step-hint">two-way model()</span>
+  </label>
+
+  <!-- Live readout of every signal + computed -->
+  <div class="lab__readouts" role="table" aria-label="Live signal values">
+    @for (row of readouts(); track row.name) {
+      <div class="lab__row" role="row" [style.--accent]="row.accent">
+        <code class="lab__row-name" role="cell">{{ row.name }}</code>
+        <span class="lab__row-kind" role="cell">{{ row.kind }}</span>
+        <span class="lab__row-value" role="cell">{{ row.value }}</span>
+      </div>
+    }
+  </div>
+
+  <!-- History sparkline -->
+  <footer class="lab__foot">
+    <div class="lab__foot-meta">
+      <span class="lab__foot-label">history</span>
+      <span class="lab__foot-count">{{ lab.historyLength() | pluralize: 'value' }}</span>
+    </div>
+    <ui-sparkline
+      [data]="lab.history()"
+      accent="var(--violet)"
+      [width]="180"
+      [height]="42"
+    />
+  </footer>
+
+  @if (isPristine()) {
+    <p class="lab__pristine">Nudge the count to start filling the history graph.</p>
+  }
+</article>

@@ -1,0 +1,188 @@
+:host {
+  display: block;
+}
+
+.orbit {
+  position: relative;
+  width: min(460px, 82vw);
+  aspect-ratio: 1;
+  margin-inline: auto;
+  container-type: size;
+  isolation: isolate;
+}
+
+/* Soft cosmic bloom behind the whole system. */
+.orbit-glow {
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(139, 92, 246, 0.28),
+    rgba(99, 102, 241, 0.12) 45%,
+    transparent 72%
+  );
+  filter: blur(6px);
+  z-index: -1;
+  animation: pulse-glow 6s ease-in-out infinite;
+}
+
+/* ---- Rings ---- */
+.ring {
+  position: absolute;
+  inset: 0;
+  transform-origin: center;
+  animation: spin-slow calc(var(--dur, 40) * 1s) linear infinite;
+}
+.ring--reverse {
+  animation-direction: reverse;
+}
+
+.ring-track {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--r) * 2 * 1cqmin);
+  height: calc(var(--r) * 2 * 1cqmin);
+  transform: translate(-50%, -50%);
+  border: 1px dashed var(--border);
+  border-radius: 50%;
+  opacity: 0.55;
+}
+
+/* Zero-size anchor placed on the ring at (angle, radius). */
+.slot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: rotate(calc(var(--angle, 0) * 1deg)) translateY(calc(var(--r) * -1cqmin));
+}
+
+/* Undo the static angle so the label reads upright. */
+.counter {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: rotate(calc(var(--angle, 0) * -1deg));
+}
+
+/* Counter-rotate the ring's live spin so nodes never tumble. */
+.spin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  animation: spin-slow calc(var(--dur, 40) * 1s) linear infinite reverse;
+}
+.spin--rev {
+  animation-direction: normal;
+}
+
+/* ---- Nodes ---- */
+.node {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0.9rem;
+  height: 0.9rem;
+  transform: translate(-50%, -50%);
+  border-radius: var(--radius-full);
+  background: var(--dot, var(--violet));
+  box-shadow: 0 0 12px -1px var(--dot, var(--violet)), inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-spring), box-shadow var(--dur-fast) var(--ease-out);
+}
+.node::after {
+  content: '';
+  position: absolute;
+  inset: -0.4rem;
+  border-radius: var(--radius-full);
+  border: 1px solid color-mix(in srgb, var(--dot, var(--violet)) 45%, transparent);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease-out);
+}
+.node:hover {
+  transform: translate(-50%, -50%) scale(1.55);
+  box-shadow: 0 0 20px 0 var(--dot, var(--violet)), inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+.node:hover::after {
+  opacity: 1;
+}
+
+.node-label {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 0.2rem 0.55rem;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+  background: var(--bg-glass-strong);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.node:hover .node-label {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ---- Core lamp ---- */
+.core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  width: 30cqmin;
+  height: 30cqmin;
+  border-radius: var(--radius-full);
+  background: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.08), transparent 70%);
+  animation: float 7s ease-in-out infinite;
+}
+
+.core-halo {
+  position: absolute;
+  inset: -18%;
+  border-radius: var(--radius-full);
+  background: conic-gradient(
+    from 0deg,
+    var(--cyan),
+    var(--indigo),
+    var(--violet),
+    var(--magenta),
+    var(--cyan)
+  );
+  filter: blur(18px);
+  opacity: 0.45;
+  z-index: -1;
+  animation: spin-slow 18s linear infinite;
+}
+
+/* ---- Caption ---- */
+.orbit-caption {
+  position: absolute;
+  left: 50%;
+  bottom: -0.25rem;
+  transform: translateX(-50%);
+  padding: 0.3rem 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  white-space: nowrap;
+}

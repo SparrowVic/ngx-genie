@@ -1,0 +1,128 @@
+<section class="section docs-page">
+  <div class="container">
+    <ui-section-header
+      eyebrow="Documentation"
+      heading="Summon the *observatory*"
+      subtitle="Install GenieOS as a dev dependency, wire up one standalone provider, and press F1. From zero to a live dependency-injection graph in under a minute."
+      align="left"
+    />
+
+    <div class="docs-page__layout">
+      <!-- ============ Sticky table of contents ============ -->
+      <aside class="docs-page__aside">
+        <nav class="toc panel" aria-label="Documentation contents">
+          <p class="toc__title eyebrow">On this page</p>
+
+          <ul class="toc__list">
+            @for (item of tocItems(); track item.id) {
+              <li>
+                <button
+                  type="button"
+                  class="toc__link"
+                  [class.is-active]="activeId() === item.id"
+                  [attr.aria-current]="activeId() === item.id ? 'true' : null"
+                  (click)="select(item.id)"
+                >
+                  <ui-icon class="toc__icon" [name]="item.icon" [size]="16" />
+                  <span class="toc__label">{{ item.title }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+
+          <div class="divider toc__divider"></div>
+
+          <div class="toc__install">
+            <p class="toc__title eyebrow">Quick install</p>
+            <div class="toc__managers" role="tablist" aria-label="Package manager">
+              @for (cmd of install.commands(); track cmd.manager) {
+                <button
+                  type="button"
+                  role="tab"
+                  class="toc__manager"
+                  [class.is-active]="install.manager() === cmd.manager"
+                  [attr.aria-selected]="install.manager() === cmd.manager"
+                  (click)="selectManager(cmd.manager)"
+                >
+                  <ui-icon [name]="cmd.icon" [size]="15" />
+                  <span>{{ cmd.label }}</span>
+                </button>
+              }
+            </div>
+            <ui-code-block
+              class="toc__snippet"
+              [code]="install.current().command"
+              lang="bash"
+              filename="terminal"
+            />
+          </div>
+        </nav>
+      </aside>
+
+      <!-- ============ Main reading column ============ -->
+      <div class="docs-page__main">
+        @for (s of content.docs(); track s.id; let i = $index) {
+          <app-docs-section
+            class="docs-page__section"
+            [section]="s"
+            [appReveal]="i * 60"
+          />
+        }
+
+        <!-- Configuration reference -->
+        <section id="config" class="docs-page__block" appReveal>
+          <ui-section-header
+            heading="Configuration *options*"
+            subtitle="Every field accepted by the provideGenie() config object. All are optional — sensible defaults ship out of the box."
+            align="left"
+          />
+          <app-config-table [options]="content.configOptions()" />
+        </section>
+
+        <!-- Angular compatibility -->
+        <section id="compatibility" class="docs-page__block" appReveal>
+          <div class="compat panel">
+            <div class="compat__head">
+              <span class="compat__icon" aria-hidden="true">
+                <ui-icon name="shield" [size]="20" />
+              </span>
+              <h3 class="compat__title">Angular compatibility</h3>
+            </div>
+            <p class="compat__body">
+              GenieOS tracks the Angular release train closely. The current line targets
+              Angular 21, with maintained support branches reaching back to Angular 17.
+            </p>
+            <div class="compat__chips">
+              <ui-chip icon="check" accent="var(--emerald)">Angular 21 · recommended</ui-chip>
+              <ui-chip icon="circle" accent="var(--amber)">Angular 20 · legacy line</ui-chip>
+              <ui-chip icon="layers" accent="var(--indigo)">Angular 17–19 · supported</ui-chip>
+            </div>
+          </div>
+
+          <!-- Dev-only safety callout -->
+          <aside class="callout" role="note">
+            <span class="callout__icon" aria-hidden="true">
+              <ui-icon name="zap" [size]="20" />
+            </span>
+            <div class="callout__content">
+              <h4 class="callout__title">Dev-only by design</h4>
+              <p class="callout__text">
+                To reconstruct the injector graph, GenieOS reaches into
+                <strong>private Angular DI internals</strong>. That access is centralised,
+                re-verified on every upgrade by a compatibility test suite, and tree-shaken out
+                of production builds. Install it as a <code>devDependency</code> and never ship
+                it to end users.
+              </p>
+            </div>
+          </aside>
+        </section>
+
+        <!-- Closing CTA -->
+        <div class="docs-page__cta" appReveal>
+          <ui-button href="/playground" iconRight="arrow-right">Try it in the playground</ui-button>
+          <ui-button href="/features" variant="ghost" icon="sparkles">Explore the six views</ui-button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -2,7 +2,6 @@ import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} fr
 
 @Component({
   selector: 'lib-options-panel-controls',
-  standalone: true,
   imports: [],
   templateUrl: './options-panel-controls.component.html',
   styleUrl: './options-panel-controls.component.scss',

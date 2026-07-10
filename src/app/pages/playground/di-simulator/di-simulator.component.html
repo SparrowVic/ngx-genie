@@ -1,0 +1,102 @@
+<article class="sim panel">
+  <header class="sim__head">
+    <span class="sim__badge" aria-hidden="true">
+      <ui-icon name="sitemap" [size]="18" />
+    </span>
+    <div class="sim__heading">
+      <h3 class="sim__title">DI simulator</h3>
+      <p class="sim__sub">Compose an injector, scope by scope</p>
+    </div>
+    <ui-chip icon="hierarchy" accent="var(--violet)">component-provided</ui-chip>
+  </header>
+
+  <!-- Scope tallies -->
+  <div class="sim__tallies">
+    <ui-stat [value]="sim.rootCount()" label="root" accent="var(--violet)" icon="sitemap" />
+    <ui-stat [value]="sim.elementCount()" label="element" accent="var(--cyan)" icon="layers" />
+    <ui-stat [value]="sim.platformCount()" label="platform" accent="var(--amber)" icon="cpu" />
+  </div>
+
+  <!-- Add controls -->
+  <form class="sim__form" (submit)="add(); $event.preventDefault()">
+    <div class="sim__field">
+      <label class="sim__label" for="sim-kind">Kind</label>
+      <div class="sim__select">
+        <ui-icon [name]="kindIcon()" [size]="15" />
+        <select id="sim-kind" [value]="draftKind()" (change)="onKindChange($event)">
+          @for (kind of kinds; track kind) {
+            <option [value]="kind">{{ kind }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="sim__field">
+      <label class="sim__label" for="sim-scope">Scope</label>
+      <div class="sim__select">
+        <select id="sim-scope" [value]="draftScope()" (change)="onScopeChange($event)">
+          @for (meta of scopes; track meta.scope) {
+            <option [value]="meta.scope">{{ meta.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="sim__field sim__field--grow">
+      <label class="sim__label" for="sim-name">Provider name</label>
+      <input
+        id="sim-name"
+        class="sim__input"
+        type="text"
+        placeholder="e.g. AnalyticsService"
+        [value]="draftName()"
+        (input)="draftName.set($any($event.target).value)"
+      />
+    </div>
+
+    <ui-button
+      variant="primary"
+      size="md"
+      icon="download"
+      (press)="add()"
+    >
+      {{ hasName() ? 'Add' : 'Add auto' }}
+    </ui-button>
+  </form>
+
+  <!-- Provider list -->
+  <div class="sim__list-head">
+    <span class="sim__list-title">{{ sim.count() | pluralize: 'provider' }}</span>
+    @if (!isEmpty()) {
+      <button type="button" class="sim__clear" (click)="reset()">
+        <ui-icon name="x" [size]="14" />
+        Clear all
+      </button>
+    }
+  </div>
+
+  @if (isEmpty()) {
+    <p class="sim__empty">No providers yet — add one above to grow the injector.</p>
+  } @else {
+    <ul class="sim__list">
+      @for (provider of sim.providers(); track provider.id) {
+        <li class="sim__item" [style.--accent]="sim.accentFor(provider.scope)">
+          <span class="sim__item-glyph" aria-hidden="true">
+            <ui-icon [name]="iconFor(provider.kind)" [size]="16" />
+          </span>
+          <span class="sim__item-name">{{ provider.name }}</span>
+          <span class="sim__item-kind">{{ provider.kind }}</span>
+          <ui-chip [accent]="sim.accentFor(provider.scope)">{{ provider.scope }}</ui-chip>
+          <button
+            type="button"
+            class="sim__remove"
+            [attr.aria-label]="'Remove ' + provider.name"
+            (click)="remove(provider.id)"
+          >
+            <ui-icon name="x" [size]="15" />
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</article>

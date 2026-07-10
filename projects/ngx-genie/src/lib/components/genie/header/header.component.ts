@@ -6,7 +6,6 @@ import {GenieScanStatus} from '../../../services/genie-registry.service';
 
 @Component({
   selector: 'lib-header',
-  standalone: true,
   imports: [
     FormsModule
   ],

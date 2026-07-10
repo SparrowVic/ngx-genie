@@ -10,7 +10,6 @@ import {
 } from '@angular/core';
 
 @Component({
-  standalone: true,
   selector: 'gen-modal',
   imports: [],
   templateUrl: './modal.component.html',

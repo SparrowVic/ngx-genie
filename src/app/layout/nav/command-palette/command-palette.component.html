@@ -1,0 +1,73 @@
+@if (open()) {
+  <div class="palette" role="presentation">
+    <div class="palette__backdrop" (click)="palette.close()"></div>
+
+    <div class="palette__dialog panel" role="dialog" aria-modal="true" aria-label="Command palette">
+      <div class="palette__search">
+        <ui-icon class="palette__search-icon" name="search" [size]="18" />
+        <input
+          #searchInput
+          type="text"
+          class="palette__input"
+          placeholder="Search commands, pages and links…"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          [value]="query()"
+          (input)="onInput($event)"
+          (keydown)="onInputKeydown($event)"
+        />
+        <kbd>esc</kbd>
+      </div>
+
+      <div class="palette__body">
+        @if (hasResults()) {
+          @for (section of grouped(); track section.group) {
+            <div class="palette__group">
+              <p class="palette__group-label">{{ section.group }}</p>
+              <ul class="palette__list">
+                @for (action of section.actions; track action.id) {
+                  <li>
+                    <button
+                      type="button"
+                      class="palette__item"
+                      [class.is-active]="action.id === activeId()"
+                      (mouseenter)="setActiveById(action.id)"
+                      (click)="run(action)"
+                    >
+                      <span class="palette__item-icon"><ui-icon [name]="action.icon" [size]="18" /></span>
+                      <span class="palette__item-text">
+                        <span class="palette__item-label" [innerHTML]="action.label | highlight: query()"></span>
+                        <span class="palette__item-hint">{{ action.hint }}</span>
+                      </span>
+                      @if (action.external) {
+                        <ui-icon class="palette__item-cue" name="external" [size]="15" />
+                      } @else if (action.path) {
+                        <ui-icon class="palette__item-cue" name="arrow-right" [size]="15" />
+                      } @else {
+                        <ui-icon class="palette__item-cue" name="chevron-right" [size]="15" />
+                      }
+                    </button>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        } @else {
+          <div class="palette__empty">
+            <ui-icon name="radar" [size]="26" />
+            <p class="palette__empty-title">No matches</p>
+            <p class="palette__empty-hint">Nothing lines up with &ldquo;{{ query() }}&rdquo;. Try another keyword.</p>
+          </div>
+        }
+      </div>
+
+      <div class="palette__footer">
+        <span class="palette__hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate</span>
+        <span class="palette__hint"><kbd>&crarr;</kbd> select</span>
+        <span class="palette__hint"><kbd>esc</kbd> close</span>
+        <span class="palette__brandline">GenieOS palette</span>
+      </div>
+    </div>
+  </div>
+}

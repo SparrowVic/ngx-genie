@@ -1,0 +1,29 @@
+<div class="tok-toolbar">
+  <div class="field grow">
+    <span class="field__ico">🔎</span>
+    <input class="field__input" type="text" placeholder="Search tokens…"
+           [ngModel]="store.search()" (ngModelChange)="store.search.set($event)">
+  </div>
+  <div class="segment">
+    <button [class.on]="store.visibility() === 'all'" (click)="store.visibility.set('all')">All</button>
+    <button [class.on]="store.visibility() === 'visible'" (click)="store.visibility.set('visible')">Visible</button>
+    <button [class.on]="store.visibility() === 'hidden'" (click)="store.visibility.set('hidden')">Hidden</button>
+  </div>
+  <select class="select" [ngModel]="store.typeFilter()" (ngModelChange)="store.typeFilter.set($event)" title="Filter by type">
+    <option value="all">All types</option>
+    @for (t of store.depTypes; track t) { <option [value]="t">{{ t }}</option> }
+  </select>
+</div>
+
+<div class="tok-list">
+  @for (item of store.filteredTokens(); track item.name) {
+    <gic-token-row [item]="item"/>
+  }
+  @if (store.filteredTokens().length === 0) {
+    <div class="empty">
+      <span class="empty__ico">🫧</span>
+      <p>No tokens match.</p>
+      <small>Adjust the search or filters above.</small>
+    </div>
+  }
+</div>

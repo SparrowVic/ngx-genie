@@ -1,0 +1,97 @@
+:host {
+  display: block;
+}
+
+.final-cta__panel {
+  --gx: 50%;
+  --gy: 0%;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  padding: clamp(var(--space-6), 7vw, var(--space-10)) clamp(var(--space-5), 5vw, var(--space-9));
+  text-align: center;
+  border-color: var(--border-strong);
+}
+
+/* Cursor-following aurora bloom driven by appGlow's --gx / --gy. */
+.final-cta__aurora {
+  position: absolute;
+  inset: -30%;
+  z-index: -2;
+  background:
+    radial-gradient(
+      42% 55% at var(--gx) var(--gy),
+      rgba(139, 92, 246, 0.4) 0%,
+      rgba(99, 102, 241, 0.22) 32%,
+      transparent 68%
+    ),
+    var(--gradient-aurora);
+  opacity: 0.35;
+  filter: blur(6px);
+  transition: background var(--dur) var(--ease-out);
+}
+
+/* Faint constellation grid behind the copy. */
+.final-cta__grid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(70% 70% at 50% 40%, #000 0%, transparent 78%);
+}
+
+.final-cta__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 40rem;
+  margin-inline: auto;
+}
+
+.final-cta__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.9rem, 5.5vw, 3.4rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.final-cta__subtitle {
+  color: var(--text-secondary);
+  font-size: clamp(0.98rem, 2.2vw, 1.15rem);
+  line-height: 1.6;
+  max-width: 34rem;
+}
+
+.final-cta__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+
+  ui-button {
+    display: inline-flex;
+    will-change: transform;
+  }
+}
+
+.final-cta__meta {
+  margin-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .final-cta__aurora {
+    transition: none;
+  }
+}

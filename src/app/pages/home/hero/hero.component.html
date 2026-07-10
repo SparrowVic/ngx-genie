@@ -1,0 +1,71 @@
+<section class="hero">
+  <div class="hero-bg" aria-hidden="true">
+    <span class="aurora aurora--1"></span>
+    <span class="aurora aurora--2"></span>
+    <span class="starfield"></span>
+    <span class="grid-lines"></span>
+  </div>
+
+  <div class="container hero-grid">
+    <div class="hero-copy stack">
+      <span class="pill hero-eyebrow" [appReveal]="0">
+        <ui-icon name="sparkles" [size]="14" />
+        Angular {{ angularMajor() }} ready
+        <span class="eyebrow-sep">·</span>
+        v{{ brand.version }}
+      </span>
+
+      <h1 class="hero-title" [appReveal]="90">
+        Summon your
+        <span class="gradient-text">Angular dependency graph</span>
+      </h1>
+
+      <p class="hero-lead" [appReveal]="170">
+        GenieOS is a zero-cost devtool that reads your running app's injector tree and
+        renders it as a living constellation. Press <kbd>F1</kbd> to inspect every provider,
+        signal and change-detection hot spot — in real time.
+      </p>
+
+      <div class="hero-actions" [appReveal]="240">
+        <ui-button href="/docs" variant="primary" size="lg" iconRight="arrow-right" [appMagnetic]="0.22">
+          Get started
+        </ui-button>
+        <ui-button href="/features" variant="outline" size="lg" icon="sparkles">
+          Explore features
+        </ui-button>
+      </div>
+
+      <div class="hero-chips" [appReveal]="310">
+        <span class="chips-label">{{ featureCount() }} inspector views</span>
+        @for (feature of spotlightFeatures(); track feature.id) {
+          <ui-chip [icon]="feature.icon" [accent]="feature.accent">{{ feature.name }}</ui-chip>
+        }
+      </div>
+
+      <dl class="hero-stats" [appReveal]="380">
+        @for (stat of headline(); track stat.label) {
+          <div class="hero-stat">
+            <ui-stat
+              [value]="stat.value"
+              [label]="stat.label"
+              [suffix]="stat.suffix"
+              [accent]="stat.accent"
+            />
+          </div>
+        }
+      </dl>
+    </div>
+
+    <div class="hero-visual" [appReveal]="200">
+      <app-hero-orbit />
+      <div class="hero-terminal-float">
+        <app-hero-terminal />
+      </div>
+    </div>
+  </div>
+
+  <a class="scroll-hint" href="#metrics" aria-label="Scroll to live metrics">
+    <span class="scroll-hint-label">Scroll to explore</span>
+    <span class="scroll-hint-mouse" aria-hidden="true"><span class="wheel"></span></span>
+  </a>
+</section>

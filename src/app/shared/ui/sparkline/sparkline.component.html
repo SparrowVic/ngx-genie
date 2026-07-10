@@ -1,0 +1,32 @@
+<svg
+  class="sparkline"
+  role="img"
+  [attr.width]="width()"
+  [attr.height]="height()"
+  [attr.viewBox]="'0 0 ' + width() + ' ' + height()"
+  [attr.aria-label]="ariaLabel()"
+  [style.color]="accent()"
+>
+  <defs>
+    <linearGradient [attr.id]="gradId" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" [attr.stop-color]="accent()" stop-opacity="0.34" />
+      <stop offset="1" [attr.stop-color]="accent()" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+
+  <polygon class="sparkline__area" [attr.points]="geo().area" [attr.fill]="areaFill()" />
+
+  <polyline
+    class="sparkline__line"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    vector-effect="non-scaling-stroke"
+    [attr.points]="geo().points"
+  />
+
+  <circle class="sparkline__halo" fill="currentColor" r="4.5" [attr.cx]="geo().end.x" [attr.cy]="geo().end.y" />
+  <circle class="sparkline__dot" fill="currentColor" r="2.4" [attr.cx]="geo().end.x" [attr.cy]="geo().end.y" />
+</svg>

@@ -267,7 +267,9 @@ export class GenieDiagnosticsService {
           const ctor = node.componentInstance.constructor;
           const def = (ctor as any)['ɵcmp'];
           if (def) {
-            if (def.changeDetection === 1) {
+            // Angular v21 runtime ComponentDef (ɵcmp) exposes `onPush: boolean`, not the
+            // `changeDetection` enum (that only exists on the @Component input). Default CD = !onPush.
+            if (!def.onPush) {
               if (depCount > 2) {
                 const svc = componentServiceByNodeId.get(node.id);
                 anomalies.push({
@@ -647,7 +649,8 @@ export class GenieDiagnosticsService {
       if (config.checkChangeDetection) {
         const ctor = node.componentInstance.constructor;
         const def = (ctor as any)['ɵcmp'];
-        if (def && def.changeDetection === 1 && depCount > 2) {
+        // v21: runtime ɵcmp exposes `onPush: boolean`; Default change detection = !onPush.
+        if (def && !def.onPush && depCount > 2) {
           const svc = componentServiceByNodeId.get(node.id);
           anomalies.push({
             id: `cd-${node.id}`,

@@ -1,0 +1,28 @@
+<div class="home">
+  <div id="hero" class="section-anchor"><app-hero /></div>
+  <div id="metrics" class="section-anchor"><app-metrics /></div>
+  <div id="features" class="section-anchor"><app-feature-showcase /></div>
+  <div id="mechanism" class="section-anchor"><app-mechanism /></div>
+  <div id="constellation" class="section-anchor"><app-constellation-demo /></div>
+  <div id="testimonials" class="section-anchor"><app-testimonials /></div>
+  <div id="install" class="section-anchor"><app-install /></div>
+  <div id="faq" class="section-anchor"><app-faq /></div>
+  <div id="cta" class="section-anchor"><app-final-cta /></div>
+
+  <nav class="dot-nav" aria-label="Section navigation">
+    @for (section of sections(); track section.id) {
+      <a
+        class="dot"
+        [class.is-active]="activeId() === section.id"
+        [href]="'#' + section.id"
+        (click)="select(section.id)"
+        [attr.aria-current]="activeId() === section.id ? 'true' : null"
+      >
+        <span class="dot-mark" aria-hidden="true">
+          <ui-icon [name]="section.icon" [size]="13" />
+        </span>
+        <span class="dot-label">{{ section.label }}</span>
+      </a>
+    }
+  </nav>
+</div>

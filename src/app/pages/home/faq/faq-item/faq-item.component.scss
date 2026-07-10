@@ -1,0 +1,105 @@
+:host {
+  display: block;
+}
+
+.faq-item {
+  padding: 0;
+  overflow: hidden;
+  transition:
+    border-color var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out);
+
+  &.is-open {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+.faq-item__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 100%;
+  padding: clamp(var(--space-4), 2.2vw, var(--space-5));
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: color var(--dur-fast) var(--ease-out);
+
+  &:hover {
+    color: var(--text-primary);
+  }
+
+  &:hover .faq-item__chevron {
+    color: var(--violet);
+    border-color: var(--border-strong);
+  }
+}
+
+.faq-item__q {
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 2.2vw, 1.15rem);
+  font-weight: 600;
+  line-height: 1.4;
+
+  :where(mark.hl) {
+    font-weight: 700;
+  }
+}
+
+.faq-item__chevron {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  color: var(--text-tertiary);
+  transition:
+    transform var(--dur) var(--ease-spring),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.is-open .faq-item__chevron {
+  transform: rotate(90deg);
+  color: var(--violet);
+  border-color: var(--border-strong);
+}
+
+.faq-item__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: 0 clamp(var(--space-4), 2.2vw, var(--space-5)) clamp(var(--space-4), 2.2vw, var(--space-5));
+  animation: faq-open var(--dur) var(--ease-out);
+}
+
+.faq-item__answer {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.65;
+  max-width: 62ch;
+}
+
+@keyframes faq-open {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq-item__body {
+    animation: none;
+  }
+}

@@ -24,7 +24,7 @@ import {
   GenieDependencyType,
   DependencyType
 } from '../models/genie-node.model';
-import {ANGULAR_CORE_SYSTEM} from '../configs/angular-internals';
+import {ANGULAR_CORE_SYSTEM, normalizeInternalName} from '../configs/angular-internals';
 import {GenFilterService} from './filter.service';
 
 const ORIGINAL_INJECTOR_GET = Injector.prototype.get;
@@ -339,13 +339,28 @@ export class GenieRegistryService {
       }
     }
 
-    const flagsNum = typeof flags === 'number' ? flags : 0;
-    const decodedFlags: InjectionFlags = {
-      optional: (flagsNum & 8) !== 0,
-      skipSelf: (flagsNum & 4) !== 0,
-      self: (flagsNum & 2) !== 0,
-      host: (flagsNum & 1) !== 0
-    };
+    // Angular v21 removed the public numeric `InjectFlags` enum; modern callers of
+    // Injector.get()/inject() pass an `InjectOptions` object instead. Support both the
+    // legacy numeric bitmask (InternalInjectFlags: Optional=8, SkipSelf=4, Self=2, Host=1)
+    // and the object form so DI flags are still decoded correctly on 21.x.
+    let decodedFlags: InjectionFlags;
+    if (typeof flags === 'number') {
+      decodedFlags = {
+        optional: (flags & 8) !== 0,
+        skipSelf: (flags & 4) !== 0,
+        self: (flags & 2) !== 0,
+        host: (flags & 1) !== 0
+      };
+    } else if (flags && typeof flags === 'object') {
+      decodedFlags = {
+        optional: !!flags.optional,
+        skipSelf: !!flags.skipSelf,
+        self: !!flags.self,
+        host: !!flags.host
+      };
+    } else {
+      decodedFlags = {optional: false, skipSelf: false, self: false, host: false};
+    }
 
     const tokenName = this.describeToken(token);
     this.upsertDependency(consumerId, providerId, tokenName, decodedFlags, 'Direct');
@@ -962,7 +977,7 @@ export class GenieRegistryService {
   private isLikelySystemObject(value: any): boolean {
     if (!value || !value.constructor) return false;
     const name = value.constructor.name;
-    return ANGULAR_CORE_SYSTEM.has(name) || name === 'ViewRef';
+    return ANGULAR_CORE_SYSTEM.has(normalizeInternalName(name)) || name === 'ViewRef';
   }
 
   private scanTemplateDependencies(node: GenieNode): void {
@@ -1033,7 +1048,7 @@ export class GenieRegistryService {
 
 
         const typeName = this.describeToken(type);
-        if (ANGULAR_CORE_SYSTEM.has(typeName)) {
+        if (ANGULAR_CORE_SYSTEM.has(normalizeInternalName(typeName))) {
           try {
             const wasScanning = this._isScanning;
             this._isScanning = false;
@@ -1172,7 +1187,7 @@ export class GenieRegistryService {
     }
 
     if (token instanceof InjectionToken) return 'Token';
-    if (ANGULAR_CORE_SYSTEM.has(tokenName)) return 'System';
+    if (ANGULAR_CORE_SYSTEM.has(normalizeInternalName(tokenName))) return 'System';
 
     const ctorName = ctor?.name;
     if (NATIVE_JS_CONSTRUCTORS.has(ctorName)) return 'Value';

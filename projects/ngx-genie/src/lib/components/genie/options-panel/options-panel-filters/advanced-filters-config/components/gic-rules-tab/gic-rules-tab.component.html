@@ -1,0 +1,55 @@
+<div class="pane">
+  <div class="composer">
+    <div class="composer__row">
+      <div class="field grow">
+        <span class="field__ico">✨</span>
+        <input class="field__input" type="text" placeholder="Pattern — e.g. Prime, MatButton, ^Ng…"
+               [ngModel]="store.draftValue()" (ngModelChange)="store.draftValue.set($event)"
+               (keyup.enter)="store.draftValid() && store.addRule()">
+      </div>
+      <select class="select" [ngModel]="store.draftType()" (ngModelChange)="store.draftType.set($event)" title="Match type">
+        @for (t of store.matchTypes; track t) { <option [value]="t">{{ t }}</option> }
+      </select>
+      <select class="select" [ngModel]="store.draftAction()" (ngModelChange)="store.draftAction.set($event)" title="Action">
+        <option value="hide">Hide</option>
+        <option value="show">Keep visible</option>
+      </select>
+      <button class="add-btn" [disabled]="!store.draftValid()" (click)="store.addRule()">Add rule</button>
+    </div>
+
+    <div class="composer__meta">
+      @if (store.draftRegexError(); as err) {
+        <span class="hint hint--err">⚠ {{ err }}</span>
+      } @else if (store.draftValue()) {
+        <span class="hint" [class.hint--zero]="store.draftMatchCount() === 0">
+          Matches <strong>{{ store.draftMatchCount() }}</strong> of {{ store.stats().total }} current tokens
+        </span>
+      } @else {
+        <span class="hint hint--dim">Rules run top-to-bottom; the first match wins. “Keep visible” overrides a later “Hide”.</span>
+      }
+    </div>
+
+    <div class="presets">
+      <span class="presets__label">Quick add:</span>
+      @for (p of store.presets; track p.label) {
+        <button class="preset-chip" (click)="store.applyPreset(p)" [title]="p.hint">
+          <span>{{ p.icon }}</span> {{ p.label }}
+        </button>
+      }
+      <span class="presets__note">External components often share generic names — use the <b>Tokens</b> tab to hide specific ones.</span>
+    </div>
+  </div>
+
+  <div class="rules-list">
+    @for (rule of store.rules(); track rule.id; let i = $index) {
+      <gic-rule-card [rule]="rule" [index]="i" [total]="store.rules().length"/>
+    }
+    @if (store.rules().length === 0) {
+      <div class="empty">
+        <span class="empty__ico">🪄</span>
+        <p>No custom rules yet.</p>
+        <small>Add a pattern above, or use a quick-add preset.</small>
+      </div>
+    }
+  </div>
+</div>

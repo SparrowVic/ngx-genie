@@ -26,7 +26,6 @@ import {GenOptionsPanelFiltersComponent} from './options-panel-filters/options-p
 
 @Component({
   selector: 'lib-options-panel',
-  standalone: true,
   imports: [
     FormsModule,
     OptionsPanelControlsComponent,
@@ -90,9 +89,10 @@ export class OptionsPanelComponent {
   constructor() {
     effect(() => {
       const detectedMax = this.maxDetectedDeps();
-      const currentMax = untracked(this._maxDeps);
       untracked(() => {
-        if (currentMax !== detectedMax) {
+        // Clamp the upper bound DOWN if it now exceeds what's detected; never force it up, so a
+        // user-chosen maximum sticks (the default 100 collapses to detectedMax on the first run).
+        if (this._maxDeps() > detectedMax) {
           this._maxDeps.set(detectedMax);
         }
       });

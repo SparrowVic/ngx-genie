@@ -1,0 +1,20 @@
+<div class="faq-item panel" [class.is-open]="open()">
+  <button
+    type="button"
+    class="faq-item__trigger"
+    [attr.aria-expanded]="open()"
+    (click)="toggle()"
+  >
+    <span class="faq-item__q" [innerHTML]="item().question | highlight: query()"></span>
+    <span class="faq-item__chevron" aria-hidden="true">
+      <ui-icon name="chevron-right" [size]="18" />
+    </span>
+  </button>
+
+  @if (open()) {
+    <div class="faq-item__body">
+      <p class="faq-item__answer" [innerHTML]="item().answer | highlight: query()"></p>
+      <ui-chip icon="sparkles" accent="var(--violet)">{{ item().tag }}</ui-chip>
+    </div>
+  }
+</div>

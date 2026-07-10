@@ -4,7 +4,6 @@ import {InspectorViewModel} from '../inspector-state.service';
 
 @Component({
   selector: 'lib-inspector-providers-list',
-  standalone: true,
   imports: [
     SlicePipe
   ],

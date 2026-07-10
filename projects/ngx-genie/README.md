@@ -43,11 +43,12 @@ It works as an intelligent overlay on top of your application, allowing you to:
 
 ## ⚙️ Angular version compatibility
 
-GenieOS is currently **implemented against Angular 20**.
+GenieOS is currently **implemented against Angular 21** (built & tested on `@angular/core` 21.2, TypeScript 5.9).
 
 ### Current support
 
-* ✅ **Angular 20** – fully supported and recommended
+* ✅ **Angular 21** – fully supported and recommended
+* ✅ **Angular 20** – supported (legacy line, `support/20.x`)
 
 ### Planned compatibility
 
@@ -141,7 +142,6 @@ import {GenieComponent} from 'ngx-genie';
 
 @Component({
   selector: 'app-root',
-  standalone: true,
   imports: [GenieComponent],
   templateUrl: './app.component.html'
 })

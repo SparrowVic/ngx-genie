@@ -2,7 +2,6 @@ import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} fr
 
 @Component({
   selector: 'lib-constellation-mode-switch',
-  standalone: true,
   imports: [],
   templateUrl: './constellation-mode-switch.component.html',
   styleUrl: './constellation-mode-switch.component.scss',

@@ -1,0 +1,30 @@
+:host {
+  display: inline-flex;
+}
+
+.nav-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-lg);
+  transition: opacity var(--dur-fast) var(--ease-out);
+
+  &:hover {
+    opacity: 0.92;
+  }
+}
+
+.nav-logo__badge {
+  padding: 0.15rem 0.55rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: lowercase;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 680px) {
+  .nav-logo__badge {
+    display: none;
+  }
+}

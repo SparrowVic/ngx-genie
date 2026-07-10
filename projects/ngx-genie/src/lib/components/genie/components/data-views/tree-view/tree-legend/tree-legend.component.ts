@@ -3,7 +3,6 @@ import {ChangeDetectionStrategy, Component, signal, ViewEncapsulation} from '@an
 
 @Component({
   selector: 'lib-tree-legend',
-  standalone: true,
   imports: [],
   templateUrl: './tree-legend.component.html',
   styleUrl: './tree-legend.component.scss',

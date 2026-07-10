@@ -9,7 +9,7 @@ import {
   signal,
   ViewEncapsulation
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+import {NgTemplateOutlet} from '@angular/common';
 import {GenieTreeNode, GenieServiceRegistration} from '../../../../../models/genie-node.model';
 import {OrgChartLegendComponent} from './org-chart-legend/org-chart-legend.component';
 import {OrgChartNodeComponent} from './org-chart-node/org-chart-node.component';
@@ -54,9 +54,8 @@ interface OrgRenderSnapshot {
 
 @Component({
   selector: 'lib-org-chart-view',
-  standalone: true,
   imports: [
-    CommonModule,
+    NgTemplateOutlet,
     OrgChartLegendComponent,
     OrgChartNodeComponent
   ],

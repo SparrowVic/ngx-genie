@@ -1,0 +1,10 @@
+<div
+  class="glass-panel panel"
+  [class.glow-hover]="interactive()"
+  [class.glass-panel--interactive]="interactive()"
+  [class.glass-panel--glow]="hasGlow()"
+  [style.--panel-glow]="glowShadow()"
+  [appTilt]="tiltDeg()"
+>
+  <ng-content />
+</div>
