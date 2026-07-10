@@ -1,0 +1,10 @@
+<button
+  type="button"
+  class="copy-button"
+  [class.is-copied]="copied()"
+  [attr.aria-label]="copied() ? 'Copied to clipboard' : label()"
+  (click)="copy()"
+>
+  <ui-icon [name]="copied() ? 'check' : 'copy'" [size]="15" />
+  <span class="copy-button__label">{{ copied() ? 'Copied!' : label() }}</span>
+</button>

@@ -1,0 +1,72 @@
+<section class="section playground">
+  <div class="container">
+    <!-- ===================== Intro ===================== -->
+    <div class="playground__intro" appReveal>
+      <ui-section-header
+        eyebrow="Playground"
+        heading="Open *F1* while you play"
+        subtitle="This page is itself an Angular app running GenieOS. Every control below mutates a real, component-scoped provider — so open the overlay and watch the dependency graph and Live Inspector update as you go."
+        align="center"
+      >
+        <div class="playground__actions">
+          <ui-button
+            variant="primary"
+            icon="command"
+            appMagnetic
+            (press)="promptInspect()"
+          >
+            {{ promptLabel() }}
+          </ui-button>
+          <ui-button variant="outline" href="/docs" iconRight="arrow-right">
+            Read the docs
+          </ui-button>
+        </div>
+      </ui-section-header>
+
+      <ul class="playground__pointers" [appReveal]="90">
+        @for (pointer of pointers; track pointer.text) {
+          <li class="playground__pointer" [style.--accent]="pointer.accent">
+            <span class="playground__pointer-glyph" aria-hidden="true">
+              <ui-icon [name]="pointer.icon" [size]="16" />
+            </span>
+            <span class="playground__pointer-text">{{ pointer.text }}</span>
+          </li>
+        }
+      </ul>
+
+      @if (prompts() > 0) {
+        <p class="playground__prompt-note" role="status">
+          <ui-icon name="check" [size]="14" />
+          Sent {{ prompts() | pluralize: 'reminder' }} — now hit
+          <kbd>F1</kbd> to see the graph.
+        </p>
+      }
+    </div>
+
+    <!-- ===================== Interactive grid ===================== -->
+    <div class="playground__grid">
+      <app-signal-lab class="playground__cell" appReveal />
+      <app-di-simulator class="playground__cell" [appReveal]="80" />
+    </div>
+
+    <!-- ===================== Scope primer ===================== -->
+    <div class="playground__scope" [appReveal]="120">
+      <app-provider-scope />
+    </div>
+
+    <!-- ===================== Footnote ===================== -->
+    <aside class="playground__footnote glass" [appReveal]="160">
+      <span class="playground__footnote-glyph" aria-hidden="true">
+        <ui-icon name="sparkles" [size]="18" />
+      </span>
+      <p class="playground__footnote-text">
+        Running {{ brand.name }} v{{ brand.version }}.
+        @if (flags.liveMetrics) {
+          Live metrics are on, so the inspector streams values in real time.
+        } @else {
+          Live metrics are paused — the inspector shows a static snapshot.
+        }
+      </p>
+    </aside>
+  </div>
+</section>

@@ -1,0 +1,48 @@
+<section class="scope">
+  <header class="scope__head">
+    <span class="eyebrow">Injector hierarchy</span>
+    <h3 class="scope__title">Where does a provider live?</h3>
+    <p class="scope__lede">{{ hint() }}</p>
+  </header>
+
+  <div class="scope__stack">
+    @for (card of cards; track card.scope) {
+      <ui-glass-panel
+        class="scope__card"
+        [class.is-active]="isActive(card.scope)"
+        [glow]="card.accent"
+        [style.--accent]="card.accent"
+      >
+        <div class="scope__card-inner">
+          <div class="scope__card-head">
+            <span class="scope__glyph" aria-hidden="true">
+              <ui-icon [name]="card.icon" [size]="20" />
+            </span>
+            <div class="scope__card-heading">
+              <h4 class="scope__card-title">{{ card.title }}</h4>
+              <ui-chip [accent]="card.accent">{{ card.lifetime }}</ui-chip>
+            </div>
+            <button
+              type="button"
+              class="scope__pin"
+              [class.is-active]="isActive(card.scope)"
+              [attr.aria-pressed]="isActive(card.scope)"
+              [attr.aria-label]="'Focus the ' + card.title"
+              (click)="select(card.scope)"
+            >
+              <ui-icon [name]="isActive(card.scope) ? 'eye' : 'circle'" [size]="16" />
+            </button>
+          </div>
+          <p class="scope__card-note">{{ card.note }}</p>
+          <code class="scope__card-example">{{ card.example }}</code>
+        </div>
+      </ui-glass-panel>
+    }
+  </div>
+
+  <p class="scope__foot">
+    <ui-icon name="command" [size]="15" />
+    Press <kbd>F1</kbd> and compare: root services sit once at the top, while element-scoped
+    providers nest under the component that declares them.
+  </p>
+</section>

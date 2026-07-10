@@ -1,0 +1,156 @@
+:host {
+  display: block;
+}
+
+.scope {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* ---------- Header ---------- */
+.scope__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.scope__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 3.5vw, 1.9rem);
+  line-height: 1.1;
+}
+
+.scope__lede {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  max-width: 46ch;
+}
+
+/* ---------- Stack of cards ---------- */
+.scope__stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.scope__card {
+  border-radius: var(--radius-2xl);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+
+.scope__card.is-active {
+  transform: translateY(-3px);
+  box-shadow: 0 0 52px -14px var(--accent);
+}
+
+.scope__card-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: clamp(var(--space-4), 3vw, var(--space-5));
+}
+
+.scope__card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.scope__glyph {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  flex: none;
+  border-radius: var(--radius-md);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  box-shadow: inset 0 0 20px -12px var(--accent);
+}
+
+.scope__card-heading {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.scope__card-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.scope__pin {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.scope__pin:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.scope__pin.is-active {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.scope__card-note {
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.scope__card-example {
+  align-self: flex-start;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: var(--bg-elevated);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--accent) 78%, var(--text-primary));
+}
+
+/* ---------- Footer note ---------- */
+.scope__foot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-strong);
+  background: var(--bg-glass);
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+
+.scope__foot ui-icon {
+  color: var(--indigo);
+}
+
+.scope__foot kbd {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}

@@ -1,0 +1,103 @@
+:host {
+  display: inline-flex;
+}
+
+.nav-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.nav-actions__cmd {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.4rem;
+  padding: 0 0.7rem 0 0.85rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+
+  &:hover {
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+    background: rgba(148, 163, 255, 0.08);
+    box-shadow: var(--glow-violet);
+  }
+}
+
+.nav-actions__cmd ui-icon {
+  color: var(--text-tertiary);
+}
+
+.nav-actions__cmd:hover ui-icon {
+  color: var(--violet);
+}
+
+.nav-actions__kbd {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: rgba(4, 5, 13, 0.4);
+  color: var(--text-tertiary);
+}
+
+.nav-actions__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+
+  &:hover {
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+    background: rgba(148, 163, 255, 0.1);
+  }
+}
+
+.nav-actions__theme-icon {
+  display: inline-flex;
+  transition: transform var(--dur) var(--ease-spring);
+
+  &.is-dark {
+    color: var(--cyan);
+  }
+}
+
+.nav-actions__icon-btn:hover .nav-actions__theme-icon {
+  transform: rotate(-22deg);
+}
+
+@media (max-width: 540px) {
+  .nav-actions__cmd-label,
+  .nav-actions__kbd {
+    display: none;
+  }
+
+  .nav-actions__cmd {
+    width: 2.4rem;
+    padding: 0;
+    justify-content: center;
+  }
+}

@@ -1,0 +1,124 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.spotlight {
+  --accent: var(--violet);
+  height: 100%;
+  padding: clamp(var(--space-5), 4vw, var(--space-7));
+  overflow: hidden;
+}
+
+/* Accent light-bar along the top edge. */
+.spotlight::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.7;
+}
+
+.spotlight__inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  animation: rise var(--dur-slow) var(--ease-out) both;
+}
+
+.spotlight__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.spotlight__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: var(--radius-lg);
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent) 32%, transparent);
+  box-shadow: 0 0 30px -8px color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+.spotlight__titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.spotlight__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.spotlight__name {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+}
+
+.spotlight__tagline {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.spotlight__desc {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.65;
+  max-width: 62ch;
+}
+
+.spotlight__bullets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.spotlight__bullet {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.spotlight__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: var(--radius-full);
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+}
+
+.spotlight__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  padding-block: var(--space-5);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.spotlight__code {
+  display: block;
+}
+
+.spotlight__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}

@@ -1,0 +1,116 @@
+:host {
+  display: block;
+}
+
+.home {
+  position: relative;
+}
+
+.section-anchor {
+  scroll-margin-top: var(--nav-h);
+}
+
+/* ---- Right-side dot navigator ---- */
+.dot-nav {
+  position: fixed;
+  top: 50%;
+  right: clamp(0.75rem, 2vw, 1.5rem);
+  transform: translateY(-50%);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.6rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.dot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: var(--radius-full);
+  color: var(--text-tertiary);
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.dot-mark {
+  display: grid;
+  place-items: center;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: var(--radius-full);
+  border: 1.5px solid currentColor;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.dot-mark ui-icon {
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
+}
+
+.dot:hover {
+  color: var(--text-secondary);
+}
+.dot:hover .dot-mark {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-color: transparent;
+  background: var(--bg-elevated);
+}
+.dot:hover .dot-mark ui-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.dot.is-active {
+  color: var(--text-inverse);
+}
+.dot.is-active .dot-mark {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-color: transparent;
+  background: var(--gradient-brand);
+  box-shadow: var(--glow-violet);
+}
+.dot.is-active .dot-mark ui-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Hover label flyout */
+.dot-label {
+  position: absolute;
+  right: calc(100% + 0.6rem);
+  top: 50%;
+  transform: translateY(-50%) translateX(6px);
+  padding: 0.2rem 0.6rem;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-glass-strong);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.dot:hover .dot-label,
+.dot:focus-visible .dot-label {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+@media (max-width: 1080px) {
+  .dot-nav {
+    display: none;
+  }
+}

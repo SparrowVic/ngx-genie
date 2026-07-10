@@ -1,0 +1,25 @@
+:host {
+  display: block;
+}
+
+.mechanism__head {
+  margin-bottom: clamp(2rem, 5vw, 3.5rem);
+}
+
+.mechanism__flow {
+  --flow-gap: clamp(1rem, 3.5vw, 3rem);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--flow-gap);
+  margin: 0;
+}
+
+/* Stack into a single vertical timeline on narrow viewports. */
+@media (max-width: 860px) {
+  .mechanism__flow {
+    --flow-gap: 2.5rem;
+    grid-template-columns: 1fr;
+    max-width: 32rem;
+    margin-inline: auto;
+  }
+}

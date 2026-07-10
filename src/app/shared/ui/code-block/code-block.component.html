@@ -1,0 +1,19 @@
+<figure class="code-block">
+  <figcaption class="code-block__bar">
+    <span class="code-block__dots" aria-hidden="true">
+      <i class="code-block__dot code-block__dot--rose"></i>
+      <i class="code-block__dot code-block__dot--amber"></i>
+      <i class="code-block__dot code-block__dot--emerald"></i>
+    </span>
+
+    @if (filename(); as name) {
+      <span class="code-block__name">{{ name }}</span>
+    }
+
+    <span class="code-block__lang">{{ languageLabel() }}</span>
+
+    <ui-copy-button class="code-block__copy" [value]="code()" />
+  </figcaption>
+
+  <pre class="code-block__body" [attr.data-lang]="lang()"><code>{{ code() }}</code></pre>
+</figure>

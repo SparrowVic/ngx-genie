@@ -1,0 +1,99 @@
+:host {
+  display: block;
+}
+
+.feature-card {
+  --accent: var(--violet);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-glass);
+  color: var(--text-primary);
+  transition:
+    transform var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out),
+    background var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out);
+}
+
+.feature-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in oklab, var(--accent) 34%, var(--border-strong));
+  background: color-mix(in oklab, var(--accent) 6%, var(--bg-glass));
+}
+
+.feature-card.is-active {
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  background: color-mix(in oklab, var(--accent) 12%, var(--bg-glass-strong));
+  box-shadow: 0 0 40px -12px color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+.feature-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: var(--radius-md);
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+  transition: background var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+
+.feature-card.is-active .feature-card__icon {
+  background: color-mix(in oklab, var(--accent) 26%, transparent);
+  box-shadow: 0 0 22px -6px color-mix(in oklab, var(--accent) 70%, transparent);
+}
+
+.feature-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.feature-card__name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.feature-card__tagline {
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--dur) var(--ease-out);
+}
+
+.feature-card.is-active .feature-card__tagline {
+  color: var(--text-secondary);
+}
+
+.feature-card__marker {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-tertiary);
+  transition: color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+.feature-card:hover .feature-card__marker {
+  transform: translateX(2px);
+  color: var(--text-secondary);
+}
+
+.feature-card.is-active .feature-card__marker {
+  transform: none;
+  color: var(--accent);
+}

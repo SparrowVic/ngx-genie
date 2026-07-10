@@ -1,0 +1,18 @@
+<nav class="nav-links" [class.is-scrolled]="scrolled()" [attr.aria-label]="'Primary navigation — ' + count + ' links'">
+  <ul class="nav-links__list">
+    @for (link of links; track link.path) {
+      <li>
+        <a
+          class="nav-links__link"
+          [routerLink]="link.path"
+          routerLinkActive="is-active"
+          [routerLinkActiveOptions]="{ exact: !!link.exact }"
+        >
+          <span class="nav-links__icon"><ui-icon [name]="link.icon" [size]="17" /></span>
+          <span class="nav-links__label">{{ link.label }}</span>
+          <span class="nav-links__glow" aria-hidden="true"></span>
+        </a>
+      </li>
+    }
+  </ul>
+</nav>

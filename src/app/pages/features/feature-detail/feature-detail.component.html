@@ -1,0 +1,65 @@
+<article
+  class="feature-detail"
+  [class.feature-detail--flip]="flip()"
+  [style.--accent]="feature().accent"
+>
+  <!-- Accent visual tile -->
+  <div class="feature-detail__visual" [appReveal]="60">
+    <div class="feature-detail__tile" appGlow>
+      <span class="feature-detail__aura" aria-hidden="true"></span>
+      <span class="feature-detail__counter mono">{{ counter() }}</span>
+      <span class="feature-detail__glyph" aria-hidden="true">
+        <ui-icon [name]="feature().icon" [size]="52" [strokeWidth]="1.5" />
+      </span>
+      <span class="feature-detail__ring feature-detail__ring--a" aria-hidden="true"></span>
+      <span class="feature-detail__ring feature-detail__ring--b" aria-hidden="true"></span>
+    </div>
+
+    <div class="feature-detail__badges">
+      <ui-chip icon="sparkles" [accent]="feature().accent">
+        Since v{{ feature().since }}
+      </ui-chip>
+      <ui-chip icon="layers" accent="var(--cyan)">
+        {{ bulletCount() | pluralize: 'capability' : 'capabilities' }}
+      </ui-chip>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="feature-detail__body" [appReveal]="120">
+    <p class="feature-detail__eyebrow eyebrow">
+      {{ counter() }} · {{ feature().tagline }}
+    </p>
+    <h3 class="feature-detail__name">{{ feature().name }}</h3>
+    <p class="feature-detail__desc">{{ feature().description }}</p>
+
+    <ul class="feature-detail__bullets">
+      @for (bullet of feature().bullets; track bullet) {
+        <li class="feature-detail__bullet">
+          <span class="feature-detail__check" aria-hidden="true">
+            <ui-icon name="check" [size]="13" [strokeWidth]="2.4" />
+          </span>
+          <span>{{ bullet }}</span>
+        </li>
+      }
+    </ul>
+
+    <div class="feature-detail__stats">
+      @for (stat of feature().stats; track stat.label) {
+        <ui-stat
+          [value]="stat.value"
+          [label]="stat.label"
+          [suffix]="stat.unit ? ' ' + stat.unit : ''"
+          [accent]="feature().accent"
+        />
+      }
+    </div>
+
+    <div class="feature-detail__code">
+      <p class="feature-detail__code-hint mono">
+        The {{ index() + 1 | ordinal }} view · summon it with
+      </p>
+      <ui-code-block [code]="feature().demo" [filename]="filename()" lang="ts" />
+    </div>
+  </div>
+</article>

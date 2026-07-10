@@ -1,0 +1,23 @@
+<header class="section-header" [class.section-header--left]="align() === 'left'">
+  @if (eyebrow(); as eb) {
+    <span class="eyebrow section-header__eyebrow">{{ eb }}</span>
+  }
+
+  <h2 class="section-header__heading">
+    @for (seg of segments(); track $index) {
+      @if (seg.gradient) {
+        <span class="gradient-text">{{ seg.text }}</span>
+      } @else {
+        {{ seg.text }}
+      }
+    }
+  </h2>
+
+  @if (subtitle(); as st) {
+    <p class="section-header__subtitle">{{ st }}</p>
+  }
+
+  <div class="section-header__actions">
+    <ng-content />
+  </div>
+</header>

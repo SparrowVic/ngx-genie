@@ -1,0 +1,235 @@
+:host {
+  display: block;
+}
+
+.lab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: clamp(var(--space-5), 3vw, var(--space-6));
+  height: 100%;
+}
+
+/* ---------- Header ---------- */
+.lab__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.lab__badge {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: none;
+  border-radius: var(--radius-md);
+  color: var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cyan) 40%, transparent);
+}
+
+.lab__heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.lab__title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  line-height: 1.1;
+}
+
+.lab__sub {
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+}
+
+/* ---------- Hero count ---------- */
+.lab__hero {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
+  box-shadow: inset 0 0 40px -20px var(--accent);
+  transition: border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+
+.lab__count {
+  font-family: var(--font-display);
+  font-size: clamp(2.6rem, 9vw, 3.4rem);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  text-shadow: 0 0 26px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.lab__hero-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-family: var(--font-mono);
+}
+
+.lab__parity {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.lab__doubled {
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+}
+
+/* ---------- Controls ---------- */
+.lab__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* ---------- Step input ---------- */
+.lab__step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-glass);
+}
+
+.lab__step-label {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.lab__step-input {
+  width: 4.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  text-align: center;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.lab__step-input:focus-visible {
+  outline: none;
+  border-color: var(--indigo);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--indigo) 30%, transparent);
+}
+
+.lab__step-hint {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
+/* ---------- Readout table ---------- */
+.lab__readouts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.lab__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-glass);
+  border-left: 3px solid var(--accent);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.lab__row:hover {
+  background: var(--bg-elevated);
+}
+
+.lab__row-name {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lab__row-kind {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+}
+
+.lab__row-value {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+/* ---------- Footer sparkline ---------- */
+.lab__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.lab__foot-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.lab__foot-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+}
+
+.lab__foot-count {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.lab__pristine {
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .lab__row {
+    grid-template-columns: 1fr auto;
+  }
+  .lab__row-kind {
+    display: none;
+  }
+}
