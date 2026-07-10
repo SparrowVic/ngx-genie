@@ -3,7 +3,6 @@ import {FormsModule} from '@angular/forms';
 
 @Component({
   selector: 'lib-options-panel-complexity-filter',
-  standalone: true,
   imports: [
     FormsModule
   ],

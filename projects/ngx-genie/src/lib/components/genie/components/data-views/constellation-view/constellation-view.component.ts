@@ -65,7 +65,6 @@ interface GraphDataInputKey {
 
 @Component({
   selector: 'lib-constellation-view',
-  standalone: true,
   imports: [
     ConstellationModeSwitchComponent,
     ConstellationControlsComponent,

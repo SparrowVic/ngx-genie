@@ -3,7 +3,6 @@ import {GenieComponent} from 'genie';
 import {RouterOutlet} from '@angular/router';
 
 @Component({
-  standalone: true,
   selector: 'app-root',
   imports: [GenieComponent, RouterOutlet],
   template: `

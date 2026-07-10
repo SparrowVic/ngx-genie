@@ -1,7 +1,7 @@
 import {
   NgModule,
   ModuleWithProviders,
-  APP_INITIALIZER
+  provideAppInitializer
 } from '@angular/core';
 
 import {GenieComponent} from './components/genie/genie.component';
@@ -59,11 +59,7 @@ export class GenieModule {
           provide: GENIE_CONFIG,
           useValue: merged,
         },
-        {
-          provide: APP_INITIALIZER,
-          multi: true,
-          useFactory: createGenieInitializer
-        }
+        provideAppInitializer(createGenieInitializer)
       ]
     };
   }

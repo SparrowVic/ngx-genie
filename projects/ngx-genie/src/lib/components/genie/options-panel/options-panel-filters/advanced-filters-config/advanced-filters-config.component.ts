@@ -16,7 +16,6 @@ interface InventoryItem {
 
 @Component({
   selector: 'gen-advanced-filters-config',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './advanced-filters-config.component.html',
   styleUrl: './advanced-filters-config.component.scss',

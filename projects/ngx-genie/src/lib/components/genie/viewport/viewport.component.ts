@@ -7,7 +7,7 @@ import {
   input,
   output,
   signal,
-  ViewChild, ViewEncapsulation
+  viewChild, ViewEncapsulation
 } from '@angular/core';
 import {GenieTreeNode, GenieServiceRegistration} from '../../../models/genie-node.model';
 import {TreeViewComponent} from '../components/data-views/tree-view/tree-view.component';
@@ -23,7 +23,6 @@ export type GenieViewMode = 'tree' | 'org' | 'constellation' | 'matrix' | 'diagn
 
 @Component({
   selector: 'lib-viewport',
-  standalone: true,
   imports: [
     TreeViewComponent,
     OrgChartViewComponent,
@@ -39,7 +38,7 @@ export type GenieViewMode = 'tree' | 'org' | 'constellation' | 'matrix' | 'diagn
   encapsulation: ViewEncapsulation.ShadowDom
 })
 export class ViewportComponent {
-  @ViewChild('viewportContent') viewportRef!: ElementRef<HTMLElement>;
+  readonly viewportRef = viewChild<ElementRef<HTMLElement>>('viewportContent');
 
   tree = input.required<GenieTreeNode[]>();
   filterState = input.required<GenieFilterState>();
@@ -116,8 +115,9 @@ export class ViewportComponent {
     const delta = event.deltaY > 0 ? -1 : 1;
     let newScale = Math.max(0.0005, Math.min(currentScale + (delta * zoomFactor * currentScale), 8.0));
 
-    if (this.viewportRef) {
-      const rect = this.viewportRef.nativeElement.getBoundingClientRect();
+    const ref = this.viewportRef();
+    if (ref) {
+      const rect = ref.nativeElement.getBoundingClientRect();
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
       const worldX = (mouseX - this.panX()) / currentScale;

@@ -15,7 +15,6 @@ import {ANGULAR_INTERNALS} from '../../../../configs/angular-internals';
 
 @Component({
   selector: 'lib-options-panel-deep-search',
-  standalone: true,
   imports: [
     FormsModule
   ],

@@ -10,7 +10,7 @@ import {
   NgZone,
   OnDestroy,
   signal,
-  ViewChild,
+  viewChild,
   ViewEncapsulation
 } from '@angular/core';
 
@@ -51,7 +51,6 @@ interface VisibleTreeRow {
 
 @Component({
   selector: 'lib-tree-view',
-  standalone: true,
   imports: [TreeLegendComponent, GenieResizableDirective],
   providers: [GenieResizableDirective],
   templateUrl: './tree-view.component.html',
@@ -61,7 +60,7 @@ interface VisibleTreeRow {
 })
 export class TreeViewComponent implements AfterViewInit, OnDestroy {
   private readonly zone = inject(NgZone);
-  @ViewChild('scrollContainer') private scrollContainer?: ElementRef<HTMLElement>;
+  private readonly scrollContainer = viewChild<ElementRef<HTMLElement>>('scrollContainer');
 
   readonly tree = input.required<GenieTreeNode[]>();
   readonly filterState = input<GenieFilterState | null>(null);
@@ -118,7 +117,7 @@ export class TreeViewComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.measureViewport();
-    const element = this.scrollContainer?.nativeElement;
+    const element = this.scrollContainer()?.nativeElement;
     if (!element || typeof ResizeObserver === 'undefined') return;
 
     this.resizeObserver = new ResizeObserver(() => this.measureViewport());
@@ -175,7 +174,7 @@ export class TreeViewComponent implements AfterViewInit, OnDestroy {
   }
 
   private measureViewport(): void {
-    const element = this.scrollContainer?.nativeElement;
+    const element = this.scrollContainer()?.nativeElement;
     if (!element) return;
     this.viewportHeight.set(element.clientHeight || 600);
   }

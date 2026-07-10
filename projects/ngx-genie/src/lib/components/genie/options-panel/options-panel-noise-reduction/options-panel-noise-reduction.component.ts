@@ -2,7 +2,6 @@ import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} fr
 
 @Component({
   selector: 'lib-options-panel-noise-reduction',
-  standalone: true,
   templateUrl: './options-panel-noise-reduction.component.html',
   styleUrl: './options-panel-noise-reduction.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

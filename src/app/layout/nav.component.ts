@@ -4,7 +4,6 @@ import {RouterLink, RouterLinkActive, RouterOutlet} from '@angular/router';
 import {ButtonModule} from 'primeng/button';
 
 @Component({
-  standalone: true,
   selector: 'app-nav',
   imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, ButtonModule],
   template: `

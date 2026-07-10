@@ -339,13 +339,28 @@ export class GenieRegistryService {
       }
     }
 
-    const flagsNum = typeof flags === 'number' ? flags : 0;
-    const decodedFlags: InjectionFlags = {
-      optional: (flagsNum & 8) !== 0,
-      skipSelf: (flagsNum & 4) !== 0,
-      self: (flagsNum & 2) !== 0,
-      host: (flagsNum & 1) !== 0
-    };
+    // Angular v21 removed the public numeric `InjectFlags` enum; modern callers of
+    // Injector.get()/inject() pass an `InjectOptions` object instead. Support both the
+    // legacy numeric bitmask (InternalInjectFlags: Optional=8, SkipSelf=4, Self=2, Host=1)
+    // and the object form so DI flags are still decoded correctly on 21.x.
+    let decodedFlags: InjectionFlags;
+    if (typeof flags === 'number') {
+      decodedFlags = {
+        optional: (flags & 8) !== 0,
+        skipSelf: (flags & 4) !== 0,
+        self: (flags & 2) !== 0,
+        host: (flags & 1) !== 0
+      };
+    } else if (flags && typeof flags === 'object') {
+      decodedFlags = {
+        optional: !!flags.optional,
+        skipSelf: !!flags.skipSelf,
+        self: !!flags.self,
+        host: !!flags.host
+      };
+    } else {
+      decodedFlags = {optional: false, skipSelf: false, self: false, host: false};
+    }
 
     const tokenName = this.describeToken(token);
     this.upsertDependency(consumerId, providerId, tokenName, decodedFlags, 'Direct');

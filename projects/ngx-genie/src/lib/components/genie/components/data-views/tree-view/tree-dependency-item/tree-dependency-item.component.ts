@@ -13,7 +13,6 @@ import {GenieExplorerStateService} from '../../../../explorer-state.service';
 
 @Component({
   selector: 'lib-tree-dependency-item',
-  standalone: true,
   imports: [
     UpperCasePipe,
     SlicePipe,

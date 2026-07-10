@@ -6,7 +6,6 @@ import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 
 @Component({
-  standalone: true,
   selector: 'app-home',
   imports: [CommonModule, RouterLink, ButtonModule, CardModule, TagModule],
   template: `

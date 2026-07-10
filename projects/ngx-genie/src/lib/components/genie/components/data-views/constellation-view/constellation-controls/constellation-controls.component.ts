@@ -9,7 +9,6 @@ import {
 
 @Component({
   selector: 'lib-constellation-controls',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './constellation-controls.component.html',
   styleUrl: './constellation-controls.component.scss',

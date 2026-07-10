@@ -253,4 +253,6 @@ When upgrading to a new Angular version, you should:
 * validate the compatibility of logical view structures,
 * confirm the operation of debug hooks.
 
+> **Executed for the Angular 20 → 21 migration.** This checklist was re-run against `@angular/core` 21.2: the `Injector.prototype.get` monkey-patching, the `ɵcmp` / `ɵprov` metadata reads, the `LView` `CONTEXT_INDEX` traversal, and the `window.ng` debug hooks were all re-verified. Two adjustments were required — `ɵcmp.onPush` replaced the old `ɵcmp.changeDetection` read, and `Injector.get` flag decoding now also handles `InjectOptions` objects in addition to the legacy numeric flags.
+
 </details>

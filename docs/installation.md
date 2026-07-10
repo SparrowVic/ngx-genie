@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-* **Angular:** v20
+* **Angular:** v21 (also compatible with v20)
   Support for **Signals** and **Standalone Components** is required.
 
 * **Development mode:**
@@ -71,7 +71,6 @@ import {GenieComponent} from 'ngx-genie';
 
 @Component({
   selector: 'app-root',
-  standalone: true,
   imports: [GenieComponent],
   templateUrl: './app.component.html'
 })

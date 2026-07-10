@@ -7,7 +7,6 @@ import { ButtonModule } from 'primeng/button';
 import { AccordionModule } from 'primeng/accordion';
 
 @Component({
-  standalone: true,
   selector: 'app-features',
   imports: [CommonModule, RouterLink, CardModule, TagModule, ButtonModule, AccordionModule],
   template: `

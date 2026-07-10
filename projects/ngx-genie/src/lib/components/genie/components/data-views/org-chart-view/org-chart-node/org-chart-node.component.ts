@@ -4,7 +4,6 @@ import {GenieTreeNode, GenieServiceRegistration} from '../../../../../../models/
 
 @Component({
   selector: 'lib-org-chart-node',
-  standalone: true,
   imports: [],
   templateUrl: './org-chart-node.component.html',
   styleUrl: './org-chart-node.component.scss',

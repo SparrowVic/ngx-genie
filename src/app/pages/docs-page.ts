@@ -5,7 +5,6 @@ import {TagModule} from 'primeng/tag';
 import {DividerModule} from 'primeng/divider';
 
 @Component({
-  standalone: true,
   selector: 'app-docs',
   imports: [CommonModule, CardModule, TagModule, DividerModule],
   template: `

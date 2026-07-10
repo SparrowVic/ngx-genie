@@ -26,7 +26,6 @@ import {GenOptionsPanelFiltersComponent} from './options-panel-filters/options-p
 
 @Component({
   selector: 'lib-options-panel',
-  standalone: true,
   imports: [
     FormsModule,
     OptionsPanelControlsComponent,

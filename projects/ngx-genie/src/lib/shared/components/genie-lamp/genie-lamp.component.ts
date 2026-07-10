@@ -4,7 +4,6 @@ import {SvgIconDirective} from '../../directives/svg-icon/svg-icon.directive';
 
 @Component({
   selector: 'lib-ngx-genie-lamp',
-  standalone: true,
   imports: [
     SvgIconDirective
   ],

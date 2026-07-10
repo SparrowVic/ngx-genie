@@ -6,11 +6,11 @@ import {
   inject,
   NgZone,
   signal,
-  ViewChild,
+  viewChild,
   computed,
   OnDestroy, ViewEncapsulation, PLATFORM_ID
 } from '@angular/core';
-import {DOCUMENT, isPlatformBrowser} from '@angular/common';
+import {isPlatformBrowser} from '@angular/common';
 import {GenieConfig} from '../../models/genie-config.model';
 import {GENIE_CONFIG} from '../../tokens/genie-config.token';
 import {GenieResizableDirective} from '../../shared/directives/resizable/resizable.directive';
@@ -42,7 +42,6 @@ interface GenieLayoutState {
 }
 
 @Component({
-  standalone: true,
   selector: 'ngx-genie',
   imports: [
     GenieResizableDirective,
@@ -62,14 +61,13 @@ export class GenieComponent implements OnDestroy {
 
   readonly state = inject(GenieExplorerStateService);
   readonly config: GenieConfig = inject(GENIE_CONFIG);
-  private readonly document = inject(DOCUMENT);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly registry = inject(GenieRegistryService);
   private readonly performance = inject(GeniePerformanceService);
   private readonly zone = inject(NgZone);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
 
-  @ViewChild('windowRef') windowRef!: ElementRef<HTMLElement>;
+  readonly windowRef = viewChild<ElementRef<HTMLElement>>('windowRef');
 
   private readonly initialState = this.isBrowser ? this.loadLayoutState() : this.getDefaultLayoutState();
 

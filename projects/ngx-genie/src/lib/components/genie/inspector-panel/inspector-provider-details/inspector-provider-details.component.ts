@@ -16,7 +16,6 @@ import {NgClass} from '@angular/common';
 
 @Component({
   selector: 'lib-inspector-provider-details',
-  standalone: true,
   imports: [
     JsonTreeComponent,
     GenieResizableDirective,

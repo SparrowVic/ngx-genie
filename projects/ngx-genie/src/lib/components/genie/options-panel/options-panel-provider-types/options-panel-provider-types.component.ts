@@ -4,7 +4,6 @@ import {FormsModule} from '@angular/forms';
 
 @Component({
   selector: 'lib-options-panel-provider-types',
-  standalone: true,
   imports: [
     FormsModule
 ],

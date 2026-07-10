@@ -3,7 +3,6 @@ import {ChangeDetectionStrategy, Component, signal, ViewEncapsulation} from '@an
 
 @Component({
   selector: 'lib-constellation-legend',
-  standalone: true,
   imports: [],
   templateUrl: './constellation-legend.component.html',
   styleUrl: './constellation-legend.component.scss',

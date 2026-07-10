@@ -5,7 +5,6 @@ import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 
 @Component({
-  standalone: true,
   selector: 'app-playground',
   imports: [CommonModule, CardModule, ButtonModule, TagModule],
   template: `
