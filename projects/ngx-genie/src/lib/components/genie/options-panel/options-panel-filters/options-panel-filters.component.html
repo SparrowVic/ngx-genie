@@ -16,7 +16,7 @@
 @if (showAdvancedModal()) {
   <gen-modal
     [isOpen]="true"
-    [width]="'1300px'"
+    [width]="'min(1300px, 96vw)'"
     title="Advanced Internals Configuration"
     (close)="closeAdvancedSettings()"
   >

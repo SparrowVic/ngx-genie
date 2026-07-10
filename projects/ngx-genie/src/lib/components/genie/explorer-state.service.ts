@@ -13,6 +13,7 @@ import {
 import {isPlatformBrowser} from '@angular/common';
 import {GenieRegistryService} from '../../services/genie-registry.service';
 import {GeniePerformanceService} from '../../services/genie-performance.service';
+import {GenFilterService} from '../../services/filter.service';
 import {GenieDependency, GenieNode, GenieServiceRegistration, GenieTreeNode} from '../../models/genie-node.model';
 import {GenieFilterState} from './options-panel/options-panel.models';
 
@@ -74,6 +75,7 @@ export class GenieExplorerStateService {
   private readonly platformId = inject(PLATFORM_ID);
   private readonly zone = inject(NgZone);
   private readonly performance = inject(GeniePerformanceService);
+  private readonly filterService = inject(GenFilterService);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
   private liveTimer: any = null;
   private rawTreeRunId = 0;
@@ -1048,6 +1050,10 @@ export class GenieExplorerStateService {
     if (filters.hideUnusedDeps && (s.usageCount || 0) === 0) {
       return false;
     }
+
+    // A token the user explicitly pinned visible (Advanced config → "Show") bypasses the
+    // internal + per-type gates, so the action always takes effect regardless of the toggles.
+    if (this.filterService.isForceShown(s.label)) return true;
 
     const type = s.dependencyType;
     const isFramework = s.isFramework;

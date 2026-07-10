@@ -1,0 +1,33 @@
+:host { display: block; box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; }
+
+/* ---------------- io panel ---------------- */
+.io-panel {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;
+}
+.io-col { display: flex; flex-direction: column; gap: 8px;
+  label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--txt-3); font-weight: 600; }
+}
+.io-area {
+  width: 100%; min-height: 120px; resize: vertical; padding: 10px; border-radius: var(--radius-sm);
+  background: var(--bg); border: 1px solid var(--border); color: var(--txt);
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; line-height: 1.5;
+}
+.pill-btn {
+  align-self: flex-start; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border-2);
+  background: var(--panel-2); color: var(--txt); font-weight: 600; font-size: 12px; cursor: pointer;
+  transition: all .15s ease;
+  &:hover:not(:disabled) { border-color: var(--violet); }
+  &:disabled { opacity: .45; cursor: not-allowed; }
+}
+
+:where(button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (max-width: 900px) {
+  .io-panel { grid-template-columns: 1fr; }
+}

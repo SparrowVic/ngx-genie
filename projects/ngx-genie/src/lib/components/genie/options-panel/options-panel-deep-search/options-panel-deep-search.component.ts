@@ -169,9 +169,10 @@ export class OptionsPanelDeepSearchComponent {
     const inputEl = this._searchInput()?.nativeElement;
 
     if (dropdown && inputEl) {
-      const clickedInsideDropdown = dropdown.contains(event.target as Node);
-      const clickedInsideInput = inputEl.contains(event.target as Node);
-      if (!clickedInsideDropdown && !clickedInsideInput) {
+      // The listener is on `document`, outside this ShadowDom, so event.target is retargeted to
+      // the shadow host — contains() would always be false. composedPath() keeps the real path.
+      const path = event.composedPath();
+      if (!path.includes(dropdown) && !path.includes(inputEl)) {
         this._isDropdownOpen.set(false);
       }
     }

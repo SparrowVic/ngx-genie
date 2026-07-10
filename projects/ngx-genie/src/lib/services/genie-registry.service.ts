@@ -24,7 +24,7 @@ import {
   GenieDependencyType,
   DependencyType
 } from '../models/genie-node.model';
-import {ANGULAR_CORE_SYSTEM} from '../configs/angular-internals';
+import {ANGULAR_CORE_SYSTEM, normalizeInternalName} from '../configs/angular-internals';
 import {GenFilterService} from './filter.service';
 
 const ORIGINAL_INJECTOR_GET = Injector.prototype.get;
@@ -977,7 +977,7 @@ export class GenieRegistryService {
   private isLikelySystemObject(value: any): boolean {
     if (!value || !value.constructor) return false;
     const name = value.constructor.name;
-    return ANGULAR_CORE_SYSTEM.has(name) || name === 'ViewRef';
+    return ANGULAR_CORE_SYSTEM.has(normalizeInternalName(name)) || name === 'ViewRef';
   }
 
   private scanTemplateDependencies(node: GenieNode): void {
@@ -1048,7 +1048,7 @@ export class GenieRegistryService {
 
 
         const typeName = this.describeToken(type);
-        if (ANGULAR_CORE_SYSTEM.has(typeName)) {
+        if (ANGULAR_CORE_SYSTEM.has(normalizeInternalName(typeName))) {
           try {
             const wasScanning = this._isScanning;
             this._isScanning = false;
@@ -1187,7 +1187,7 @@ export class GenieRegistryService {
     }
 
     if (token instanceof InjectionToken) return 'Token';
-    if (ANGULAR_CORE_SYSTEM.has(tokenName)) return 'System';
+    if (ANGULAR_CORE_SYSTEM.has(normalizeInternalName(tokenName))) return 'System';
 
     const ctorName = ctor?.name;
     if (NATIVE_JS_CONSTRUCTORS.has(ctorName)) return 'Value';
