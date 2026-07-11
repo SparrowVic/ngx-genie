@@ -1,12 +1,10 @@
 import { Injectable, computed, signal } from '@angular/core';
 import {
-  ChangelogEntry,
   ConfigOption,
   DocSection,
   FaqItem,
   MechanismStep,
   RoadmapPhase,
-  Testimonial,
 } from '../models/content.model';
 
 /**
@@ -23,38 +21,29 @@ export class ContentService {
   ]);
 
   readonly faqs = signal<FaqItem[]>([
-    { id: 'prod', question: 'Does GenieOS ship to production?', answer: 'No. It is a dev-only tool installed as a devDependency. In production builds the overlay is inert and tree-shaken away.', tag: 'General' },
-    { id: 'perf', question: 'Will it slow my app down?', answer: 'The interception adds minimal synchronous overhead and all heavy graph work runs inside Web Workers or during idle time. The UI is OnPush + signals end to end.', tag: 'Performance' },
-    { id: 'versions', question: 'Which Angular versions are supported?', answer: 'Angular 21 is the current recommended line, with maintained support branches down to Angular 17.', tag: 'Compatibility' },
-    { id: 'private-api', question: 'Does it rely on private Angular APIs?', answer: 'Yes — by design. All access to internal APIs is centralised and re-verified on every Angular upgrade, guarded by a compatibility test suite.', tag: 'Internals' },
-    { id: 'standalone', question: 'Do I need NgModules?', answer: 'Not at all. provideGenie() is a standalone provider. A GenieModule.forRoot() shim exists for legacy NgModule apps.', tag: 'Setup' },
-    { id: 'leaks', question: 'Can it cause memory leaks?', answer: 'No. GenieOS holds only weak references to Angular objects, so the garbage collector can reclaim destroyed components and injectors freely.', tag: 'Internals' },
+    { id: 'what', question: 'What does GenieOS actually show me?', answer: 'It reconstructs your app\'s hidden dependency-injection graph and renders it across six views — an injector Tree, Org Chart, Matrix, force-directed Constellation, Diagnostics and a Live Inspector. Every provider is classified into one of nine kinds (Service, Pipe, Directive, Component, Token, Value, Observable, Signal or System) so you can see exactly what Angular wired up, and where.', tag: 'General' },
+    { id: 'setup', question: 'How much setup does it need?', answer: 'Two lines. Add provideGenie() to your application providers and drop <ngx-genie/> into your root template. Press F1 and the observatory opens — no configuration required.', tag: 'Setup' },
+    { id: 'standalone', question: 'Do I need NgModules?', answer: 'No. provideGenie() is a standalone provider that slots straight into a standalone bootstrap. Prefer NgModules? A GenieModule.forRoot() shim gives you the exact same thing.', tag: 'Setup' },
+    { id: 'license', question: 'Is it free to use?', answer: 'Yes. GenieOS is open source under the Apache-2.0 license — free for personal and commercial projects alike.', tag: 'General' },
+    { id: 'perf', question: 'Will it slow my app down?', answer: 'No. The UI is OnPush and signal-driven from end to end, and the two heaviest views — Matrix and Constellation — run their layout math in dedicated Web Workers, off the main thread. It only does work while the overlay is actually open.', tag: 'Performance' },
+    { id: 'memory', question: 'Can it leak memory?', answer: 'No. GenieOS holds only weak references to Angular objects, so the garbage collector can reclaim destroyed components and injectors freely. Its event buffer is bounded and dropped the moment you close the overlay.', tag: 'Performance' },
+    { id: 'versions', question: 'Which Angular versions are supported?', answer: 'GenieOS targets the Angular 21 line — its peer dependency is ^21. Earlier majors are published only as version-tagged pre-releases on npm, not maintained support branches.', tag: 'Compatibility' },
+    { id: 'private-api', question: 'Does it rely on private Angular APIs?', answer: 'Yes — by design. Reading the framework\'s internal debug data is the only way to reconstruct the injector graph. All internal access is centralised in one place and locked down by a private-internals compatibility spec (part of 450+ unit tests) that re-verifies it on every Angular upgrade.', tag: 'Internals' },
+    { id: 'prod', question: 'Does it work in production?', answer: 'It is a development tool. GenieOS reads Angular\'s dev-mode debug hooks on window.ng, which optimized production builds strip out — so in a prod build the overlay is inert and tree-shaken away, adding zero runtime cost.', tag: 'General' },
   ]);
 
   readonly faqTags = computed(() => ['All', ...new Set(this.faqs().map((f) => f.tag))]);
 
-  readonly testimonials = signal<Testimonial[]>([
-    { author: 'A. Kowalska', role: 'Staff Engineer', quote: 'The constellation view found a circular provider we chased for a week in about ten seconds.', accent: 'var(--violet)' },
-    { author: 'M. Chen', role: 'Angular Architect', quote: 'Finally a DI tool that treats injectors as first-class citizens. The org chart is gorgeous.', accent: 'var(--cyan)' },
-    { author: 'R. Silva', role: 'Frontend Lead', quote: 'Zero config, press F1, understand the whole app. It reads like magic and runs like nothing.', accent: 'var(--magenta)' },
-  ]);
-
   readonly roadmap = signal<RoadmapPhase[]>([
     { quarter: 'Shipped', title: 'The six views', status: 'shipped', items: [{ text: 'Tree, Org-chart, Matrix', done: true }, { text: 'Constellation + Diagnostics', done: true }, { text: 'Live signal inspector', done: true }] },
-    { quarter: 'Now', title: 'Angular 21 line', status: 'in-progress', items: [{ text: 'v21 DI-internals fixes', done: true }, { text: 'Compatibility test suite', done: true }, { text: 'Enterprise graph perf', done: false }] },
-    { quarter: 'Next', title: 'Time travel', status: 'planned', items: [{ text: 'Snapshot & diff graphs', done: false }, { text: 'Record/replay resolutions', done: false }, { text: 'Export to JSON', done: false }] },
-  ]);
-
-  readonly changelog = signal<ChangelogEntry[]>([
-    { version: '21.2.13', date: '2026-07', kind: 'perf', notes: ['Enterprise graph rendering optimised', 'Constellation packing stabilised'] },
-    { version: '21.2.12', date: '2026-06', kind: 'feature', notes: ['Angular 21.2 upgrade', 'Huge-graph safety modes'] },
-    { version: '21.0.0', date: '2026-05', kind: 'feature', notes: ['First Angular 21 release', 'Deferred registry enrichment'] },
+    { quarter: 'Now', title: 'Angular 21 line', status: 'in-progress', items: [{ text: 'v21 DI-internals fixes', done: true }, { text: 'Compatibility test suite', done: true }, { text: 'Enterprise graph perf', done: true }, { text: 'Export filtered tree to JSON', done: true }, { text: '21.0.0-beta.4 on npm', done: false }] },
+    { quarter: 'Next', title: 'Time travel', status: 'planned', items: [{ text: 'Snapshot & diff graphs', done: false }, { text: 'Record/replay resolutions', done: false }] },
   ]);
 
   readonly configOptions = signal<ConfigOption[]>([
     { name: 'hotkey', type: 'string', default: "'F1'", description: 'Keyboard shortcut that toggles the overlay.' },
     { name: 'enabled', type: 'boolean', default: 'true', description: 'Master switch — disable to bail out entirely.' },
-    { name: 'visibleOnStart', type: 'boolean', default: 'true', description: 'Whether the overlay is open when the app boots.' },
+    { name: 'visibleOnStart', type: 'boolean', default: 'false', description: 'Whether the overlay is open when the app boots.' },
   ]);
 
   readonly docs = signal<DocSection[]>([

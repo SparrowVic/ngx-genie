@@ -47,4 +47,12 @@ export class HeroComponent {
 
   /** "Angular 21 ready" — the major pulled from the brand version string. */
   readonly angularMajor = computed(() => this.brand.version.split('.')[0]);
+
+  /**
+   * The F1 keycap affordance: replays the real hotkey so the actual GenieOS
+   * overlay (listening on window) opens — no simulation involved.
+   */
+  summonOverlay(): void {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F1' }));
+  }
 }

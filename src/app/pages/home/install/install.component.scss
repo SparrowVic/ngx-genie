@@ -64,6 +64,7 @@
   gap: var(--space-2);
   flex: 1 1 auto;
   justify-content: center;
+  min-height: 2.75rem;
   padding: 0.55rem 1rem;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
@@ -77,7 +78,8 @@
     color var(--dur-fast) var(--ease-out),
     background var(--dur-fast) var(--ease-out),
     border-color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 
   &__icon {
     color: var(--text-tertiary);
@@ -87,6 +89,11 @@
   &:hover {
     color: var(--text-primary);
     border-color: var(--border-strong);
+    background: var(--surface-1);
+  }
+
+  &:active {
+    transform: scale(0.97);
   }
 
   &.is-active {
@@ -113,7 +120,7 @@
 
 .install__steps-title {
   font-family: var(--font-display);
-  font-size: clamp(1.15rem, 2.6vw, 1.6rem);
+  font-size: var(--fs-h3);
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -126,7 +133,7 @@
 .steps {
   list-style: none;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   counter-reset: step;
 }
@@ -178,15 +185,15 @@
 
 .step__title {
   font-family: var(--font-display);
-  font-size: 1.05rem;
+  font-size: var(--fs-h4);
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .step__desc {
   color: var(--text-secondary);
-  font-size: 0.925rem;
-  line-height: 1.55;
+  font-size: var(--fs-body-sm);
+  line-height: var(--lh-body);
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────── */

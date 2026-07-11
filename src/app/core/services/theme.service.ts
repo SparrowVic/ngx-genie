@@ -7,7 +7,7 @@ const STORAGE_KEY = 'genie-os-theme';
 
 /**
  * Reactive theme controller. A single writable signal drives an effect that
- * mirrors the mode onto <html> (data-theme + PrimeNG's .p-dark) and localStorage.
+ * mirrors the mode onto <html> (data-theme) and localStorage.
  */
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
@@ -26,7 +26,6 @@ export class ThemeService {
       if (!this.isBrowser) return;
       const root = document.documentElement;
       root.setAttribute('data-theme', mode === 'light' ? 'light' : 'dark');
-      root.classList.toggle('p-dark', mode === 'cosmic');
       try {
         localStorage.setItem(STORAGE_KEY, mode);
       } catch {

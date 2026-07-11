@@ -6,7 +6,7 @@
       subtitle="From the six shipped views to time-travel debugging — where the observatory is heading next."
       align="center"
     >
-      <p class="roadmap__lede mono">
+      <p class="roadmap__lede mono tnum">
         {{ shippedTotal() | pluralize: 'milestone' }} already shipped
       </p>
     </ui-section-header>
@@ -46,7 +46,7 @@
               >
                 <span class="roadmap__bar-fill" [style.width.%]="phase.percent"></span>
               </div>
-              <span class="roadmap__progress-label mono">
+              <span class="roadmap__progress-label mono tnum">
                 {{ phase.doneCount }}/{{ phase.total }} · {{ phase.percent }}%
               </span>
             </div>

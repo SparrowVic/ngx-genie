@@ -35,14 +35,13 @@
 }
 
 .sim__title {
-  font-family: var(--font-display);
-  font-size: 1.2rem;
-  line-height: 1.1;
+  font-size: var(--fs-h4);
+  font-weight: 600;
 }
 
 .sim__sub {
   margin-top: 0.15rem;
-  font-size: 0.82rem;
+  font-size: var(--fs-caption);
   color: var(--text-tertiary);
 }
 
@@ -79,13 +78,14 @@
 
 .sim__label {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: var(--fs-micro);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-tertiary);
 }
 
 .sim__select {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -94,6 +94,24 @@
   border: 1px solid var(--border-strong);
   background: var(--bg);
   color: var(--text-tertiary);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+/* appearance: none strips the native arrow — draw a hairline chevron back in. */
+.sim__select::after {
+  content: '';
+  position: absolute;
+  right: 0.7rem;
+  top: 50%;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
 }
 
 .sim__select select {
@@ -103,7 +121,7 @@
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: 0.9rem;
-  padding: 0.5rem 0.4rem 0.5rem 0;
+  padding: 0.5rem 1.3rem 0.5rem 0;
   cursor: pointer;
 }
 
@@ -111,7 +129,12 @@
   outline: none;
 }
 
+.sim__select:hover {
+  border-color: color-mix(in srgb, var(--violet) 45%, var(--border-strong));
+}
+
 .sim__select:focus-within {
+  color: var(--violet);
   border-color: var(--violet);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--violet) 28%, transparent);
 }
@@ -132,6 +155,10 @@
   color: var(--text-tertiary);
 }
 
+.sim__input:hover {
+  border-color: color-mix(in srgb, var(--violet) 45%, var(--border-strong));
+}
+
 .sim__input:focus-visible {
   outline: none;
   border-color: var(--violet);
@@ -150,7 +177,7 @@
 
 .sim__list-title {
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: var(--fs-caption);
   color: var(--text-secondary);
 }
 
@@ -158,7 +185,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.3rem 0.6rem;
+  padding: 0.35rem 0.7rem;
   border-radius: var(--radius-full);
   border: 1px solid var(--border);
   background: transparent;
@@ -166,19 +193,34 @@
   font-family: var(--font-mono);
   font-size: 0.74rem;
   cursor: pointer;
-  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 
 .sim__clear:hover {
   color: var(--rose);
   border-color: color-mix(in srgb, var(--rose) 45%, transparent);
+  background: color-mix(in srgb, var(--rose) 8%, transparent);
+}
+
+.sim__clear:active {
+  transform: scale(0.97);
 }
 
 .sim__empty {
-  font-size: 0.86rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-size: var(--fs-caption);
   color: var(--text-tertiary);
   text-align: center;
-  padding: var(--space-3) 0;
+  padding: var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
 }
 
 /* ---------- List ---------- */
@@ -230,7 +272,7 @@
 
 .sim__item-kind {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: var(--fs-micro);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-tertiary);
@@ -239,16 +281,19 @@
 .sim__remove {
   display: grid;
   place-items: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2rem;
+  height: 2rem;
   flex: none;
   border-radius: var(--radius-full);
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
-  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 
 .sim__remove:hover {
@@ -257,9 +302,24 @@
   border-color: color-mix(in srgb, var(--rose) 40%, transparent);
 }
 
+.sim__remove:active {
+  transform: scale(0.94);
+}
+
+/* Comfortable hit targets on touch. */
+@media (pointer: coarse) {
+  .sim__remove {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  .sim__clear {
+    min-height: 2.5rem;
+  }
+}
+
 @media (max-width: 520px) {
   .sim__tallies {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .sim__item-kind {
     display: none;

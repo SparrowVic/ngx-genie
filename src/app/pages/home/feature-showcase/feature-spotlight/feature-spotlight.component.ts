@@ -8,9 +8,10 @@ import { ButtonComponent } from '../../../../shared/ui/button/button.component';
 
 /**
  * app-feature-spotlight — the expanded panel for the currently selected
- * inspector view: big name + tagline, description, capability bullets, a stat
- * row and a copyable demo snippet. Everything is tinted by the feature accent,
- * and the body replays its entrance animation whenever the feature changes.
+ * inspector view: big name + tagline, a real product capture in a browser-style
+ * frame, description, capability bullets, a stat row and a copyable demo
+ * snippet. Everything is tinted by the feature accent, and the body replays its
+ * entrance animation whenever the feature changes.
  */
 @Component({
   selector: 'app-feature-spotlight',
@@ -24,4 +25,13 @@ export class FeatureSpotlightComponent {
 
   /** Synthetic filename for the demo code block, e.g. "constellation.genie.ts". */
   readonly demoFilename = computed(() => `${this.feature().id}.genie.ts`);
+
+  /** The real capture backing the selected view, from the catalog. */
+  readonly shot = computed(() => this.feature().media);
+
+  /** Tall side-panel captures render contained on a backdrop instead of cropped. */
+  readonly shotPortrait = computed(() => {
+    const s = this.shot();
+    return !!s && s.height > s.width;
+  });
 }

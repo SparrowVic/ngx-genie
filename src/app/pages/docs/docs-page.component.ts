@@ -73,7 +73,12 @@ export class DocsPageComponent {
   /** Jump to a section and mark it active. */
   select(id: string): void {
     this.setActive(id);
-    this.doc.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // scrollIntoView ignores the CSS reduced-motion kill-switch, so gate it here.
+    const reduceMotion =
+      this.doc.defaultView?.matchMedia('(prefers-reduced-motion: reduce)').matches ?? false;
+    this.doc
+      .getElementById(id)
+      ?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
   }
 
   /** Switch the package manager shown in the quick-install snippet. */

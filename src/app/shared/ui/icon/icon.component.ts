@@ -52,8 +52,8 @@ const ICONS: Record<string, string> = {
   selector: 'ui-icon',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
-  template: `<span class="ui-icon" [innerHTML]="markup()"></span>`,
-  styles: [`ui-icon .ui-icon{display:inline-flex;line-height:0}ui-icon svg{display:block}`],
+  templateUrl: './icon.component.html',
+  styleUrl: './icon.component.scss',
 })
 export class IconComponent {
   private readonly sanitizer = inject(DomSanitizer);
@@ -61,9 +61,16 @@ export class IconComponent {
   readonly size = input(18);
   readonly strokeWidth = input(1.8);
 
+  /** Optically-compensated stroke: strokes live in 24px viewBox units and scale
+      down with size, so small glyphs get a touch more weight to read consistent. */
+  private readonly opticalStroke = computed(() => {
+    const size = Math.max(this.size(), 1);
+    return Number((this.strokeWidth() * Math.pow(24 / size, 0.25)).toFixed(2));
+  });
+
   readonly markup = computed<SafeHtml>(() => {
     const body = ICONS[this.name()] ?? ICONS['circle'];
-    const svg = `<svg width="${this.size()}" height="${this.size()}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${this.strokeWidth()}" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+    const svg = `<svg width="${this.size()}" height="${this.size()}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${this.opticalStroke()}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${body}</svg>`;
     return this.sanitizer.bypassSecurityTrustHtml(svg);
   });
 }

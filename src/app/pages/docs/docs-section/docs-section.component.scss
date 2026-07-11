@@ -1,13 +1,14 @@
 :host {
   display: block;
-  /* Keep the anchored heading clear of the sticky nav when scrolled to. */
-  scroll-margin-top: calc(var(--nav-h) + var(--space-4));
 }
 
 .doc-section {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  /* The TOC scrolls to this element (it carries the anchor id), so the
+     sticky-nav offset must live here for scrollIntoView to respect it. */
+  scroll-margin-top: calc(var(--nav-h) + var(--space-4));
 }
 
 .doc-section__head {
@@ -30,18 +31,15 @@
 }
 
 .doc-section__title {
-  font-family: var(--font-display);
-  font-size: clamp(1.25rem, 2.4vw, 1.6rem);
+  font-size: var(--fs-h3);
   font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
 }
 
 .doc-section__anchor {
   display: inline-grid;
   place-items: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2rem;
+  height: 2rem;
   border-radius: var(--radius-full);
   color: var(--text-tertiary);
   opacity: 0;
@@ -49,7 +47,8 @@
   transition:
     opacity var(--dur-fast) var(--ease-out),
     transform var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out);
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
 }
 .doc-section__head:hover .doc-section__anchor,
 .doc-section__anchor:focus-visible {
@@ -57,12 +56,26 @@
   transform: translateX(0);
   color: var(--cyan);
 }
+.doc-section__anchor:hover {
+  background: color-mix(in srgb, var(--cyan) 12%, transparent);
+}
+.doc-section__anchor:active {
+  transform: scale(0.94);
+}
+
+/* Touch has no hover — keep the deep-link affordance discoverable. */
+@media (hover: none) {
+  .doc-section__anchor {
+    opacity: 0.55;
+    transform: none;
+  }
+}
 
 .doc-section__body {
-  font-size: clamp(0.98rem, 1.5vw, 1.08rem);
-  line-height: 1.65;
+  font-size: var(--fs-body-lg);
+  line-height: var(--lh-body);
   color: var(--text-secondary);
-  max-width: 64ch;
+  max-width: 62ch;
 }
 
 .doc-section__code {

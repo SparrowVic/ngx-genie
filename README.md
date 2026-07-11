@@ -90,10 +90,31 @@ export const appConfig: ApplicationConfig = {
     provideGenie({
       hotkey: 'F1',          // default: F1
       enabled: true,         // default: true
-      visibleOnStart: false  // default: true
+      visibleOnStart: false  // default: false
     })
   ]
 };
+```
+
+### Add the panel component
+
+Configuring the provider is **not enough** to show the overlay — you also need to render the `<ngx-genie/>` component in your root template (usually `AppComponent`):
+
+```ts
+import {Component} from '@angular/core';
+import {GenieComponent} from 'ngx-genie';
+
+@Component({
+  selector: 'app-root',
+  imports: [GenieComponent],
+  templateUrl: './app.component.html'
+})
+export class AppComponent {}
+```
+
+```html
+<!-- app.component.html -->
+<ngx-genie/>
 ```
 
 Run the application and press **F1** (or another configured hotkey).
@@ -102,36 +123,27 @@ Run the application and press **F1** (or another configured hotkey).
 
 ## 📚 Documentation
 
-Detailed documentation is available in the **[`/docs`](./docs)** directory:
+Detailed documentation lives in the **[`docs/`](./docs/README.md)** directory:
 
-* 📥 [Installation and configuration](./docs/installation.md)
-* 🛠️ [Feature overview](./docs/features.md)
-* 🧠 [Technical library overview](./docs/library.md)
+* 🏠 [Documentation home](./docs/README.md)
+* 📥 [Getting started](./docs/getting-started.md)
+* ⚙️ [Configuration](./docs/configuration.md)
+* 🛠️ [Features](./docs/features/README.md)
+* 🏗️ [Architecture](./docs/architecture.md)
+* 🔭 [Runtime scope](./docs/runtime-scope.md)
+* 🩹 [Troubleshooting](./docs/troubleshooting.md)
 
 ---
 
 ## 🧪 Project status
 
-GenieOS is currently in an **experimental / early-stage** phase.
+GenieOS is in active **beta** — a capable, real-world developer tool whose public API and internal behavior may still change between releases as it stabilizes.
 
-This is the **first public version** of the library and should be treated as a **proof of concept and evolving developer tool**, not a production-hardened framework.
+### Notes
 
-### Important notes
-
-* ❗ **No unit tests yet** – the library/plugin does **not currently include unit or integration tests**. Test coverage is planned for future releases.
-* 🧭 APIs and internal behavior may change between versions as the project stabilizes.
-* 🧠 The focus of the current version is **architecture exploration, UX experimentation, and real-world validation**.
-
----
-
-## 🤖 AI disclaimer
-
-This project was developed with the assistance of **Generative AI** tools.
-The code, architecture, and documentation are the result of collaboration between the author and AI assistants.
-
-While best efforts were made to ensure quality and correctness, some patterns characteristic of AI-generated code may be present.
-
-*This project was developed with the assistance of AI tools. While human oversight was applied, some code patterns may reflect AI generation.*
+* 🧪 The core services, utilities and directives are covered by unit tests, and a dedicated spec pins the private Angular internals the inspector depends on. Broader component-level coverage is planned.
+* 🧭 Public APIs and internal behavior may evolve between releases.
+* 🧠 The current focus is architecture exploration, developer experience, and real-world validation.
 
 ---
 

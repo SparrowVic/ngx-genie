@@ -2,7 +2,9 @@
   <button
     type="button"
     class="faq-item__trigger"
+    [attr.id]="'faq-trigger-' + item().id"
     [attr.aria-expanded]="open()"
+    [attr.aria-controls]="'faq-body-' + item().id"
     (click)="toggle()"
   >
     <span class="faq-item__q" [innerHTML]="item().question | highlight: query()"></span>
@@ -11,10 +13,15 @@
     </span>
   </button>
 
-  @if (open()) {
+  <div
+    class="faq-item__collapse"
+    role="region"
+    [attr.id]="'faq-body-' + item().id"
+    [attr.aria-labelledby]="'faq-trigger-' + item().id"
+  >
     <div class="faq-item__body">
       <p class="faq-item__answer" [innerHTML]="item().answer | highlight: query()"></p>
       <ui-chip icon="sparkles" accent="var(--violet)">{{ item().tag }}</ui-chip>
     </div>
-  }
+  </div>
 </div>

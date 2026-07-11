@@ -28,6 +28,10 @@
   background: color-mix(in oklab, var(--accent) 6%, var(--bg-glass));
 }
 
+.feature-card:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
 .feature-card.is-active {
   border-color: color-mix(in oklab, var(--accent) 55%, transparent);
   background: color-mix(in oklab, var(--accent) 12%, var(--bg-glass-strong));
@@ -68,9 +72,11 @@
   letter-spacing: -0.01em;
 }
 
+/* Secondary (not tertiary) — the tagline sits on translucent glass and must
+   hold AA contrast against whatever scrolls behind it. */
 .feature-card__tagline {
-  font-size: 0.82rem;
-  color: var(--text-tertiary);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -78,7 +84,7 @@
 }
 
 .feature-card.is-active .feature-card__tagline {
-  color: var(--text-secondary);
+  color: var(--text-primary);
 }
 
 .feature-card__marker {

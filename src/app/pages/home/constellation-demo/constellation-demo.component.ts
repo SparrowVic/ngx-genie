@@ -179,11 +179,11 @@ export class ConstellationDemoComponent {
     { kind: 'pipe', icon: KIND_ICON.pipe, accent: 'var(--emerald)' },
   ];
 
-  /** Live per-kind node counts for the legend. */
-  readonly kindCounts = computed(() => {
-    const counts: Record<string, number> = {};
+  /** Live per-kind node counts for the legend, seeded so every kind is present. */
+  readonly kindCounts = computed<Record<NodeKind, number>>(() => {
+    const counts: Record<NodeKind, number> = { service: 0, component: 0, token: 0, directive: 0, pipe: 0 };
     for (const node of this.field.graph().nodes) {
-      counts[node.kind] = (counts[node.kind] ?? 0) + 1;
+      counts[node.kind] += 1;
     }
     return counts;
   });
@@ -245,6 +245,8 @@ export class ConstellationDemoComponent {
 
   /** Advance the drift simulation one step, bouncing off the padded walls. */
   private integrate(): void {
+    // Skip work entirely while the tab is backgrounded.
+    if (document.hidden) return;
     const lo = MARGIN;
     const hi = 1 - MARGIN;
     this.sim.update((list) =>

@@ -9,9 +9,13 @@
     border-color var(--dur) var(--ease-out),
     box-shadow var(--dur) var(--ease-out);
 
+  &:hover {
+    border-color: var(--border-strong);
+  }
+
   &.is-open {
     border-color: var(--border-strong);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-2);
   }
 }
 
@@ -21,29 +25,34 @@
   justify-content: space-between;
   gap: var(--space-4);
   width: 100%;
+  min-height: 3.5rem;
   padding: clamp(var(--space-4), 2.2vw, var(--space-5));
   border: 0;
   background: transparent;
   text-align: left;
   cursor: pointer;
   color: var(--text-primary);
-  transition: color var(--dur-fast) var(--ease-out);
+  transition: background var(--dur-fast) var(--ease-out);
 
   &:hover {
-    color: var(--text-primary);
+    background: var(--surface-1);
   }
 
   &:hover .faq-item__chevron {
     color: var(--violet);
     border-color: var(--border-strong);
   }
+
+  &:active .faq-item__chevron {
+    scale: 0.92;
+  }
 }
 
 .faq-item__q {
   font-family: var(--font-display);
-  font-size: clamp(1rem, 2.2vw, 1.15rem);
+  font-size: clamp(var(--fs-body), 2.2vw, var(--fs-body-lg));
   font-weight: 600;
-  line-height: 1.4;
+  line-height: var(--lh-tight);
 
   :where(mark.hl) {
     font-weight: 700;
@@ -54,21 +63,45 @@
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 2rem;
-  height: 2rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: var(--radius-full);
   border: 1px solid var(--border);
+  background: var(--surface-1);
   color: var(--text-tertiary);
+  /* `scale` composes with the rotation, so pressing squeezes the rotated glyph. */
   transition:
     transform var(--dur) var(--ease-spring),
+    scale var(--dur-fast) var(--ease-out),
     color var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
 }
 
 .is-open .faq-item__chevron {
   transform: rotate(90deg);
   color: var(--violet);
   border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--violet) 12%, transparent);
+}
+
+/* Buttery height animation: the 0fr → 1fr grid-track trick keeps the answer in
+   the DOM (searchable, animatable) while `visibility` removes it from the
+   a11y tree until it is open. */
+.faq-item__collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  visibility: hidden;
+  transition:
+    grid-template-rows 200ms var(--ease-out),
+    visibility 0s linear 200ms;
+}
+
+.is-open .faq-item__collapse {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition: grid-template-rows 200ms var(--ease-out);
 }
 
 .faq-item__body {
@@ -76,30 +109,28 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-3);
-  padding: 0 clamp(var(--space-4), 2.2vw, var(--space-5)) clamp(var(--space-4), 2.2vw, var(--space-5));
-  animation: faq-open var(--dur) var(--ease-out);
+  min-height: 0;
+  overflow: hidden;
+  /* Bottom padding only while open: a box can never render shorter than its
+     own padding, so a static padding would leak into the collapsed 0fr track. */
+  padding: 0 clamp(var(--space-4), 2.2vw, var(--space-5));
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur) var(--ease-out),
+    padding-bottom 200ms var(--ease-out);
+}
+
+.is-open .faq-item__body {
+  opacity: 1;
+  transform: none;
+  padding-bottom: clamp(var(--space-4), 2.2vw, var(--space-5));
 }
 
 .faq-item__answer {
   color: var(--text-secondary);
-  font-size: 0.95rem;
-  line-height: 1.65;
+  font-size: var(--fs-body-sm);
+  line-height: var(--lh-body);
   max-width: 62ch;
-}
-
-@keyframes faq-open {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .faq-item__body {
-    animation: none;
-  }
 }

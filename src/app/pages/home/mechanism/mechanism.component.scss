@@ -18,7 +18,7 @@
 @media (max-width: 860px) {
   .mechanism__flow {
     --flow-gap: 2.5rem;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     max-width: 32rem;
     margin-inline: auto;
   }

@@ -1,5 +1,25 @@
 <div class="tree-wrapper" genieResizable>
   <div class="background-layer"></div>
+
+  <div class="tree-toolbar">
+    <span
+      class="tree-toolbar__count"
+      [title]="filteredStats().rows + ' filtered rows — ' + filteredStats().nodes + ' nodes + ' + filteredStats().dependencies + ' dependencies (fully expanded)'"
+    >
+      <span class="tree-toolbar__value">{{ filteredStats().nodes }}</span> nodes
+      <span class="tree-toolbar__sep">·</span>
+      <span class="tree-toolbar__value">{{ filteredStats().dependencies }}</span> deps
+    </span>
+    <button
+      type="button"
+      class="tree-toolbar__copy"
+      (click)="copyFilteredJson()"
+      title="Copy the filtered tree to the clipboard as JSON"
+    >
+      <span aria-hidden="true">⧉</span> Copy JSON
+    </button>
+  </div>
+
   <div
     #scrollContainer
     class="scroll-container custom-scrollbar"
@@ -12,14 +32,20 @@
         @if (row.kind === 'node') {
           <div
             class="virtual-row tree-node-row"
+            role="button"
+            tabindex="0"
             [class.active]="_selectedNodeId() === row.node.id"
             [style.transform]="'translateY(' + item.top + 'px)'"
             [style.padding-left.px]="nodeIndent(row.depth)"
             (click)="selectNodeRow(row)"
+            (keydown.enter)="selectNodeRow(row)"
+            (keydown.space)="$event.preventDefault(); selectNodeRow(row)"
           >
             <button
               type="button"
               class="chevron-btn"
+              aria-label="Toggle children"
+              [attr.aria-expanded]="row.hasExpandableContent ? row.expanded : null"
               [class.hidden]="!row.hasExpandableContent"
               [class.expanded]="row.expanded"
               (click)="toggleRow(row, $event)"
@@ -44,6 +70,8 @@
         } @else {
           <div
             class="virtual-row dependency-row"
+            role="button"
+            tabindex="0"
             [class.unused]="!row.dependency.usageCount"
             [class.root-scope]="isRoot(row.dependency)"
             [class.framework-item]="row.dependency.isFramework"
@@ -51,6 +79,8 @@
             [style.transform]="'translateY(' + item.top + 'px)'"
             [style.padding-left.px]="dependencyIndent(row.depth)"
             (click)="selectDependencyRow(row, $event)"
+            (keydown.enter)="selectDependencyRow(row, $any($event))"
+            (keydown.space)="$event.preventDefault(); selectDependencyRow(row, $any($event))"
           >
             <span
               class="type-indicator"

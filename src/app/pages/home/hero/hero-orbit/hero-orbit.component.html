@@ -5,17 +5,22 @@
     <div
       class="ring"
       [class.ring--reverse]="ring.reverse"
-      [style.--dur]="ring.duration"
+      [style.--spin-dur]="ring.duration"
       [style.--r]="ring.radius"
     >
       <span class="ring-track" aria-hidden="true"></span>
       @for (node of ring.nodes; track node.id) {
-        <div class="slot" [style.--angle]="node.angle" [style.--r]="ring.radius">
+        <div
+          class="slot"
+          [style.--angle]="node.angle"
+          [style.--r]="ring.radius"
+          [style.--dot]="node.accent"
+          [style.--i]="node.id"
+        >
           <div class="counter" [style.--angle]="node.angle">
-            <div class="spin" [class.spin--rev]="ring.reverse" [style.--dur]="ring.duration">
+            <div class="spin" [class.spin--rev]="ring.reverse" [style.--spin-dur]="ring.duration">
               <span
                 class="node"
-                [style.--dot]="node.accent"
                 (pointerenter)="focus(node.label)"
                 (pointerleave)="clear()"
               >

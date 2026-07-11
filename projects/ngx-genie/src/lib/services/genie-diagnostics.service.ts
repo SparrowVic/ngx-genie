@@ -71,10 +71,12 @@ export const DEFAULT_DIAGNOSTICS_CONFIG: DiagnosticsConfig = {
 @Injectable({providedIn: 'root'})
 export class GenieDiagnosticsService {
   private registry = inject(GenieRegistryService);
-  private readonly sizeEstimateCache = new WeakMap<object, number>();
+  // Volatile: size + subscription state can change as an instance accumulates state, so these are
+  // recreated on every run (see resetVolatileCaches). The other two are structural and kept stable.
+  private sizeEstimateCache = new WeakMap<object, number>();
   private readonly publicPropertyCountCache = new WeakMap<object, number>();
   private readonly injectorReferenceCache = new WeakMap<object, boolean>();
-  private readonly subscriptionStateCache = new WeakMap<object, boolean>();
+  private subscriptionStateCache = new WeakMap<object, boolean>();
 
   private readonly maxObjectKeysToScan = 200;
   private readonly maxArrayItemsToSample = 10;
@@ -82,6 +84,7 @@ export class GenieDiagnosticsService {
   private readonly chunkMaxItems = 500;
 
   runDiagnostics(config: DiagnosticsConfig = DEFAULT_DIAGNOSTICS_CONFIG): DiagnosticsReport {
+    this.resetVolatileCaches();
 
     const services = this.registry.services();
     const nodes = this.registry.nodes();
@@ -321,6 +324,7 @@ export class GenieDiagnosticsService {
     onProgress: (progress: DiagnosticsProgress) => void,
     onComplete: (report: DiagnosticsReport) => void
   ): () => void {
+    this.resetVolatileCaches();
     const services = this.registry.services();
     const nodes = this.registry.nodes();
     const dependencies = this.registry.dependencies();
@@ -715,6 +719,16 @@ export class GenieDiagnosticsService {
 
   private now(): number {
     return typeof performance !== 'undefined' ? performance.now() : Date.now();
+  }
+
+  /**
+   * Recreate the caches whose keyed value can change as a live instance accumulates state. Without
+   * this, estimateInstanceSize() would freeze a service's first measured size and a leak that only
+   * crosses the threshold on a later run would go unreported.
+   */
+  private resetVolatileCaches(): void {
+    this.sizeEstimateCache = new WeakMap<object, number>();
+    this.subscriptionStateCache = new WeakMap<object, boolean>();
   }
 
   private getSeverityWeight(s: AnomalySeverity): number {

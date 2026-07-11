@@ -242,6 +242,12 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot {
+    animation: none;
+  }
+}
+
 .window-controls {
   display: flex;
   gap: 8px;

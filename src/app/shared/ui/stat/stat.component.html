@@ -5,13 +5,17 @@
     </span>
   }
 
-  <span
-    class="stat__value"
-    aria-hidden="true"
-    [appCountUp]="value()"
-    [decimals]="decimals()"
-    [suffix]="suffix()"
-  ></span>
+  @if (isNumeric()) {
+    <span
+      class="stat__value"
+      aria-hidden="true"
+      [appCountUp]="numericValue()"
+      [decimals]="decimals()"
+      [suffix]="suffix()"
+    ></span>
+  } @else {
+    <span class="stat__value" aria-hidden="true">{{ value() }}{{ suffix() }}</span>
+  }
 
   <span class="stat__label">{{ label() }}</span>
 </div>

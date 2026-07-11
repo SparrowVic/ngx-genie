@@ -9,12 +9,38 @@
         <div class="spotlight__titles">
           <div class="spotlight__tags">
             <ui-chip icon="sparkles" [accent]="f.accent">Inspector view</ui-chip>
-            <ui-chip icon="atom" [accent]="f.accent">Since v{{ f.since }}</ui-chip>
           </div>
           <h3 class="spotlight__name">{{ f.name }}</h3>
           <p class="spotlight__tagline">{{ f.tagline }}</p>
         </div>
       </header>
+
+      @if (shot(); as s) {
+        <figure class="spotlight__shot" [class.spotlight__shot--portrait]="shotPortrait()">
+          <span class="shot-bar" aria-hidden="true">
+            <span class="shot-dots">
+              <i class="shot-dot shot-dot--rose"></i>
+              <i class="shot-dot shot-dot--amber"></i>
+              <i class="shot-dot shot-dot--emerald"></i>
+            </span>
+            <span class="shot-title">{{ f.name }} · real capture</span>
+            <kbd class="shot-key">F1</kbd>
+          </span>
+          <span class="shot-stage">
+            <img
+              [src]="s.src"
+              [alt]="s.alt"
+              [width]="s.width"
+              [height]="s.height"
+              loading="lazy"
+              decoding="async"
+            />
+          </span>
+          @if (s.caption; as caption) {
+            <figcaption class="shot-caption">{{ caption }}</figcaption>
+          }
+        </figure>
+      }
 
       <p class="spotlight__desc">{{ f.description }}</p>
 

@@ -19,6 +19,8 @@ import {GenieResizableDirective} from '../../../../../shared/directives/resizabl
 import {TreeLegendComponent} from './tree-legend/tree-legend.component';
 import {GenieFilterState} from '../../../options-panel/options-panel.models';
 import {OrgChartUtils} from '../org-chart-view/org-chart.utils';
+import {GenieExplorerStateService} from '../../../explorer-state.service';
+import {GenieToastService} from '../../../../../shared/services/genie-toast.service';
 
 const TREE_ROW_HEIGHT = 34;
 const TREE_OVERSCAN_ROWS = 16;
@@ -61,6 +63,11 @@ interface VisibleTreeRow {
 export class TreeViewComponent implements AfterViewInit, OnDestroy {
   private readonly zone = inject(NgZone);
   private readonly scrollContainer = viewChild<ElementRef<HTMLElement>>('scrollContainer');
+  private readonly state = inject(GenieExplorerStateService);
+  private readonly toastService = inject(GenieToastService);
+
+  /** Expand-independent counts of the currently filtered tree (nodes + visible dependency rows). */
+  protected readonly filteredStats = this.state.filteredStats;
 
   readonly tree = input.required<GenieTreeNode[]>();
   readonly filterState = input<GenieFilterState | null>(null);
@@ -171,6 +178,46 @@ export class TreeViewComponent implements AfterViewInit, OnDestroy {
 
   protected getProviderTypeAbbr(type: string): string {
     return type ? type.substring(0, 3).toUpperCase() : 'UNK';
+  }
+
+  /** Copy the currently filtered tree to the clipboard as JSON and toast the outcome. */
+  protected copyFilteredJson(): void {
+    const json = this.state.exportFilteredTreeAsJson();
+    const stats = this.filteredStats();
+    void this.writeToClipboard(json).then(ok => {
+      if (ok) {
+        this.toastService.success(`Copied ${stats.nodes} nodes · ${stats.dependencies} deps to clipboard as JSON`);
+      } else {
+        this.toastService.error('Could not access the clipboard');
+      }
+    });
+  }
+
+  private async writeToClipboard(text: string): Promise<boolean> {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {
+      // fall through to the legacy execCommand path
+    }
+    try {
+      if (typeof document === 'undefined') return false;
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.top = '-1000px';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return ok;
+    } catch {
+      return false;
+    }
   }
 
   private measureViewport(): void {

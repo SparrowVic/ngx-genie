@@ -24,7 +24,4 @@ export class MechanismComponent {
 
   /** Index of the final stage — the connector beam is suppressed there. */
   readonly lastIndex = computed(() => this.steps().length - 1);
-
-  /** Total number of stages, surfaced in the section eyebrow. */
-  readonly stageCount = computed(() => this.steps().length);
 }

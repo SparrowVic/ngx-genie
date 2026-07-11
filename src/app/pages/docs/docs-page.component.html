@@ -34,14 +34,13 @@
 
           <div class="toc__install">
             <p class="toc__title eyebrow">Quick install</p>
-            <div class="toc__managers" role="tablist" aria-label="Package manager">
+            <div class="toc__managers" role="group" aria-label="Package manager">
               @for (cmd of install.commands(); track cmd.manager) {
                 <button
                   type="button"
-                  role="tab"
                   class="toc__manager"
                   [class.is-active]="install.manager() === cmd.manager"
-                  [attr.aria-selected]="install.manager() === cmd.manager"
+                  [attr.aria-pressed]="install.manager() === cmd.manager"
                   (click)="selectManager(cmd.manager)"
                 >
                   <ui-icon [name]="cmd.icon" [size]="15" />
@@ -54,6 +53,7 @@
               [code]="install.current().command"
               lang="bash"
               filename="terminal"
+              compact
             />
           </div>
         </nav>
@@ -69,6 +69,8 @@
           />
         }
 
+        <hr class="docs-page__beacon beacon-divider" aria-hidden="true" />
+
         <!-- Configuration reference -->
         <section id="config" class="docs-page__block" appReveal>
           <ui-section-header
@@ -78,6 +80,8 @@
           />
           <app-config-table [options]="content.configOptions()" />
         </section>
+
+        <hr class="docs-page__beacon beacon-divider" aria-hidden="true" />
 
         <!-- Angular compatibility -->
         <section id="compatibility" class="docs-page__block" appReveal>
@@ -89,13 +93,13 @@
               <h3 class="compat__title">Angular compatibility</h3>
             </div>
             <p class="compat__body">
-              GenieOS tracks the Angular release train closely. The current line targets
-              Angular 21, with maintained support branches reaching back to Angular 17.
+              GenieOS targets the <strong>Angular 21</strong> line — its peer dependency is
+              <code>^21</code>. Earlier majors are published only as version-tagged pre-releases on
+              npm, not maintained support branches.
             </p>
             <div class="compat__chips">
-              <ui-chip icon="check" accent="var(--emerald)">Angular 21 · recommended</ui-chip>
-              <ui-chip icon="circle" accent="var(--amber)">Angular 20 · legacy line</ui-chip>
-              <ui-chip icon="layers" accent="var(--indigo)">Angular 17–19 · supported</ui-chip>
+              <ui-chip icon="check" accent="var(--emerald)">Angular 21 · required</ui-chip>
+              <ui-chip icon="layers" accent="var(--indigo)">Earlier majors · pre-release tags</ui-chip>
             </div>
           </div>
 

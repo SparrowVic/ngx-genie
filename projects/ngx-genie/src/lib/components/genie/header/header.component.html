@@ -35,12 +35,13 @@
       </svg>
       <input
         type="text"
+        aria-label="Search dependencies"
         placeholder="INITIALIZE SEARCH SEQUENCE..."
         [ngModel]="searchQuery()"
         (ngModelChange)="searchQueryChange.emit($event)"
       >
       @if (searchQuery()) {
-        <button (click)="searchQueryChange.emit('')" class="clear-btn">✖</button>
+        <button type="button" aria-label="Clear search" (click)="searchQueryChange.emit('')" class="clear-btn">✖</button>
       }
     </div>
   </div>
@@ -61,14 +62,19 @@
        rel="noopener noreferrer"
        class="github-link"
        title="View on GitHub"
+       aria-label="View on GitHub"
        [innerHTML]="githubIcon">
     </a>
 
     <div class="window-controls">
-      <button class="control-btn minimize" (click)="maximize.emit()">
+      <button type="button" class="control-btn minimize"
+              [attr.aria-label]="isMaximized() ? 'Restore window' : 'Maximize window'"
+              [attr.title]="isMaximized() ? 'Restore window' : 'Maximize window'"
+              (click)="maximize.emit()">
         {{ isMaximized() ? '❐' : '□' }}
       </button>
-      <button class="control-btn close" (click)="close.emit()">×</button>
+      <button type="button" class="control-btn close" aria-label="Close GenieOS" title="Close GenieOS"
+              (click)="close.emit()">×</button>
     </div>
   </div>
 </header>

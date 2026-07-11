@@ -15,7 +15,7 @@
 
 @media (max-width: 900px) {
   .constellation__body {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -52,6 +52,8 @@
     radial-gradient(80% 80% at 50% 40%, rgba(99, 102, 241, 0.12), transparent 70%),
     linear-gradient(180deg, rgba(4, 5, 13, 0.4), rgba(11, 13, 34, 0.65));
   border: 1px solid var(--border);
+  /* Soft vignette keeps the field's edges dark so glows read against depth. */
+  box-shadow: inset 0 0 60px -18px rgba(4, 5, 13, 0.8), var(--edge-light);
 }
 
 .constellation__stage {
@@ -61,61 +63,100 @@
   touch-action: manipulation;
 }
 
+/* Full-height layer carrying a 1px band at its midline: translating it -100%
+   → 100% (global `scan` keyframes) sweeps the band across the whole stage
+   using transform only. Reduced motion snaps it to the final, offscreen state. */
 .constellation__scanline {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.5), transparent);
-  animation: scan 7s linear infinite;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent calc(50% - 1px),
+    rgba(34, 211, 238, 0.4) 50%,
+    transparent calc(50% + 1px)
+  );
+  animation: scan 9s linear infinite;
   pointer-events: none;
-  opacity: 0.5;
 }
 
-/* ---- Edges ---- */
+/* The sweep is pure decoration — park it entirely when motion is reduced
+   (the global kill-switch alone would leave the band resting mid-stage). */
+@media (prefers-reduced-motion: reduce) {
+  .constellation__scanline {
+    display: none;
+  }
+}
+
+/* ---- Edges: neutral hairlines at rest, accent-lit only when traced ---- */
 .edge {
+  stroke: rgba(148, 163, 255, 0.8);
+  stroke-opacity: 0.16;
   stroke-linecap: round;
-  stroke-opacity: 0.2;
-  transition: stroke-opacity var(--dur) var(--ease-out);
+  transition:
+    stroke var(--dur) var(--ease-out),
+    stroke-opacity var(--dur) var(--ease-out);
 }
 
 .edge--active {
+  stroke: var(--accent, var(--indigo));
   stroke-opacity: 0.95;
-  filter: drop-shadow(0 0 1.4px rgba(255, 255, 255, 0.35));
+  stroke-width: 0.45; /* overrides the per-edge presentation attribute */
 }
 
 .edge--dim {
-  stroke-opacity: 0.05;
+  stroke-opacity: 0.04;
 }
 
-/* ---- Nodes ---- */
-.node {
-  fill-opacity: 0.9;
-  stroke-width: 0.5;
-  stroke-opacity: 0.85;
+/* ---- Nodes: an invisible hit ring makes small bodies easy to catch ---- */
+.node-g {
   cursor: pointer;
+  /* The default rectangular ring reads wrong on an SVG glyph — the focused
+     node's own stroke bloom marks keyboard position instead. */
+  outline: none;
+}
+
+.node-g:focus-visible .node {
+  fill-opacity: 1;
+  stroke-width: 0.7;
+  stroke-opacity: 1;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent, var(--indigo)) 80%, rgba(255, 255, 255, 0.6)));
+}
+
+.node-hit {
+  fill: transparent;
+  stroke: none;
+}
+
+.node {
+  fill: var(--accent, var(--indigo));
+  fill-opacity: 0.92;
+  stroke: var(--accent, var(--indigo));
+  stroke-width: 0.4;
+  stroke-opacity: 0.85;
+  pointer-events: none;
   transform-box: fill-box;
   transform-origin: center;
   transition:
     transform var(--dur) var(--ease-spring),
     fill-opacity var(--dur) var(--ease-out),
-    opacity var(--dur) var(--ease-out);
-  filter: drop-shadow(0 0 1.6px rgba(148, 163, 255, 0.45));
+    opacity var(--dur) var(--ease-out),
+    filter var(--dur) var(--ease-out);
+  filter: drop-shadow(0 0 1.6px color-mix(in srgb, var(--accent, var(--indigo)) 55%, transparent));
 }
 
-.node:hover {
+.node-g:hover .node {
   fill-opacity: 1;
 }
 
-.node--active {
+.node-g.is-active .node {
   fill-opacity: 1;
-  transform: scale(1.55);
-  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.55));
+  transform: scale(1.5);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent, var(--indigo)) 80%, rgba(255, 255, 255, 0.6)));
 }
 
-.node--dim {
-  opacity: 0.16;
+.node-g.is-dim .node {
+  opacity: 0.14;
+  filter: none;
 }
 
 /* ---- Aside: inspector + legend ---- */
@@ -170,8 +211,8 @@
 }
 
 .inspector__hint {
-  font-size: 0.85rem;
-  line-height: 1.55;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-body);
   color: var(--text-tertiary);
 }
 

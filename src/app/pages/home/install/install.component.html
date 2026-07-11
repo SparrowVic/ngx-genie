@@ -15,14 +15,17 @@
         </span>
       </div>
 
-      <div class="pm-tabs" role="tablist" aria-label="Package manager">
+      <div class="pm-tabs" role="tablist" aria-label="Package manager" (keydown)="onTablistKeydown($event)">
         @for (cmd of install.commands(); track cmd.manager) {
           <button
             type="button"
             role="tab"
             class="pm-tab"
+            [attr.id]="'pm-tab-' + cmd.manager"
+            aria-controls="pm-panel"
             [class.is-active]="cmd.manager === install.manager()"
             [attr.aria-selected]="cmd.manager === install.manager()"
+            [tabindex]="cmd.manager === install.manager() ? 0 : -1"
             (click)="select(cmd.manager)"
           >
             <ui-icon class="pm-tab__icon" [name]="cmd.icon" [size]="18" />
@@ -31,12 +34,14 @@
         }
       </div>
 
-      <ui-code-block [code]="install.current().command" lang="bash" filename="Terminal" />
+      <div id="pm-panel" role="tabpanel" [attr.aria-labelledby]="'pm-tab-' + install.manager()">
+        <ui-code-block [code]="install.current().command" lang="bash" filename="Terminal" />
+      </div>
     </div>
 
     <div class="install__steps-head" [appReveal]="90">
       <h3 class="install__steps-title">Then three tiny steps</h3>
-      <span class="pill install__steps-count">
+      <span class="pill tnum install__steps-count">
         {{ install.steps().length | pluralize: 'step' }} to full observability
       </span>
     </div>

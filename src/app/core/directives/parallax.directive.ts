@@ -1,7 +1,9 @@
 import { Directive, ElementRef, OnInit, PLATFORM_ID, inject, input, numberAttribute } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { prefersReducedMotion } from './reduced-motion';
 
-/** Translates the host on scroll for a depth effect. Factor < 1 = slower. */
+/** Translates the host on scroll for a depth effect. Factor < 1 = slower.
+    Scroll-linked motion, so it no-ops under prefers-reduced-motion. */
 @Directive({
   selector: '[appParallax]',
   host: { '(window:scroll)': 'onScroll()' },
@@ -26,7 +28,12 @@ export class ParallaxDirective implements OnInit {
   }
 
   private apply(): void {
+    const host = this.el.nativeElement;
+    if (prefersReducedMotion()) {
+      host.style.transform = '';
+      return;
+    }
     const y = window.scrollY * this.factor();
-    this.el.nativeElement.style.transform = `translate3d(0, ${y}px, 0)`;
+    host.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
   }
 }

@@ -8,9 +8,9 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--gradient-panel), var(--bg-glass);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  box-shadow: var(--shadow-1), var(--edge-light);
 }
 
 /* ---- Header row ---- */
@@ -25,7 +25,7 @@
 
 .config-table__col {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: var(--fs-micro);
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -48,8 +48,8 @@
   border-bottom: 0;
 }
 .config-row.is-active {
-  background: color-mix(in srgb, var(--violet) 8%, transparent);
-  box-shadow: inset 3px 0 0 var(--violet);
+  background: color-mix(in srgb, var(--violet) 7%, transparent);
+  box-shadow: inset 2px 0 0 var(--violet);
 }
 
 .config-row__key {
@@ -92,6 +92,7 @@
   font-family: var(--font-mono);
   font-size: 0.82rem;
   font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
   color: color-mix(in srgb, var(--accent) 78%, var(--text-primary));
   padding: 0.14rem 0.44rem;
   border-radius: var(--radius-sm);
@@ -100,7 +101,7 @@
 }
 
 .config-row__desc p {
-  font-size: 0.92rem;
+  font-size: var(--fs-body-sm);
   line-height: 1.55;
   color: var(--text-secondary);
 }
@@ -108,7 +109,7 @@
 /* ---- Footer ---- */
 .config-table__foot {
   padding: var(--space-3) var(--space-5);
-  font-size: 0.82rem;
+  font-size: var(--fs-caption);
   color: var(--text-tertiary);
   background: var(--bg-elevated);
   border-top: 1px solid var(--border);
@@ -125,7 +126,7 @@
     display: none;
   }
   .config-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
     padding: var(--space-5);
   }

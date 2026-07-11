@@ -21,11 +21,11 @@
 
   <!-- Mutators -->
   <div class="lab__controls">
-    <ui-button variant="outline" size="sm" icon="arrow-right" (press)="decrement()">
-      − {{ lab.step() }}
+    <ui-button variant="outline" size="sm" (press)="decrement()">
+      <span class="tnum">− {{ lab.step() }}</span>
     </ui-button>
-    <ui-button variant="primary" size="sm" icon="arrow-up-right" (press)="increment()">
-      + {{ lab.step() }}
+    <ui-button variant="primary" size="sm" (press)="increment()">
+      <span class="tnum">+ {{ lab.step() }}</span>
     </ui-button>
     <ui-button variant="ghost" size="sm" icon="recycle" (press)="reset()">Reset</ui-button>
   </div>
@@ -61,7 +61,7 @@
   <footer class="lab__foot">
     <div class="lab__foot-meta">
       <span class="lab__foot-label">history</span>
-      <span class="lab__foot-count">{{ lab.historyLength() | pluralize: 'value' }}</span>
+      <span class="lab__foot-count tnum">{{ lab.historyLength() | pluralize: 'value' }}</span>
     </div>
     <ui-sparkline
       [data]="lab.history()"

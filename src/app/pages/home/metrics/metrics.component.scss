@@ -2,75 +2,43 @@
   display: block;
 }
 
-.metrics__summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-4);
-  margin-top: var(--space-4);
-}
-
-.metrics__live {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.3rem 0.75rem;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
-  font-family: var(--font-mono);
-  font-size: 0.76rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--text-tertiary);
-  transition: color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
-}
-
-.metrics__live-dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.metrics__live.is-live {
-  color: var(--emerald);
-  border-color: color-mix(in oklab, var(--emerald) 34%, transparent);
-}
-
-.metrics__live.is-live .metrics__live-dot {
-  animation: metrics-pulse 1.8s var(--ease-out) infinite;
-}
-
-@keyframes metrics-pulse {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--emerald) 55%, transparent);
-  }
-  70% {
-    box-shadow: 0 0 0 8px transparent;
-  }
-  100% {
-    box-shadow: 0 0 0 0 transparent;
-  }
-}
-
-.metrics__stat {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.metrics__stat ui-icon {
-  color: var(--text-tertiary);
-}
-
-.metrics__grid {
+/* One shared glass band; the tiles inside are separated by hairline seams
+   drawn as cell borders (per column count), never by gaps. */
+.metrics__band {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
-  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1fr);
   margin-top: var(--space-6);
+  overflow: hidden;
+}
+
+app-metric-tile {
+  min-width: 0;
+  border-top: 1px solid var(--border);
+}
+app-metric-tile:first-child {
+  border-top: 0;
+}
+
+@media (40rem <= width < 64rem) {
+  .metrics__band {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  app-metric-tile:nth-child(2) {
+    border-top: 0;
+  }
+  app-metric-tile:nth-child(2n) {
+    border-inline-start: 1px solid var(--border);
+  }
+}
+
+@media (width >= 64rem) {
+  .metrics__band {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  app-metric-tile:nth-child(-n + 3) {
+    border-top: 0;
+  }
+  app-metric-tile:not(:nth-child(3n + 1)) {
+    border-inline-start: 1px solid var(--border);
+  }
 }

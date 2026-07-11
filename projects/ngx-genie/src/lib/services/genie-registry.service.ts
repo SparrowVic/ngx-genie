@@ -11,8 +11,12 @@ import {
   ChangeDetectorRef,
   ViewRef,
   effect,
-  untracked
+  untracked,
+  inject,
+  PLATFORM_ID,
+  DestroyRef
 } from '@angular/core';
+import {isPlatformBrowser} from '@angular/common';
 import {isObservable} from 'rxjs';
 import {
   GenieNode,
@@ -27,7 +31,43 @@ import {
 import {ANGULAR_CORE_SYSTEM, normalizeInternalName} from '../configs/angular-internals';
 import {GenFilterService} from './filter.service';
 
-const ORIGINAL_INJECTOR_GET = Injector.prototype.get;
+/**
+ * Marker stored on a patched injector instance. Holds the original `get` so the patch can be
+ * cleanly reverted on teardown. A Symbol keeps it non-enumerable and collision-free on host objects.
+ */
+const GENIE_PATCHED = Symbol('ngxGenie.injectorPatched');
+
+interface GeniePatchRecord {
+  originalGet: (token: any, notFoundValue?: any, flags?: any) => any;
+  hadOwnGet: boolean;
+}
+
+/**
+ * Decode Angular DI flags into a normalized {@link InjectionFlags}. Angular v21 removed the public
+ * numeric `InjectFlags` enum; modern callers pass an `InjectOptions` object, while the private
+ * `InternalInjectFlags` numeric bitmask (Optional=8, SkipSelf=4, Self=2, Host=1) is still used
+ * internally. Both forms are decoded here. Exported (not via public-api) so the internal-contract
+ * guard spec can pin the exact bit weights.
+ */
+export function decodeInjectFlags(flags: any): InjectionFlags {
+  if (typeof flags === 'number') {
+    return {
+      optional: (flags & 8) !== 0,
+      skipSelf: (flags & 4) !== 0,
+      self: (flags & 2) !== 0,
+      host: (flags & 1) !== 0
+    };
+  }
+  if (flags && typeof flags === 'object') {
+    return {
+      optional: !!flags.optional,
+      skipSelf: !!flags.skipSelf,
+      self: !!flags.self,
+      host: !!flags.host
+    };
+  }
+  return {optional: false, skipSelf: false, self: false, host: false};
+}
 
 const IGNORED_TOKENS = new Set<any>([
   Injector,
@@ -143,8 +183,15 @@ export class GenieRegistryService {
   private _nextNodeId = 1;
   private _nextServiceId = 1;
   private _hasWarnedAboutProduction = false;
-  private _isSpyInstalled = false;
 
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly isBrowser = isPlatformBrowser(this.platformId);
+  private readonly destroyRef = inject(DestroyRef);
+
+  /** Whether the DI-capture spy should record injections. Off while the overlay is closed. */
+  private _captureActive = false;
+  /** Injector instances whose `get` we have wrapped, so they can be reverted on teardown. */
+  private readonly _patchedInjectors = new Set<any>();
 
   private _isScanning = false;
 
@@ -239,7 +286,7 @@ export class GenieRegistryService {
     private appRef: ApplicationRef,
     private filterService: GenFilterService
   ) {
-    this.installSpy();
+    this.destroyRef.onDestroy(() => this.teardownCapture());
 
     effect(() => {
       this.filterService.configChanged();
@@ -269,50 +316,79 @@ export class GenieRegistryService {
     });
   }
 
-  private installSpy(): void {
-    if (this._isSpyInstalled) return;
-    this._isSpyInstalled = true;
-
-    const registry = this;
-
-    Injector.prototype.get = function (token: any, notFoundValue?: any, flags?: any): any {
-      const result = (ORIGINAL_INJECTOR_GET as any).apply(this, [token, notFoundValue, flags]);
-
-
-      if (registry._isScanning) return result;
-
-      if (registry.isIgnoredTokenFast(token)) return result;
-      try {
-        registry.handleInjectionEvent(this, token, result, flags);
-      } catch (e) {
-
-      }
-      return result;
-    };
-  }
-
-
+  /**
+   * Wrap a single injector instance's `get` so we can observe what it resolves. We patch concrete
+   * injector *instances* (never `Injector.prototype`, whose abstract `get` is undefined on v21 and
+   * is never invoked) and remember the original `get` so the wrap can be reverted on teardown.
+   */
   private patchInjectorInstance(injector: any): void {
-    if (!injector || injector['__genie_patched__']) return;
+    if (!this.isBrowser || !injector || injector[GENIE_PATCHED]) return;
 
     const originalGet = injector.get;
+    if (typeof originalGet !== 'function') return;
+
+    const hadOwnGet = Object.prototype.hasOwnProperty.call(injector, 'get');
     const registry = this;
 
-    injector.get = function (token: any, notFoundValue?: any, flags?: any): any {
+    injector.get = function (this: any, token: any, notFoundValue?: any, flags?: any): any {
       const result = originalGet.apply(this, [token, notFoundValue, flags]);
 
-      if (registry._isScanning) return result;
-
+      if (registry._isScanning || !registry._captureActive) return result;
       if (registry.isIgnoredTokenFast(token)) return result;
       try {
-
         registry.handleInjectionEvent(this, token, result, flags);
       } catch (e) {
       }
       return result;
     };
 
-    injector['__genie_patched__'] = true;
+    const record: GeniePatchRecord = {originalGet, hadOwnGet};
+    Object.defineProperty(injector, GENIE_PATCHED, {
+      value: record,
+      configurable: true,
+      enumerable: false,
+      writable: true
+    });
+    this._patchedInjectors.add(injector);
+  }
+
+  /** Revert a single injector instance's `get` to its original, removing all trace of the patch. */
+  private restoreInjector(injector: any): void {
+    const record: GeniePatchRecord | undefined = injector && injector[GENIE_PATCHED];
+    if (!record) return;
+    try {
+      if (record.hadOwnGet) {
+        injector.get = record.originalGet;
+      } else {
+        delete injector.get;
+      }
+      delete injector[GENIE_PATCHED];
+    } catch (e) {
+    }
+    this._patchedInjectors.delete(injector);
+  }
+
+  /**
+   * Enable/disable DI capture. The overlay calls this when it opens/closes so we never retain host
+   * instances (through the deferred-event buffer) while the inspector is not in use.
+   */
+  setCaptureActive(active: boolean): void {
+    this._captureActive = active;
+    if (!active && !this._isScanning && !this._isChunkedScanActive) {
+      this._deferredEvents = [];
+      this._deferredTokensByInjector = new WeakMap();
+    }
+  }
+
+  /** Restore every patched injector and drop buffered events. Runs when the registry is destroyed. */
+  private teardownCapture(): void {
+    this._captureActive = false;
+    for (const injector of Array.from(this._patchedInjectors)) {
+      this.restoreInjector(injector);
+    }
+    this._patchedInjectors.clear();
+    this._deferredEvents = [];
+    this._deferredTokensByInjector = new WeakMap();
   }
 
   handleInjectionEvent(requestingInjector: Injector, token: any, instance: any, flags: any) {
@@ -339,28 +415,7 @@ export class GenieRegistryService {
       }
     }
 
-    // Angular v21 removed the public numeric `InjectFlags` enum; modern callers of
-    // Injector.get()/inject() pass an `InjectOptions` object instead. Support both the
-    // legacy numeric bitmask (InternalInjectFlags: Optional=8, SkipSelf=4, Self=2, Host=1)
-    // and the object form so DI flags are still decoded correctly on 21.x.
-    let decodedFlags: InjectionFlags;
-    if (typeof flags === 'number') {
-      decodedFlags = {
-        optional: (flags & 8) !== 0,
-        skipSelf: (flags & 4) !== 0,
-        self: (flags & 2) !== 0,
-        host: (flags & 1) !== 0
-      };
-    } else if (flags && typeof flags === 'object') {
-      decodedFlags = {
-        optional: !!flags.optional,
-        skipSelf: !!flags.skipSelf,
-        self: !!flags.self,
-        host: !!flags.host
-      };
-    } else {
-      decodedFlags = {optional: false, skipSelf: false, self: false, host: false};
-    }
+    const decodedFlags = decodeInjectFlags(flags);
 
     const tokenName = this.describeToken(token);
     this.upsertDependency(consumerId, providerId, tokenName, decodedFlags, 'Direct');
@@ -392,7 +447,8 @@ export class GenieRegistryService {
   }
 
   scanApplication(): void {
-    this.installSpy();
+    if (!this.isBrowser) return;
+    this._captureActive = true;
     this.startScanMetrics();
     this.beginRegistryBatch();
     this._isScanning = true;
@@ -410,10 +466,14 @@ export class GenieRegistryService {
   }
 
   scanApplicationChunked(onComplete?: () => void): void {
+    if (!this.isBrowser) {
+      onComplete?.();
+      return;
+    }
     if (onComplete) this._chunkedScanCompletionCallbacks.push(onComplete);
     if (this._isChunkedScanActive) return;
 
-    this.installSpy();
+    this._captureActive = true;
     this.startScanMetrics();
     this.beginRegistryBatch();
     this._isChunkedScanActive = true;
@@ -1249,6 +1309,7 @@ export class GenieRegistryService {
     const servicesToRemove = this.getServicesForNode(nodeId);
     const serviceIdsToRemove = new Set(servicesToRemove.map(s => s.id));
     if (node) {
+      this.restoreInjector(node.injector);
       this.injectorToNodeMap.delete(node.injector);
       this.nodeById.delete(node.id);
     }
@@ -1273,13 +1334,9 @@ export class GenieRegistryService {
   guessProviderType(token: any, instance: any): GenieProviderType {
     const type = typeof instance;
     if (type === 'string' || type === 'number' || type === 'boolean') return 'Value';
-    if (token && (token as any).ɵprov) {
-      const prov = (token as any).ɵprov;
-      if (prov.useValue !== undefined) return 'Value';
-      if (prov.useFactory !== undefined) return 'Factory';
-      if (prov.useExisting !== undefined) return 'Existing';
-      if (prov.useClass !== undefined) return 'Class';
-    }
+    // NOTE: the compiled `ɵprov` (ɵɵdefineInjectable output) never carries useValue/useFactory/
+    // useExisting/useClass — those are provider-config keys, not part of the injectable def — so we
+    // classify from the token/instance relationship instead.
     const tokenName = this.describeToken(token);
     const instanceName = instance?.constructor?.name;
     if (instanceName && tokenName === instanceName) return 'Class';
@@ -1421,6 +1478,11 @@ export class GenieRegistryService {
     this._pendingDependencies = [];
     this._pendingServiceUsage.clear();
     this._isRegistryBatchActive = false;
+    for (const injector of Array.from(this._patchedInjectors)) {
+      this.restoreInjector(injector);
+    }
+    this._patchedInjectors.clear();
+    this._captureActive = false;
     this._deferredEvents = [];
     this._deferredTokensByInjector = new WeakMap();
     this._nodeEnrichmentQueue = [];

@@ -1,5 +1,6 @@
 <footer class="footer">
-  <div class="footer__aurora" aria-hidden="true"></div>
+  <hr class="footer__beacon beacon-divider" aria-hidden="true" />
+  <div class="footer__bloom" aria-hidden="true"></div>
 
   <div class="container footer__inner">
     <div class="footer__top">
@@ -69,11 +70,11 @@
     <!-- Bottom bar -->
     <div class="footer__bottom">
       <div class="footer__legal">
-        <span class="pill footer__version">
+        <span class="pill footer__version tnum">
           <ui-icon name="sparkles" [size]="13" />
           v{{ brand.version }}
         </span>
-        <span class="footer__copy">© {{ year() }} {{ brand.name }} · MIT licensed</span>
+        <span class="footer__copy tnum">© {{ year() }} {{ brand.name }} · Apache-2.0 licensed</span>
       </div>
 
       <ul class="footer__socials">

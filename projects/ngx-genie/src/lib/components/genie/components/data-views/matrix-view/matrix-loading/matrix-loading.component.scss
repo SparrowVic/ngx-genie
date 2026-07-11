@@ -222,3 +222,12 @@ $c-bg: #030403;
     clip: rect(50px, 9999px, 70px, 0);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .scanlines,
+  .log-line .cursor,
+  .glitch::before,
+  .glitch::after {
+    animation: none;
+  }
+}

@@ -45,3 +45,9 @@ Thumbs.db
 # Local-only notes / TODOs (never committed)
 *.local.md
 /.notes/
+
+# Claude Code local skills (kept local until polished for publishing)
+/.claude/skills/
+
+# Playwright MCP browser artifacts (transient screenshots / console logs)
+/.playwright-mcp/

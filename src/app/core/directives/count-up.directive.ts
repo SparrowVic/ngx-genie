@@ -1,5 +1,6 @@
 import { Directive, ElementRef, OnDestroy, OnInit, PLATFORM_ID, inject, input } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { prefersReducedMotion } from './reduced-motion';
 
 /** Animates the host's text from 0 to a target when it scrolls into view. */
 @Directive({ selector: '[appCountUp]' })
@@ -16,7 +17,8 @@ export class CountUpDirective implements OnInit, OnDestroy {
   private observer?: IntersectionObserver;
 
   ngOnInit(): void {
-    if (!this.isBrowser) {
+    // Server render and reduced motion both show the honest final value at once.
+    if (!this.isBrowser || prefersReducedMotion()) {
       this.render(this.target());
       return;
     }
@@ -36,6 +38,11 @@ export class CountUpDirective implements OnInit, OnDestroy {
   }
 
   private animate(): void {
+    // Re-checked here: the preference may have flipped after init.
+    if (prefersReducedMotion()) {
+      this.render(this.target());
+      return;
+    }
     const start = performance.now();
     const to = this.target();
     const dur = this.duration();

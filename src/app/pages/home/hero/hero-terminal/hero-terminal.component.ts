@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { IconComponent } from '../../../../shared/ui/icon/icon.component';
 import { APP_BRAND } from '../../../../core/tokens/brand.token';
+import { prefersReducedMotion } from '../../../../core/directives/reduced-motion';
 
 type LineKind = 'command' | 'muted' | 'comment' | 'keyword' | 'code' | 'blank';
 
@@ -89,6 +90,11 @@ export class HeroTerminalComponent {
 
   constructor() {
     afterNextRender(() => {
+      // JS-driven motion: under prefers-reduced-motion, show the finished session.
+      if (prefersReducedMotion()) {
+        this.cursor.set(this.total());
+        return;
+      }
       const id = setInterval(() => {
         if (this.cursor() >= this.total()) {
           clearInterval(id);

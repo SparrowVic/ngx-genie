@@ -33,7 +33,8 @@
   border-radius: var(--radius-full);
   border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
   background: var(--bg-glass);
-  font-size: 0.84rem;
+  box-shadow: var(--edge-light);
+  font-size: var(--fs-caption);
   color: var(--text-secondary);
 }
 
@@ -47,7 +48,7 @@
   align-items: center;
   gap: 0.45rem;
   flex-wrap: wrap;
-  font-size: 0.84rem;
+  font-size: var(--fs-caption);
   color: var(--text-secondary);
 }
 
@@ -57,12 +58,14 @@
 
 .playground__prompt-note kbd {
   font-family: var(--font-mono);
-  font-size: 0.74rem;
-  padding: 0.08rem 0.38rem;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.4rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: var(--bg-elevated);
   color: var(--text-primary);
+  /* Keycap bottom edge. */
+  box-shadow: inset 0 -1.5px 0 var(--border-strong);
 }
 
 /* ---------- Interactive grid ---------- */
@@ -77,6 +80,11 @@
 .playground__cell {
   display: block;
   min-width: 0;
+}
+
+/* ---------- Section break ---------- */
+.playground__beacon {
+  margin: clamp(var(--space-6), 6vw, var(--space-8)) 0 0;
 }
 
 /* ---------- Scope primer ---------- */
@@ -107,6 +115,10 @@
 }
 
 .playground__footnote-text {
-  font-size: 0.9rem;
+  font-size: var(--fs-body-sm);
   color: var(--text-secondary);
+}
+.playground__footnote-text .mono {
+  font-size: 0.86em;
+  color: var(--text-primary);
 }

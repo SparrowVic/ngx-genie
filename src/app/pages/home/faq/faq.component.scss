@@ -20,11 +20,12 @@
 .faq__tags {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
 .faq__tag {
-  padding: 0;
+  /* The padding is invisible hit area around the chip, not visual chrome. */
+  padding: 0.2rem;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -40,6 +41,10 @@
     transform: translateY(-1px);
   }
 
+  &:active {
+    transform: scale(0.96);
+  }
+
   &.is-active {
     opacity: 1;
     filter: saturate(1.15);
@@ -51,11 +56,18 @@
   }
 }
 
+@media (pointer: coarse) {
+  .faq__tag {
+    padding-block: 0.45rem;
+  }
+}
+
 .faq__search {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 0.55rem 0.9rem;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.9rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   background: var(--bg-glass);
@@ -83,7 +95,8 @@
   background: transparent;
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 0.9rem;
+  /* 16px minimum so iOS Safari doesn't zoom the page on focus. */
+  font-size: var(--fs-body);
 
   &::placeholder {
     color: var(--text-tertiary);
@@ -106,7 +119,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 0.35rem 0.75rem;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.85rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   background: transparent;
@@ -116,11 +130,24 @@
   cursor: pointer;
   transition:
     color var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 
   &:hover {
     color: var(--text-primary);
     border-color: var(--border-strong);
+    background: var(--surface-1);
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+@media (pointer: coarse) {
+  .faq__reset {
+    min-height: 2.5rem;
   }
 }
 
@@ -148,13 +175,13 @@
 
 .faq__empty-title {
   font-family: var(--font-display);
-  font-size: 1.05rem;
+  font-size: var(--fs-h4);
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .faq__empty-hint {
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--fs-body-sm);
   max-width: 40ch;
 }

@@ -24,16 +24,32 @@
 }
 
 .features-hero__stats {
+  --stat-gap: clamp(var(--space-4), 3vw, var(--space-6));
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--space-4);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--stat-gap);
   padding: clamp(var(--space-5), 3vw, var(--space-6));
   border-radius: var(--radius-xl);
   border: 1px solid var(--border);
   background: var(--bg-glass);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: var(--shadow-1), var(--edge-light);
+}
+
+/* Hairline separators between the band's figures. */
+.features-hero__stats ui-stat {
+  position: relative;
+}
+.features-hero__stats ui-stat:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: calc(var(--stat-gap) / -2);
+  transform: translateY(-50%);
+  width: 1px;
+  height: 72%;
+  background: linear-gradient(180deg, transparent, var(--border-strong), transparent);
 }
 
 /* ===================== Body: nav + spotlights ===================== */
@@ -69,11 +85,13 @@
 
 .features-nav__item {
   --accent: var(--violet);
+  position: relative;
   display: grid;
   grid-template-columns: auto auto 1fr auto;
   align-items: center;
   gap: var(--space-3);
   width: 100%;
+  min-height: 2.75rem;
   padding: var(--space-3) var(--space-4);
   text-align: left;
   border-radius: var(--radius-md);
@@ -83,11 +101,30 @@
     color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
 }
 
+/* Accent hairline indicator — the active view's edge marker. */
+.features-nav__item::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  width: 2px;
+  height: 55%;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  transform: translateY(-50%) scaleY(0);
+  opacity: 0;
+  transition: transform var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out);
+}
+
 .features-nav__item:hover {
   background: var(--bg-elevated);
   border-color: var(--border);
   color: var(--text-primary);
   transform: translateX(2px);
+}
+
+.features-nav__item:active {
+  transform: scale(0.98);
 }
 
 .features-nav__item.is-active {
@@ -99,9 +136,16 @@
   box-shadow: 0 0 30px -12px var(--accent);
 }
 
+.features-nav__item.is-active::before {
+  transform: translateY(-50%) scaleY(1);
+  opacity: 1;
+  box-shadow: 0 0 12px var(--accent);
+}
+
 .features-nav__index {
-  font-size: 0.72rem;
+  font-size: var(--fs-micro);
   font-weight: 700;
+  font-variant-numeric: tabular-nums lining-nums;
   color: var(--text-tertiary);
   transition: color var(--dur) var(--ease-out);
 }
@@ -128,7 +172,7 @@
 .features-nav__name {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: var(--fs-body-sm);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -140,6 +184,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color var(--dur) var(--ease-out);
+}
+/* Tertiary text would dip below AA on the accent-tinted active surface. */
+.features-nav__item.is-active .features-nav__tagline {
+  color: var(--text-secondary);
 }
 
 .features-nav__caret {
@@ -166,8 +215,8 @@
 }
 
 .features-nav__hint {
-  font-size: 0.82rem;
-  color: var(--text-tertiary);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
   line-height: 1.5;
 }
 
@@ -189,7 +238,7 @@
 /* ===================== Responsive ===================== */
 @media (max-width: 960px) {
   .features-body__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .features-nav {
@@ -211,12 +260,38 @@
     scroll-snap-align: start;
   }
 
+  /* The horizontal rail carries the indicator on its bottom edge instead. */
+  .features-nav__item::before {
+    left: var(--space-3);
+    right: var(--space-3);
+    top: auto;
+    bottom: -1px;
+    width: auto;
+    height: 2px;
+    transform: scaleX(0);
+  }
+
+  .features-nav__item.is-active::before {
+    transform: scaleX(1);
+  }
+
   .features-nav__text,
   .features-nav__caret {
     display: none;
   }
 
   .features-nav__foot {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .features-hero__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Only the second column keeps its hairline once the band wraps. */
+  .features-hero__stats ui-stat:nth-child(odd)::before {
     display: none;
   }
 }

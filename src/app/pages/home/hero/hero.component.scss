@@ -104,9 +104,9 @@
 }
 
 .hero-title {
-  font-size: clamp(2.6rem, 6.5vw, 4.6rem);
-  line-height: 1.02;
-  letter-spacing: -0.03em;
+  font-size: var(--fs-display);
+  line-height: var(--lh-heading);
+  letter-spacing: var(--ls-display);
   max-width: 16ch;
 }
 .hero-title .gradient-text {
@@ -115,7 +115,8 @@
 }
 
 .hero-lead {
-  font-size: clamp(1rem, 1.6vw, 1.18rem);
+  font-size: var(--fs-body-lg);
+  line-height: var(--lh-body);
   color: var(--text-secondary);
   max-width: 46ch;
 }
@@ -132,10 +133,91 @@
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-3);
 }
 .hero-actions ui-button {
   display: inline-flex;
+}
+
+/* ---- F1 keycap: a real, pressable key that replays the overlay hotkey ---- */
+.keycap-summon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 2.75rem;
+  margin-left: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+
+.keycap {
+  /* Travel distance of the key press; the resting "wall" shadows eat it up. */
+  --key-travel: 3px;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.55rem;
+  font-family: var(--font-mono);
+  font-size: var(--fs-body-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  /* The cap face is always dark plastic, so the legend stays light in both themes. */
+  color: #eef0fb;
+  background: linear-gradient(180deg, var(--space-700), var(--space-800) 62%, var(--space-850));
+  border: 1px solid var(--border-strong);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -2px 0 rgba(2, 4, 14, 0.45),
+    0 var(--key-travel) 0 var(--space-950),
+    0 var(--key-travel) 0 1px rgba(148, 163, 255, 0.22),
+    0 calc(var(--key-travel) + 8px) 18px -6px rgba(2, 4, 14, 0.7);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.keycap-summon:hover .keycap {
+  border-color: color-mix(in srgb, var(--violet) 55%, var(--border-strong));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -2px 0 rgba(2, 4, 14, 0.45),
+    0 var(--key-travel) 0 var(--space-950),
+    0 var(--key-travel) 0 1px rgba(148, 163, 255, 0.32),
+    0 calc(var(--key-travel) + 8px) 18px -6px rgba(2, 4, 14, 0.7),
+    0 0 26px -6px rgba(139, 92, 246, 0.55);
+}
+
+/* The key bottoms out: it travels down and its wall collapses to nothing. */
+.keycap-summon:active .keycap {
+  transform: translateY(var(--key-travel));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(2, 4, 14, 0.45),
+    0 0 0 var(--space-950),
+    0 0 0 1px rgba(148, 163, 255, 0.22),
+    0 3px 8px -4px rgba(2, 4, 14, 0.7);
+}
+
+.keycap-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.keycap-hint-strong {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.keycap-hint-sub {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--text-tertiary);
+}
+.keycap-summon:hover .keycap-hint-strong {
+  color: var(--text-primary);
 }
 
 .hero-chips {
@@ -146,9 +228,9 @@
 }
 .chips-label {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: var(--fs-micro);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-tertiary);
   margin-right: 0.25rem;
@@ -200,7 +282,7 @@
 }
 .scroll-hint-label {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: var(--fs-micro);
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
@@ -238,7 +320,7 @@
 /* ---- Responsive ---- */
 @media (max-width: 980px) {
   .hero-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: clamp(3rem, 8vw, 5rem);
   }
   .hero-visual {
