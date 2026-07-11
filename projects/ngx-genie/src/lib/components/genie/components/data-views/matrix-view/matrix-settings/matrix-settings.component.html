@@ -1,8 +1,27 @@
-<div class="settings-panel" [class.collapsed]="collapsed()" (click)="toggleCollapsed()">
+<div
+  class="settings-panel"
+  role="button"
+  tabindex="0"
+  [attr.aria-expanded]="!collapsed()"
+  [class.collapsed]="collapsed()"
+  (click)="toggleCollapsed()"
+  (keydown.enter)="toggleCollapsed()"
+  (keydown.space)="$event.preventDefault(); toggleCollapsed()">
   <div class="gear-icon">⚙</div>
 
-  <div class="panel-content" (click)="$event.stopPropagation()">
-    <div class="panel-header" (click)="collapsed.set(true)">
+  <div
+    class="panel-content"
+    (click)="$event.stopPropagation()"
+    (keydown.enter)="$event.stopPropagation()"
+    (keydown.space)="$event.stopPropagation()">
+    <div
+      class="panel-header"
+      role="button"
+      tabindex="0"
+      [attr.aria-expanded]="!collapsed()"
+      (click)="collapsed.set(true)"
+      (keydown.enter)="collapsed.set(true)"
+      (keydown.space)="$event.preventDefault(); collapsed.set(true)">
       <span>SYS.CONFIG</span>
       <span>[x]</span>
     </div>

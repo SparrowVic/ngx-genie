@@ -108,7 +108,9 @@ export class GenieComponent implements OnDestroy {
 
   constructor() {
     effect(() => {
-      if (!this.config.enabled || !this.visible()) {
+      const active = this.config.enabled && this.visible();
+      this.registry.setCaptureActive(active);
+      if (!active) {
         this.cancelQueuedScan();
         return;
       }
@@ -164,8 +166,7 @@ export class GenieComponent implements OnDestroy {
     const svc = this.state.selectedService();
     if (svc?.instance) {
       console.log(`%c[Genie] Exported ${svc.label}:`, 'color: #3b82f6; font-weight: bold;', svc.instance);
-      // @ts-ignore
-      window['$ngx-genie'] = svc.instance;
+      (window as unknown as { $genie?: unknown }).$genie = svc.instance;
       console.log(`%cAccessible as window.$genie`, 'color: #10b981; font-style: italic;');
     }
   }

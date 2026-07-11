@@ -3,7 +3,7 @@
 > **Note:** This project is licensed under the **Apache License 2.0**.
 
 
-![GenieOSDemo](https://private-user-images.githubusercontent.com/52491779/526235253-35bdc36a-67d2-4d3e-b7e1-ad7e095f037e.gif?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NjYxMjU0MDcsIm5iZiI6MTc2NjEyNTEwNywicGF0aCI6Ii81MjQ5MTc3OS81MjYyMzUyNTMtMzViZGMzNmEtNjdkMi00ZDNlLWI3ZTEtYWQ3ZTA5NWYwMzdlLmdpZj9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTEyMTklMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUxMjE5VDA2MTgyN1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTY0MmJiMjczMGNjMzZhNTQ2MzhiODMyY2I2ZDRlMTk0ZGJkZTUyZGVmNjQ5ZTBiNzM5YWEwOWYzOTA5MzI5NTkmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.WV1iKETZ1T3bUDPE18tqKVme3bosNM5vjPMeOvMaCwY)
+![GenieOS Demo](https://github.com/user-attachments/assets/35bdc36a-67d2-4d3e-b7e1-ad7e095f037e)
 
 **GenieOS** (`ngx-genie`) is an advanced developer tool for the **Angular** framework, designed for visualizing, analyzing, and diagnosing the **Dependency Injection (DI)** system.
 
@@ -92,7 +92,7 @@ export const appConfig: ApplicationConfig = {
     provideGenie({
       hotkey: 'F1',          // default: F1
       enabled: true,         // default: true
-      visibleOnStart: false  // default: true
+      visibleOnStart: false  // default: false
     })
   ]
 };
@@ -116,7 +116,7 @@ import {AppComponent} from './app.component';
     GenieModule.forRoot({
       hotkey: 'F1',          // default: F1
       enabled: true,         // default: true
-      visibleOnStart: false  // default: true
+      visibleOnStart: false  // default: false
     })
   ],
   bootstrap: [AppComponent]
@@ -179,26 +179,13 @@ Run the application and press **F1** (or another configured hotkey).
 
 ## 🧪 Project status
 
-GenieOS is currently in an **experimental / early-stage** phase.
+GenieOS is in active **beta** — a capable, real-world developer tool whose public API and internal behavior may still change between releases as it stabilizes.
 
-This is the **first public version** of the library and should be treated as a **proof of concept and evolving developer tool**, not a production-hardened framework.
+### Notes
 
-### Important notes
-
-* ❗ **No unit tests yet** – the library/plugin does **not currently include unit or integration tests**. Test coverage is planned for future releases.
-* 🧭 APIs and internal behavior may change between versions as the project stabilizes.
-* 🧠 The focus of the current version is **architecture exploration, UX experimentation, and real-world validation**.
-
----
-
-## 🤖 AI disclaimer
-
-This project was developed with the assistance of **Generative AI** tools.
-The code, architecture, and documentation are the result of collaboration between the author and AI assistants.
-
-While best efforts were made to ensure quality and correctness, some patterns characteristic of AI-generated code may be present.
-
-*This project was developed with the assistance of AI tools. While human oversight was applied, some code patterns may reflect AI generation.*
+* 🧪 The core services, utilities and directives are covered by unit tests, and a dedicated spec pins the private Angular internals the inspector depends on. Broader component-level coverage is planned.
+* 🧭 Public APIs and internal behavior may evolve between releases.
+* 🧠 The current focus is architecture exploration, developer experience, and real-world validation.
 
 ---
 

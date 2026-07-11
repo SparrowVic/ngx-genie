@@ -2,6 +2,18 @@
   "name": "ngx-genie",
   "version": "21.2.13",
   "description": "GenieOS – Angular DI Inspector",
+  "keywords": [
+    "angular",
+    "dependency-injection",
+    "di",
+    "devtools",
+    "inspector",
+    "debugging",
+    "diagnostics",
+    "overlay",
+    "signals",
+    "standalone"
+  ],
   "author": "Wiktor Wróbel <genie.hlp@gmail.com> (https://github.com/SparrowVic)",
   "license": "Apache-2.0",
   "repository": {

@@ -116,6 +116,13 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .genie-modal-backdrop,
+  .genie-modal-container {
+    animation: none;
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

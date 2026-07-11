@@ -1,6 +1,13 @@
 <div class="controls-wrapper" [class.collapsed]="!isOpen()" (mousedown)="$event.stopPropagation()">
 
-  <div class="header" (click)="_togglePanel()">
+  <div
+    class="header"
+    role="button"
+    tabindex="0"
+    [attr.aria-expanded]="isOpen()"
+    (click)="_togglePanel()"
+    (keydown.enter)="_togglePanel()"
+    (keydown.space)="$event.preventDefault(); _togglePanel()">
     <span class="title">SYSTEM CONTROLS</span>
     <button class="toggle-btn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

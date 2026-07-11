@@ -1,10 +1,14 @@
 <div class="node-wrapper">
   <div
     class="genie-card"
+    role="button"
+    tabindex="0"
     [class.has-children]="hasChildren()"
     [class.is-cluster]="isCluster()"
     [class.performance-mode]="performanceMode()"
     (click)="nodeClick.emit(node())"
+    (keydown.enter)="nodeClick.emit(node())"
+    (keydown.space)="$event.preventDefault(); nodeClick.emit(node())"
   >
 
     <div class="genie-card-header">
@@ -43,10 +47,14 @@
         @for (svc of services(); track svc.id) {
           <div
             class="service-chip"
+            role="button"
+            tabindex="0"
             [class.unused]="!svc.usageCount"
             [class.root-scope]="isRoot(svc)"
             [class.framework-item]="svc.isFramework"
             (click)="serviceClick.emit(svc); $event.stopPropagation()"
+            (keydown.enter)="serviceClick.emit(svc); $event.stopPropagation()"
+            (keydown.space)="$event.preventDefault(); serviceClick.emit(svc); $event.stopPropagation()"
           >
 
             <div class="chip-type" [attr.data-deptype]="svc.dependencyType">
@@ -91,6 +99,8 @@
       <button
         type="button"
         class="toggle-btn"
+        aria-label="Toggle children"
+        [attr.aria-expanded]="expanded()"
         [class.expanded]="expanded()"
         (click)="toggleClick.emit(); $event.stopPropagation()"
       >
