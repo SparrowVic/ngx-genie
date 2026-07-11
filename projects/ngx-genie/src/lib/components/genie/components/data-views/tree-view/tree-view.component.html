@@ -1,5 +1,25 @@
 <div class="tree-wrapper" genieResizable>
   <div class="background-layer"></div>
+
+  <div class="tree-toolbar">
+    <span
+      class="tree-toolbar__count"
+      [title]="filteredStats().rows + ' filtered rows — ' + filteredStats().nodes + ' nodes + ' + filteredStats().dependencies + ' dependencies (fully expanded)'"
+    >
+      <span class="tree-toolbar__value">{{ filteredStats().nodes }}</span> nodes
+      <span class="tree-toolbar__sep">·</span>
+      <span class="tree-toolbar__value">{{ filteredStats().dependencies }}</span> deps
+    </span>
+    <button
+      type="button"
+      class="tree-toolbar__copy"
+      (click)="copyFilteredJson()"
+      title="Copy the filtered tree to the clipboard as JSON"
+    >
+      <span aria-hidden="true">⧉</span> Copy JSON
+    </button>
+  </div>
+
   <div
     #scrollContainer
     class="scroll-container custom-scrollbar"

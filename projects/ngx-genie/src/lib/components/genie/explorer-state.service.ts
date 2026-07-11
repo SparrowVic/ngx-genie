@@ -135,6 +135,9 @@ export class GenieExplorerStateService {
   readonly refreshTrigger = signal<number>(0);
   private readonly filteredTreeCache = signal<GenieTreeNode[]>([]);
 
+  private readonly _treeUpdatesSuspended = signal(false);
+  private _sawScanSinceSuspend = false;
+
   readonly filterState = signal<GenieFilterState>({
     hideUnusedDeps: true,
     hideIsolatedComponents: true,
@@ -216,11 +219,14 @@ export class GenieExplorerStateService {
     });
 
     effect(() => {
-      this._scheduleFilteredServicesRebuild(this.services(), this.filterState());
+      const services = this.services();
+      const filters = this.filterState();
+      if (this._treeUpdatesSuspended()) return;
+      this._scheduleFilteredServicesRebuild(services, filters);
     });
 
     effect(() => {
-      this._scheduleFilteredTreeRebuild({
+      const params = {
         root: this.rawTree(),
         filters: this.filterState(),
         query: this.searchQuery(),
@@ -228,7 +234,23 @@ export class GenieExplorerStateService {
         isScanActive: this.isScanActive(),
         selectedNode: this.selectedNode(),
         servicesByNodeId: this.filteredServicesByNodeId()
-      });
+      };
+      // While a live route re-scan is in flight, freeze the tree at its last settled state so it
+      // updates once (old route → new route) instead of flickering through the transient states.
+      if (this._treeUpdatesSuspended()) return;
+      this._scheduleFilteredTreeRebuild(params);
+    });
+
+    // Auto-release the frozen tree once the live re-scan we suspended for has actually settled.
+    effect(() => {
+      const scanning = this.isScanActive();
+      if (!untracked(() => this._treeUpdatesSuspended())) return;
+      if (scanning) {
+        this._sawScanSinceSuspend = true;
+      } else if (this._sawScanSinceSuspend) {
+        this._sawScanSinceSuspend = false;
+        this.resumeTreeUpdates();
+      }
     });
 
     this.destroyRef.onDestroy(() => {
@@ -263,6 +285,27 @@ export class GenieExplorerStateService {
 
   readonly maxNodeDeps = computed(() => this.maxFilteredServicesByNodeCache());
 
+  /**
+   * Aggregate counts over the CURRENTLY FILTERED tree (never the raw registry totals). `nodes` counts
+   * every injector/component node the GLOBAL OPS filters kept — a grouped-siblings node counts once.
+   * `dependencies` sums the visible service rows those nodes show when expanded. `rows` is the total
+   * TREE rows when fully expanded (nodes + dependency rows). Expand-independent, so it does not flicker
+   * as the user expands/collapses.
+   */
+  readonly filteredStats = computed<{ nodes: number; dependencies: number; rows: number }>(() => {
+    const servicesByNodeId = this.filteredServicesByNodeId();
+    let nodes = 0;
+    let dependencies = 0;
+    const stack = [...this.filteredTree()];
+    while (stack.length > 0) {
+      const node = stack.pop()!;
+      nodes++;
+      dependencies += servicesByNodeId.get(node.id)?.length ?? 0;
+      if (node.children?.length) stack.push(...node.children);
+    }
+    return {nodes, dependencies, rows: nodes + dependencies};
+  });
+
   setView(view: GenieViewType) {
     this.activeView.set(view);
   }
@@ -291,6 +334,21 @@ export class GenieExplorerStateService {
   collapseAll() {
     this._cancelScheduledExpandAll();
     this.expandedIds.set(new Set<number>());
+  }
+
+  /**
+   * Freeze the visible filtered tree at its current state. The overlay calls this during a live route
+   * re-scan so the graph transitions directly from the old route's result to the new one, instead of
+   * flickering through the "old removed / new not yet scanned" gap and the scan's transient over-show.
+   * Automatically released when the ensuing scan settles (or by the caller as a safety net).
+   */
+  suspendTreeUpdates(): void {
+    this._sawScanSinceSuspend = false;
+    this._treeUpdatesSuspended.set(true);
+  }
+
+  resumeTreeUpdates(): void {
+    if (this._treeUpdatesSuspended()) this._treeUpdatesSuspended.set(false);
   }
 
   selectDependency(s: GenieServiceRegistration) {
@@ -332,6 +390,33 @@ export class GenieExplorerStateService {
 
   getProvidersForNode(nodeId: number): GenieServiceRegistration[] {
     return this._getFilteredServicesForNode(nodeId);
+  }
+
+  /**
+   * Serialize the currently filtered TREE to pretty JSON — a sanitized projection that drops the live
+   * `injector` / `componentInstance` references (circular, non-serializable) and inlines each node's
+   * visible dependencies. Element count equals {@link filteredStats}.rows, so the export and the
+   * on-screen count always agree. Handy for debugging, sharing, and asserting filter output in tests.
+   */
+  exportFilteredTreeAsJson(): string {
+    const project = (node: GenieTreeNode): Record<string, unknown> => ({
+      id: node.id,
+      label: node.label,
+      type: node.type,
+      parentId: node.parentId ?? null,
+      ...(node.groupCount ? {groupCount: node.groupCount} : {}),
+      dependencies: this._getFilteredServicesForNode(node.id).map(service => ({
+        id: service.id,
+        label: service.label,
+        dependencyType: service.dependencyType,
+        providerType: service.providerType,
+        usageCount: service.usageCount,
+        isRoot: service.isRoot,
+        isFramework: service.isFramework
+      })),
+      children: (node.children ?? []).map(project)
+    });
+    return JSON.stringify(this.filteredTree().map(project), null, 2);
   }
 
   private _calculateFilteredTree(
