@@ -80,6 +80,18 @@ export class CosmicBackgroundComponent implements OnDestroy {
 
   private readonly onResize = (): void => this.resize();
 
+  /** Pause the rAF loop while the tab is hidden — the canvas is pure decoration. */
+  private readonly onVisibility = (): void => {
+    if (this.reduced || !this.ctx) return;
+    if (document.hidden) {
+      this.running = false;
+      cancelAnimationFrame(this.rafId);
+    } else if (!this.running) {
+      this.running = true;
+      this.rafId = requestAnimationFrame(this.loop);
+    }
+  };
+
   constructor() {
     // afterNextRender only runs in the browser, giving us a safe DOM + a ready canvas.
     afterNextRender(() => {
@@ -94,6 +106,7 @@ export class CosmicBackgroundComponent implements OnDestroy {
       this.seedStars();
       this.seedConstellation();
       window.addEventListener('resize', this.onResize, { passive: true });
+      document.addEventListener('visibilitychange', this.onVisibility);
 
       if (this.reduced) {
         this.render(0);
@@ -109,6 +122,7 @@ export class CosmicBackgroundComponent implements OnDestroy {
     this.running = false;
     cancelAnimationFrame(this.rafId);
     window.removeEventListener('resize', this.onResize);
+    document.removeEventListener('visibilitychange', this.onVisibility);
   }
 
   private readonly loop = (t: number): void => {
@@ -131,9 +145,9 @@ export class CosmicBackgroundComponent implements OnDestroy {
     if (this.reduced) this.render(0);
   }
 
-  /** Star count scales with viewport area, capped for performance. */
+  /** Star count scales with viewport area, kept sparse so the field stays a whisper. */
   private seedStars(): void {
-    const target = Math.round(Math.min(220, Math.max(70, (this.width * this.height) / 9000)));
+    const target = Math.round(Math.min(180, Math.max(60, (this.width * this.height) / 12000)));
     this.stars = Array.from({ length: target }, () => ({
       x: Math.random(),
       y: Math.random(),

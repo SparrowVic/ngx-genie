@@ -6,7 +6,7 @@ A dedicated, advanced view for analyzing the overall health of the Dependency In
 
 ---
 
-![Diagnostics](https://github.com/user-attachments/assets/eb8b4fe8-81a9-4016-a4ae-17acf26f7950)
+![Diagnostics — System Health with integrity score, severity counts and findings](../media/diagnostics-view.png)
 
 Diagnostics interprets the DI graph in real time and presents it as metrics, anomalies, and recommendations. Its goal is not only to highlight issues but to help you understand **why** a given DI structure is risky and **how** to improve it. It operates fully reactively — any change to rules, thresholds, or filters instantly updates the generated report.
 

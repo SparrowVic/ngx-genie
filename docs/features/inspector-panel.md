@@ -6,7 +6,7 @@ The right-hand panel for detailed inspection of the selected element — an inje
 
 ---
 
-![Inspector Panel](https://github.com/user-attachments/assets/078d35b7-80d1-4f34-bed0-47f903d339b5)
+![Inspector Panel — injector scope, dependency list, live state and injection path](../media/inspector-panel.png)
 
 When you select a node its scope and provider list appear; when you select a provider its instance details appear. Every view routes selections here, so the Inspector is the single place that answers "what exactly is this thing?"
 

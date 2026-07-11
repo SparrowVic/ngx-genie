@@ -5,7 +5,7 @@
     }
   </div>
 
-  <div class="config-table__body">
+  <div class="config-table__body" role="rowgroup">
     @for (opt of options(); track opt.name) {
       <div
         class="config-row"
@@ -42,7 +42,7 @@
     }
   </div>
 
-  <p class="config-table__foot">
+  <p class="config-table__foot tnum">
     {{ count() | pluralize: 'configurable option' }} on the
     <code>provideGenie()</code> object.
   </p>

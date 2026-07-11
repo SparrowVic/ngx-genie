@@ -71,3 +71,15 @@
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-1.5px); }
 }
+
+/* The global kill-switch freezes animations at their first frame, which would
+   leave the aura and sparks nearly invisible — pin them to a lit resting state. */
+@media (prefers-reduced-motion: reduce) {
+  .logo__mark,
+  .logo__halo,
+  .logo__spark {
+    animation: none;
+  }
+  .logo__halo { opacity: 0.75; transform: scale(1); }
+  .logo__spark { opacity: 0.7; transform: none; }
+}

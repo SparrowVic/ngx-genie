@@ -30,6 +30,7 @@ export class ButtonComponent {
   readonly icon = input<string>();
   readonly iconRight = input<string>();
   readonly block = input(false);
+  readonly disabled = input(false);
 
   readonly press = output<void>();
 
@@ -40,9 +41,10 @@ export class ButtonComponent {
     return target.startsWith('/') ? 'route' : 'external';
   });
 
-  readonly classes = computed(
-    () => `btn btn--${this.variant()} btn--${this.size()}${this.block() ? ' btn--block' : ''}`,
-  );
+  readonly classes = computed(() => {
+    const base = `btn btn--${this.variant()} btn--${this.size()}`;
+    return `${base}${this.block() ? ' btn--block' : ''}${this.disabled() ? ' is-disabled' : ''}`;
+  });
 
   /** Icon glyphs scale a touch with the button size. */
   readonly iconSize = computed(() => {

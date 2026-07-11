@@ -12,7 +12,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  height: 2.4rem;
+  height: 2.5rem;
   padding: 0 0.7rem 0 0.85rem;
   border-radius: var(--radius-full);
   border: 1px solid var(--border);
@@ -24,13 +24,22 @@
     color var(--dur-fast) var(--ease-out),
     border-color var(--dur-fast) var(--ease-out),
     background var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 
   &:hover {
     color: var(--text-primary);
     border-color: var(--border-strong);
     background: rgba(148, 163, 255, 0.08);
     box-shadow: var(--glow-violet);
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:focus-visible {
+    border-radius: var(--radius-full);
   }
 }
 
@@ -50,16 +59,23 @@
   padding: 0.2rem 0.4rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
-  background: rgba(4, 5, 13, 0.4);
+  background: var(--bg-elevated);
+  /* Keycap: a hairline "step" along the bottom edge. */
+  box-shadow: inset 0 -1px 0 var(--border-strong);
   color: var(--text-tertiary);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.nav-actions__cmd:hover .nav-actions__kbd {
+  color: var(--text-secondary);
 }
 
 .nav-actions__icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: var(--radius-full);
   border: 1px solid var(--border);
   background: var(--bg-elevated);
@@ -67,12 +83,21 @@
   transition:
     color var(--dur-fast) var(--ease-out),
     border-color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out);
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 
   &:hover {
     color: var(--text-primary);
     border-color: var(--border-strong);
     background: rgba(148, 163, 255, 0.1);
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:focus-visible {
+    border-radius: var(--radius-full);
   }
 }
 
@@ -96,7 +121,7 @@
   }
 
   .nav-actions__cmd {
-    width: 2.4rem;
+    width: 2.5rem;
     padding: 0;
     justify-content: center;
   }

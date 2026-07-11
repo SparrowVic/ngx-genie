@@ -65,7 +65,7 @@ export class FooterComponent {
   readonly brandChips: readonly BrandChip[] = [
     { label: 'Angular 21', icon: 'atom', accent: 'var(--rose)' },
     { label: 'Zero-config', icon: 'bolt', accent: 'var(--cyan)' },
-    { label: 'MIT', icon: 'shield', accent: 'var(--emerald)' },
+    { label: 'Apache-2.0', icon: 'shield', accent: 'var(--emerald)' },
   ];
 
   readonly columns: readonly FooterColumn[] = [
@@ -82,8 +82,8 @@ export class FooterComponent {
       title: 'Resources',
       links: [
         { label: 'Getting started', href: '/docs' },
-        { label: 'Changelog', href: '/docs#changelog' },
-        { label: 'Roadmap', href: '/docs#roadmap' },
+        { label: 'Roadmap', href: '/features#roadmap' },
+        { label: 'Releases', href: `${this.brand.github}/releases`, external: true, icon: 'github' },
         { label: 'npm package', href: this.brand.npm, external: true, icon: 'npm' },
       ],
     },

@@ -35,7 +35,7 @@
       </ul>
 
       @if (prompts() > 0) {
-        <p class="playground__prompt-note" role="status">
+        <p class="playground__prompt-note tnum" role="status">
           <ui-icon name="check" [size]="14" />
           Sent {{ prompts() | pluralize: 'reminder' }} — now hit
           <kbd>F1</kbd> to see the graph.
@@ -49,6 +49,8 @@
       <app-di-simulator class="playground__cell" [appReveal]="80" />
     </div>
 
+    <hr class="playground__beacon beacon-divider" aria-hidden="true" />
+
     <!-- ===================== Scope primer ===================== -->
     <div class="playground__scope" [appReveal]="120">
       <app-provider-scope />
@@ -60,12 +62,9 @@
         <ui-icon name="sparkles" [size]="18" />
       </span>
       <p class="playground__footnote-text">
-        Running {{ brand.name }} v{{ brand.version }}.
-        @if (flags.liveMetrics) {
-          Live metrics are on, so the inspector streams values in real time.
-        } @else {
-          Live metrics are paused — the inspector shows a static snapshot.
-        }
+        Running {{ brand.name }} <span class="mono tnum">v{{ brand.version }}</span>.
+        Open the overlay's Live Inspector to watch the providers on this page update in
+        real time.
       </p>
     </aside>
   </div>

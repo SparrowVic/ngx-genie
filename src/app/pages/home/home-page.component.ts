@@ -13,7 +13,6 @@ import { MetricsComponent } from './metrics/metrics.component';
 import { FeatureShowcaseComponent } from './feature-showcase/feature-showcase.component';
 import { MechanismComponent } from './mechanism/mechanism.component';
 import { ConstellationDemoComponent } from './constellation-demo/constellation-demo.component';
-import { TestimonialsComponent } from './testimonials/testimonials.component';
 import { InstallComponent } from './install/install.component';
 import { FaqComponent } from './faq/faq.component';
 import { FinalCtaComponent } from './final-cta/final-cta.component';
@@ -41,7 +40,6 @@ interface SectionLink {
     FeatureShowcaseComponent,
     MechanismComponent,
     ConstellationDemoComponent,
-    TestimonialsComponent,
     InstallComponent,
     FaqComponent,
     FinalCtaComponent,
@@ -61,7 +59,6 @@ export class HomePageComponent {
     { id: 'features', label: 'Features', icon: 'sparkles' },
     { id: 'mechanism', label: 'How it works', icon: 'cpu' },
     { id: 'constellation', label: 'Constellation', icon: 'atom' },
-    { id: 'testimonials', label: 'Voices', icon: 'heart' },
     { id: 'install', label: 'Install', icon: 'download' },
     { id: 'faq', label: 'FAQ', icon: 'book' },
     { id: 'cta', label: 'Get started', icon: 'bolt' },

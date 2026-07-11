@@ -11,9 +11,11 @@ import { OrdinalPipe } from '../../../core/pipes/ordinal.pipe';
 
 /**
  * app-feature-detail — one inspector view rendered as a rich, alternating
- * (left/right) spotlight: a glowing accent icon tile paired with the feature's
- * name, tagline, description, check-listed capabilities, a live stat row and a
- * copyable demo snippet. Alternation is driven by the zero-based `index`.
+ * (left/right) spotlight: a framed product shot (a real capture of GenieOS
+ * inspecting this site — falling back to a glowing accent tile when a feature
+ * ships without media) paired with the feature's name, tagline, description,
+ * check-listed capabilities, a live stat row and a copyable demo snippet.
+ * Alternation is driven by the zero-based `index`.
  */
 @Component({
   selector: 'app-feature-detail',
@@ -47,4 +49,10 @@ export class FeatureDetailComponent {
 
   /** Total capabilities listed — reused in the badge row. */
   readonly bulletCount = computed(() => this.feature().bullets.length);
+
+  /** Portrait panel crops get a narrower, centred frame. */
+  readonly portrait = computed(() => {
+    const media = this.feature().media;
+    return !!media && media.height > media.width;
+  });
 }

@@ -12,7 +12,7 @@
 .showcase__layout {
   margin-top: var(--space-7);
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: var(--space-5);
 }

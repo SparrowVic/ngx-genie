@@ -1,35 +1,13 @@
 <section class="section metrics" appReveal>
   <div class="container">
     <ui-section-header
-      eyebrow="Live observatory"
-      heading="Telemetry from the *dependency cosmos*"
-      subtitle="A simulated real-time feed of what the GenieOS overlay measures while it inspects a running Angular application."
+      eyebrow="By the numbers"
+      heading="What the overlay *actually inspects*"
+      subtitle="The real facts behind GenieOS — every number here is verifiable in the source."
       align="left"
-    >
-      <div class="metrics__summary">
-        <span class="metrics__live" [class.is-live]="isLive()">
-          <span class="metrics__live-dot" aria-hidden="true"></span>
-          {{ liveLabel() }}
-        </span>
+    />
 
-        <span class="metrics__stat">
-          <ui-icon name="zap" [size]="14" />
-          Peak {{ peak() | compactNumber }} / s
-        </span>
-
-        <span class="metrics__stat">
-          <ui-icon name="arrow-up-right" [size]="14" />
-          {{ rising() | pluralize: 'metric' }} rising
-        </span>
-
-        <span class="metrics__stat">
-          <ui-icon name="gauge" [size]="14" />
-          Avg trend {{ averageTrend() > 0 ? '+' : '' }}{{ averageTrend() | number: '1.0-1' }}%
-        </span>
-      </div>
-    </ui-section-header>
-
-    <div class="metrics__grid">
+    <div class="metrics__band panel">
       @for (m of metrics(); track m.id) {
         <app-metric-tile [appReveal]="$index * 70" [metric]="m" />
       }

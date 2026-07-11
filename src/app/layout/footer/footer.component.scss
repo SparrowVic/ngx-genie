@@ -6,26 +6,23 @@
   position: relative;
   margin-top: var(--space-9);
   padding-block: clamp(2.5rem, 6vw, 4.5rem) var(--space-6);
-  border-top: 1px solid var(--border);
   background:
     linear-gradient(180deg, transparent, color-mix(in srgb, var(--space-900) 60%, transparent)),
     var(--bg-glass);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  overflow: hidden;
 }
 
-/* A faint aurora bloom rising from the footer's top edge. */
-.footer__aurora {
+/* Signature top hairline: the dependency-edge divider with its node beacon. */
+.footer__beacon {
   position: absolute;
   inset-inline: 0;
   top: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--violet), var(--cyan), transparent);
-  opacity: 0.6;
+  margin: 0;
 }
-.footer__aurora::after {
-  content: '';
+
+/* A faint aurora bloom rising from the footer's top edge. */
+.footer__bloom {
   position: absolute;
   inset-inline: 20%;
   top: 0;
@@ -107,7 +104,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding-block: 0.15rem;
+  padding-block: 0.25rem;
   color: var(--text-secondary);
   font-size: 0.92rem;
   width: fit-content;
@@ -178,8 +175,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: var(--radius-full);
   border: 1px solid var(--border);
   background: var(--bg-elevated);
@@ -196,11 +193,17 @@
   transform: translateY(-3px);
   box-shadow: var(--glow-violet);
 }
+.footer__social:active {
+  transform: translateY(-1px) scale(0.97);
+}
+.footer__social:focus-visible {
+  border-radius: var(--radius-full);
+}
 
 /* ---- Responsive ---- */
 @media (max-width: 60rem) {
   .footer__top {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .footer__newsletter {
     grid-column: auto;

@@ -35,14 +35,13 @@
 }
 
 .lab__title {
-  font-family: var(--font-display);
-  font-size: 1.2rem;
-  line-height: 1.1;
+  font-size: var(--fs-h4);
+  font-weight: 600;
 }
 
 .lab__sub {
   margin-top: 0.15rem;
-  font-size: 0.82rem;
+  font-size: var(--fs-caption);
   color: var(--text-tertiary);
 }
 
@@ -55,7 +54,7 @@
   border-radius: var(--radius-lg);
   background: var(--bg-elevated);
   border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
-  box-shadow: inset 0 0 40px -20px var(--accent);
+  box-shadow: inset 0 0 40px -20px var(--accent), var(--edge-light);
   transition: border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
 }
 
@@ -115,15 +114,20 @@
 
 .lab__step-input {
   width: 4.5rem;
-  padding: 0.4rem 0.6rem;
+  padding: 0.45rem 0.6rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: var(--bg);
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: 0.95rem;
+  font-variant-numeric: tabular-nums lining-nums;
   text-align: center;
   transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.lab__step-input:hover {
+  border-color: color-mix(in srgb, var(--indigo) 45%, var(--border-strong));
 }
 
 .lab__step-input:focus-visible {
@@ -174,7 +178,7 @@
 
 .lab__row-kind {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: var(--fs-micro);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-tertiary);
@@ -208,21 +212,24 @@
 
 .lab__foot-label {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: var(--fs-micro);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--text-tertiary);
 }
 
 .lab__foot-count {
-  font-size: 0.85rem;
+  font-size: var(--fs-caption);
   color: var(--text-secondary);
 }
 
 .lab__pristine {
-  font-size: 0.82rem;
+  font-size: var(--fs-caption);
   color: var(--text-tertiary);
   text-align: center;
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
 }
 
 @media (max-width: 480px) {

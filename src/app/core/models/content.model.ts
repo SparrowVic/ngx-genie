@@ -5,13 +5,6 @@ export interface FaqItem {
   readonly tag: string;
 }
 
-export interface Testimonial {
-  readonly author: string;
-  readonly role: string;
-  readonly quote: string;
-  readonly accent: string;
-}
-
 export interface RoadmapItem {
   readonly text: string;
   readonly done: boolean;
@@ -22,13 +15,6 @@ export interface RoadmapPhase {
   readonly title: string;
   readonly status: 'shipped' | 'in-progress' | 'planned';
   readonly items: readonly RoadmapItem[];
-}
-
-export interface ChangelogEntry {
-  readonly version: string;
-  readonly date: string;
-  readonly kind: 'feature' | 'fix' | 'perf' | 'docs';
-  readonly notes: readonly string[];
 }
 
 export interface CommandAction {

@@ -55,13 +55,12 @@ export class FeaturesPageComponent implements OnDestroy {
   readonly features = this.catalog.features;
   readonly activeId = this.catalog.selectedId;
   readonly viewCount = this.catalog.count;
-  readonly metricCount = this.catalog.totalStats;
 
-  /** Newest version any of the views shipped in — a headline stat. */
-  readonly latestSince = computed(() => {
-    const versions = this.features().map((f) => Number.parseFloat(f.since));
-    return Math.max(...versions);
-  });
+  /** Provider/dependency kinds GenieOS classifies (Service, Pipe, Directive, Component, …). */
+  readonly providerTypes = 9;
+
+  /** Automated diagnostic checks GenieOS runs (singleton-violation, heavy-state, …). */
+  readonly diagnosticChecks = 8;
 
   /** Total distinct capabilities listed across every view. */
   readonly capabilityCount = computed(() =>

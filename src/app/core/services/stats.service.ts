@@ -1,6 +1,5 @@
 import { Injectable, computed, inject } from '@angular/core';
 import { FeatureCatalogService } from './feature-catalog.service';
-import { TelemetryService } from './telemetry.service';
 
 export interface HeadlineStat {
   readonly label: string;
@@ -10,18 +9,17 @@ export interface HeadlineStat {
 }
 
 /**
- * Derives the hero's headline numbers from the catalog + live telemetry. Injecting
- * both services gives the DI graph a nice fan-in (StatsService depends on two).
+ * The hero's headline numbers — all verifiable facts about GenieOS. The inspector-view
+ * count is derived from the feature catalog; the rest are fixed, confirmable figures.
  */
 @Injectable({ providedIn: 'root' })
 export class StatsService {
   private readonly catalog = inject(FeatureCatalogService);
-  private readonly telemetry = inject(TelemetryService);
 
   readonly headline = computed<HeadlineStat[]>(() => [
-    { label: 'Angular majors', value: 5, suffix: '', accent: 'var(--cyan)' },
-    { label: 'Inspector views', value: this.catalog.count(), suffix: '', accent: 'var(--indigo)' },
-    { label: 'Live resolutions', value: Math.round(this.telemetry.resolutions() / 1000), suffix: 'k/s', accent: 'var(--violet)' },
-    { label: 'Runtime cost', value: 0, suffix: 'ms', accent: 'var(--magenta)' },
+    { label: 'Inspector views', value: this.catalog.count(), suffix: '', accent: 'var(--cyan)' },
+    { label: 'Provider types', value: 9, suffix: '', accent: 'var(--indigo)' },
+    { label: 'Diagnostic checks', value: 8, suffix: '', accent: 'var(--violet)' },
+    { label: 'Web Workers', value: 2, suffix: '', accent: 'var(--magenta)' },
   ]);
 }

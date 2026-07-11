@@ -1,5 +1,6 @@
 import { Directive, ElementRef, OnDestroy, OnInit, PLATFORM_ID, inject, input, numberAttribute } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { prefersReducedMotion } from './reduced-motion';
 
 /**
  * Reveals the host on scroll via IntersectionObserver. The `[attr.data-reveal]`
@@ -17,7 +18,8 @@ export class RevealOnScrollDirective implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     const host = this.el.nativeElement;
-    if (!this.isBrowser) {
+    // Reveal immediately on the server and under reduced motion — no observer work.
+    if (!this.isBrowser || prefersReducedMotion()) {
       host.classList.add('is-revealed');
       return;
     }

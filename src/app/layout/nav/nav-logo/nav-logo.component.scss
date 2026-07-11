@@ -13,6 +13,10 @@
   &:hover {
     opacity: 0.92;
   }
+
+  &:focus-visible {
+    border-radius: var(--radius-lg);
+  }
 }
 
 .nav-logo__badge {

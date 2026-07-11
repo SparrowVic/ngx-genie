@@ -9,6 +9,12 @@
   max-width: 100%;
 }
 
+.sparkline__grid line {
+  stroke: var(--border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
 .sparkline__line {
   filter: drop-shadow(0 0 4px color-mix(in oklab, currentColor 55%, transparent));
 }

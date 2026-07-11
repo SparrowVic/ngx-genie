@@ -2,11 +2,19 @@
   display: block;
 }
 
+/* Copy on the left, the opt-in field on the right — the panel spans the full
+   footer width, so a single stacked column would leave it half empty. */
 .newsletter {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--space-4) var(--space-6);
+  align-items: center;
+}
+
+.newsletter__copy {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  max-width: 30rem;
+  gap: var(--space-2);
 }
 
 .newsletter__eyebrow {
@@ -23,7 +31,14 @@
   color: var(--text-secondary);
   font-size: 0.92rem;
   line-height: 1.6;
-  max-width: 34ch;
+  max-width: 44ch;
+}
+
+.newsletter__action {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .newsletter__form {
@@ -31,7 +46,6 @@
   flex-wrap: wrap;
   gap: var(--space-2);
   align-items: stretch;
-  margin-top: var(--space-1);
 }
 
 .newsletter__field {
@@ -95,6 +109,13 @@
 }
 .newsletter__error ui-icon {
   display: inline-flex;
+}
+
+@media (max-width: 48rem) {
+  .newsletter {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
 }
 
 @media (max-width: 30rem) {

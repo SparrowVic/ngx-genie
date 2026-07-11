@@ -28,6 +28,4 @@ export class NavLinksComponent {
     { label: 'Playground', path: '/playground', icon: 'flask' },
     { label: 'Docs', path: '/docs', icon: 'book' },
   ];
-
-  protected readonly count = this.links.length;
 }

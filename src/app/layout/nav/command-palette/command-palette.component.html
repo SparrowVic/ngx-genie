@@ -13,6 +13,11 @@
           autocomplete="off"
           autocapitalize="off"
           spellcheck="false"
+          role="combobox"
+          [attr.aria-expanded]="hasResults()"
+          aria-autocomplete="list"
+          [attr.aria-controls]="hasResults() ? 'palette-results' : null"
+          [attr.aria-activedescendant]="activeOptionId()"
           [value]="query()"
           (input)="onInput($event)"
           (keydown)="onInputKeydown($event)"
@@ -22,37 +27,43 @@
 
       <div class="palette__body">
         @if (hasResults()) {
-          @for (section of grouped(); track section.group) {
-            <div class="palette__group">
-              <p class="palette__group-label">{{ section.group }}</p>
-              <ul class="palette__list">
-                @for (action of section.actions; track action.id) {
-                  <li>
-                    <button
-                      type="button"
-                      class="palette__item"
-                      [class.is-active]="action.id === activeId()"
-                      (mouseenter)="setActiveById(action.id)"
-                      (click)="run(action)"
-                    >
-                      <span class="palette__item-icon"><ui-icon [name]="action.icon" [size]="18" /></span>
-                      <span class="palette__item-text">
-                        <span class="palette__item-label" [innerHTML]="action.label | highlight: query()"></span>
-                        <span class="palette__item-hint">{{ action.hint }}</span>
-                      </span>
-                      @if (action.external) {
-                        <ui-icon class="palette__item-cue" name="external" [size]="15" />
-                      } @else if (action.path) {
-                        <ui-icon class="palette__item-cue" name="arrow-right" [size]="15" />
-                      } @else {
-                        <ui-icon class="palette__item-cue" name="chevron-right" [size]="15" />
-                      }
-                    </button>
-                  </li>
-                }
-              </ul>
-            </div>
-          }
+          <div id="palette-results" role="listbox" aria-label="Commands">
+            @for (section of grouped(); track section.group; let gi = $index) {
+              <div class="palette__group" role="group" [attr.aria-labelledby]="'palette-group-' + gi">
+                <p class="palette__group-label" role="presentation" [id]="'palette-group-' + gi">{{ section.group }}</p>
+                <ul class="palette__list" role="presentation">
+                  @for (action of section.actions; track action.id) {
+                    <li role="presentation">
+                      <button
+                        type="button"
+                        class="palette__item"
+                        role="option"
+                        tabindex="-1"
+                        [id]="'palette-opt-' + action.id"
+                        [class.is-active]="action.id === activeId()"
+                        [attr.aria-selected]="action.id === activeId()"
+                        (pointermove)="onOptionPointerMove($event, action.id)"
+                        (click)="run(action)"
+                      >
+                        <span class="palette__item-icon"><ui-icon [name]="action.icon" [size]="18" /></span>
+                        <span class="palette__item-text">
+                          <span class="palette__item-label" [innerHTML]="action.label | highlight: query()"></span>
+                          <span class="palette__item-hint">{{ action.hint }}</span>
+                        </span>
+                        @if (action.external) {
+                          <ui-icon class="palette__item-cue" name="external" [size]="15" />
+                        } @else if (action.path) {
+                          <ui-icon class="palette__item-cue" name="arrow-right" [size]="15" />
+                        } @else {
+                          <ui-icon class="palette__item-cue" name="chevron-right" [size]="15" />
+                        }
+                      </button>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </div>
         } @else {
           <div class="palette__empty">
             <ui-icon name="radar" [size]="26" />
@@ -66,6 +77,10 @@
         <span class="palette__hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate</span>
         <span class="palette__hint"><kbd>&crarr;</kbd> select</span>
         <span class="palette__hint"><kbd>esc</kbd> close</span>
+        <span class="palette__count" role="status"
+          ><span class="tnum">{{ results().length }}</span>
+          {{ results().length === 1 ? 'result' : 'results' }}</span
+        >
         <span class="palette__brandline">GenieOS palette</span>
       </div>
     </div>

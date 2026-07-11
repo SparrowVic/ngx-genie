@@ -10,6 +10,11 @@
   scroll-margin-top: var(--nav-h);
 }
 
+/* Signature seam between major blocks — the dependency-edge divider. */
+.section-seam {
+  margin: 0;
+}
+
 /* ---- Right-side dot navigator ---- */
 .dot-nav {
   position: fixed;
@@ -66,6 +71,10 @@
 .dot:hover .dot-mark ui-icon {
   opacity: 1;
   transform: scale(1);
+}
+
+.dot:active .dot-mark {
+  transform: scale(0.92);
 }
 
 .dot.is-active {

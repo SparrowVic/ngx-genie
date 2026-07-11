@@ -5,43 +5,45 @@
 
 .metric-tile {
   --accent: var(--cyan);
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
   height: 100%;
   padding: var(--space-5);
-  overflow: hidden;
 }
 
-/* Accent gradient hairline that blooms in on hover. */
+/* Accent light-bar blooming along the top edge on hover — the same signature
+   used by the feature spotlight panel. */
 .metric-tile::before {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(
-    150deg,
-    color-mix(in oklab, var(--accent) 55%, transparent),
-    transparent 55%
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
   opacity: 0;
   transition: opacity var(--dur) var(--ease-out);
   pointer-events: none;
 }
 
-.metric-tile:hover::before {
-  opacity: 1;
+/* Soft cursor-aware accent wash across the cell. */
+.metric-tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120% 90% at 50% 0%,
+    color-mix(in oklab, var(--accent) 9%, transparent),
+    transparent 65%
+  );
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease-out);
+  pointer-events: none;
 }
 
-.metric-tile:hover {
-  border-color: color-mix(in oklab, var(--accent) 40%, var(--border-strong));
-  box-shadow: 0 0 46px -10px color-mix(in oklab, var(--accent) 55%, transparent);
+.metric-tile:hover::before,
+.metric-tile:hover::after {
+  opacity: 1;
 }
 
 .metric-tile__head {
@@ -62,10 +64,15 @@
   color: var(--accent);
   background: color-mix(in oklab, var(--accent) 16%, transparent);
   border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+  transition: box-shadow var(--dur) var(--ease-out);
+}
+
+.metric-tile:hover .metric-tile__icon {
+  box-shadow: 0 0 20px -6px color-mix(in oklab, var(--accent) 70%, transparent);
 }
 
 .metric-tile__label {
-  font-size: 0.82rem;
+  font-size: var(--fs-caption);
   font-weight: 500;
   color: var(--text-secondary);
   overflow: hidden;
@@ -73,80 +80,28 @@
   white-space: nowrap;
 }
 
-.metric-tile__body {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  margin-top: auto;
-}
-
 .metric-tile__value {
   display: inline-flex;
   align-items: baseline;
   gap: 0.35rem;
+  margin-top: auto;
 }
 
 .metric-tile__number {
-  font-family: var(--font-display);
+  font-family: var(--font-mono);
   font-weight: 700;
-  font-size: clamp(1.9rem, 4vw, 2.5rem);
+  font-size: clamp(2rem, 3.4vw, 2.6rem);
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
   color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
+  min-height: 1em;
 }
 
-.metric-tile__unit {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-tertiary);
-}
-
-.metric-tile__trend {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.28rem;
-  padding: 0.24rem 0.5rem;
-  border-radius: var(--radius-full);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  border: 1px solid transparent;
+.metric-tile__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
   white-space: nowrap;
-}
-
-.metric-tile__trend-icon {
-  display: inline-flex;
-}
-
-.metric-tile__trend--up {
-  color: var(--emerald);
-  background: color-mix(in oklab, var(--emerald) 14%, transparent);
-  border-color: color-mix(in oklab, var(--emerald) 30%, transparent);
-}
-
-.metric-tile__trend--down {
-  color: var(--rose);
-  background: color-mix(in oklab, var(--rose) 14%, transparent);
-  border-color: color-mix(in oklab, var(--rose) 30%, transparent);
-}
-
-.metric-tile__trend--down .metric-tile__trend-icon {
-  transform: scaleY(-1);
-}
-
-.metric-tile__trend--flat {
-  color: var(--text-tertiary);
-  background: var(--bg-elevated);
-  border-color: var(--border);
-}
-
-.metric-tile__spark {
-  display: block;
-  width: 100%;
-  margin-top: calc(var(--space-1) * -1);
 }

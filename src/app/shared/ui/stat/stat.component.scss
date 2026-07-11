@@ -26,18 +26,21 @@
 .stat__value {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(1.6rem, 2.6vw, 2.5rem);
+  font-size: var(--fs-h2);
   white-space: nowrap;
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: var(--ls-heading);
   color: var(--accent);
-  font-variant-numeric: tabular-nums;
+  /* Tabular digits keep the count-up steady frame to frame. */
+  font-variant-numeric: tabular-nums lining-nums;
   text-shadow: 0 0 28px color-mix(in oklab, var(--accent) 40%, transparent);
   min-height: 1em;
 }
 
 .stat__label {
-  font-size: 0.9rem;
+  font-size: var(--fs-body-sm);
   font-weight: 500;
+  line-height: var(--lh-tight);
   color: var(--text-secondary);
+  text-wrap: pretty;
 }

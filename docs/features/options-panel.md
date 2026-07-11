@@ -6,7 +6,7 @@ The left-hand panel for global control over filtering and noise reduction. Chang
 
 ---
 
-![Options Panel](https://github.com/user-attachments/assets/078d35b7-80d1-4f34-bed0-47f903d339b5)
+![Options Panel — view controls, internal filters, dependency types and noise reduction](../media/global-ops-panel.png)
 
 Large DI graphs are noisy. The Options Panel is where you cut that noise down — hiding framework internals, collapsing repetition, and narrowing scope — so the views show only what you care about.
 

@@ -61,23 +61,35 @@
   animation: pulse-glow 3.6s var(--ease-out) infinite;
 }
 
-/* Connector beam toward the next stage (horizontal on desktop). */
+/* Dependency edge toward the next stage: a 1px hairline with a mid-edge
+   beacon diamond (the injector-graph motif) and a small travelling pulse. */
 .step__connector {
   position: absolute;
   z-index: 0;
   top: 1.75rem;
   left: 50%;
   transform: translateY(-50%);
-  height: 2px;
+  height: 1px;
   width: calc(100% + var(--flow-gap, 2rem));
-  border-radius: var(--radius-full);
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--step-accent) 85%, transparent) 0%,
-    color-mix(in srgb, var(--step-accent) 30%, transparent) 55%,
-    rgba(148, 163, 255, 0.08) 100%
+    color-mix(in srgb, var(--step-accent) 60%, transparent) 0%,
+    var(--border-strong) 72%,
+    transparent 100%
   );
-  box-shadow: 0 0 12px -2px color-mix(in srgb, var(--step-accent) 55%, transparent);
+}
+
+.step__connector::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--step-accent) 55%, var(--border-strong));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--step-accent) 45%, transparent);
 }
 
 .step__connector::after {
@@ -85,12 +97,12 @@
   position: absolute;
   top: 50%;
   left: 6%;
-  width: 5px;
-  height: 5px;
+  width: 3px;
+  height: 3px;
   border-radius: var(--radius-full);
   transform: translateY(-50%);
   background: var(--step-accent);
-  box-shadow: 0 0 10px 1px color-mix(in srgb, var(--step-accent) 80%, transparent);
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--step-accent) 70%, transparent);
   animation: connector-travel 3.2s var(--ease-out) infinite;
 }
 
@@ -121,13 +133,13 @@
 }
 
 .step__title {
-  font-size: 1.15rem;
+  font-size: var(--fs-h4);
   color: var(--text-primary);
 }
 
 .step__desc {
   max-width: 22rem;
-  font-size: 0.92rem;
+  font-size: var(--fs-body-sm);
   line-height: 1.6;
   color: var(--text-secondary);
 }
@@ -138,21 +150,17 @@
     top: 3.5rem;
     left: 50%;
     height: calc(100% + var(--flow-gap, 2.5rem));
-    width: 2px;
+    width: 1px;
     transform: translateX(-50%);
     background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--step-accent) 85%, transparent) 0%,
-      color-mix(in srgb, var(--step-accent) 25%, transparent) 60%,
-      rgba(148, 163, 255, 0.08) 100%
+      color-mix(in srgb, var(--step-accent) 60%, transparent) 0%,
+      var(--border-strong) 72%,
+      transparent 100%
     );
   }
 
   .step__connector::after {
-    animation: none;
-    top: auto;
-    bottom: 8%;
-    left: 50%;
-    transform: translateX(-50%);
+    display: none;
   }
 }

@@ -6,17 +6,37 @@
 
 @switch (mode()) {
   @case ('route') {
-    <a [class]="classes()" [routerLink]="href()" [appRipple]="rippleColor()">
+    <a
+      [class]="classes()"
+      [routerLink]="href()"
+      [appRipple]="rippleColor()"
+      [attr.aria-disabled]="disabled() || null"
+      [attr.tabindex]="disabled() ? -1 : null"
+    >
       <ng-container [ngTemplateOutlet]="body" />
     </a>
   }
   @case ('external') {
-    <a [class]="classes()" [href]="href()" target="_blank" rel="noreferrer noopener" [appRipple]="rippleColor()">
+    <a
+      [class]="classes()"
+      [href]="href()"
+      target="_blank"
+      rel="noreferrer noopener"
+      [appRipple]="rippleColor()"
+      [attr.aria-disabled]="disabled() || null"
+      [attr.tabindex]="disabled() ? -1 : null"
+    >
       <ng-container [ngTemplateOutlet]="body" />
     </a>
   }
   @default {
-    <button type="button" [class]="classes()" [appRipple]="rippleColor()" (click)="press.emit()">
+    <button
+      type="button"
+      [class]="classes()"
+      [disabled]="disabled()"
+      [appRipple]="rippleColor()"
+      (click)="press.emit()"
+    >
       <ng-container [ngTemplateOutlet]="body" />
     </button>
   }

@@ -12,6 +12,7 @@
         [class.is-active]="isActive(card.scope)"
         [glow]="card.accent"
         [style.--accent]="card.accent"
+        (click)="select(card.scope)"
       >
         <div class="scope__card-inner">
           <div class="scope__card-head">

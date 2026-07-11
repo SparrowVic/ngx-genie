@@ -11,7 +11,7 @@
   border-radius: var(--radius-lg);
   background: var(--bg-glass-strong);
   border: 1px solid var(--border-strong);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-2), var(--edge-light);
   font-family: var(--font-mono);
 }
 
@@ -35,7 +35,10 @@
   height: 0.68rem;
   border-radius: var(--radius-full);
   display: inline-block;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+  /* Rim shade + a top catchlight so the lights read as glass, not flat dots. */
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.25),
+    inset 0 1px 1px rgba(255, 255, 255, 0.35);
 }
 .light--rose {
   background: var(--rose);
@@ -59,7 +62,7 @@
 }
 
 .term-tag {
-  font-size: 0.66rem;
+  font-size: var(--fs-micro);
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -72,9 +75,12 @@
 /* ---- Body ---- */
 .term-body {
   padding: var(--space-4) var(--space-4) var(--space-3);
-  font-size: 0.82rem;
+  font-size: var(--fs-caption);
+  font-variant-numeric: tabular-nums lining-nums;
   line-height: 1.5;
   min-height: calc(var(--term-line) * 9);
+  /* Long session lines scroll instead of dictating the hero's column width. */
+  overflow-x: auto;
 }
 
 .line {

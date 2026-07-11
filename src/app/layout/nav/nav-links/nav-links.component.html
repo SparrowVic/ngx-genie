@@ -1,4 +1,4 @@
-<nav class="nav-links" [class.is-scrolled]="scrolled()" [attr.aria-label]="'Primary navigation — ' + count + ' links'">
+<nav class="nav-links" [class.is-scrolled]="scrolled()" aria-label="Primary">
   <ul class="nav-links__list">
     @for (link of links; track link.path) {
       <li>

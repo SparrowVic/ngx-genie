@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NotificationService } from '../../core/services/notification.service';
 import { APP_BRAND } from '../../core/tokens/brand.token';
-import { FEATURE_FLAGS } from '../../core/tokens/feature-flags.token';
 import { SectionHeaderComponent } from '../../shared/ui/section-header/section-header.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
@@ -44,7 +43,6 @@ interface Pointer {
 })
 export class PlaygroundPageComponent {
   protected readonly brand = inject(APP_BRAND);
-  protected readonly flags = inject(FEATURE_FLAGS);
   private readonly notifications = inject(NotificationService);
 
   /** How many times the "inspect" hint has been fired this session. */

@@ -66,7 +66,7 @@
 
   <!-- Provider list -->
   <div class="sim__list-head">
-    <span class="sim__list-title">{{ sim.count() | pluralize: 'provider' }}</span>
+    <span class="sim__list-title tnum">{{ sim.count() | pluralize: 'provider' }}</span>
     @if (!isEmpty()) {
       <button type="button" class="sim__clear" (click)="reset()">
         <ui-icon name="x" [size]="14" />
@@ -76,7 +76,10 @@
   </div>
 
   @if (isEmpty()) {
-    <p class="sim__empty">No providers yet — add one above to grow the injector.</p>
+    <p class="sim__empty">
+      <ui-icon name="radar" [size]="16" aria-hidden="true" />
+      No providers yet — add one above to grow the injector.
+    </p>
   } @else {
     <ul class="sim__list">
       @for (provider of sim.providers(); track provider.id) {

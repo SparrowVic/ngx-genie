@@ -19,10 +19,10 @@
       <div class="features-hero__stats" [appReveal]="120">
         <ui-stat [value]="viewCount()" label="Inspector views" accent="var(--violet)" icon="grid" />
         <ui-stat
-          [value]="metricCount()"
-          label="Live metrics"
+          [value]="providerTypes"
+          label="Provider types"
           accent="var(--cyan)"
-          icon="gauge"
+          icon="layers"
         />
         <ui-stat
           [value]="capabilityCount()"
@@ -31,11 +31,10 @@
           icon="sparkles"
         />
         <ui-stat
-          [value]="latestSince()"
-          label="Newest since"
-          suffix=".0"
+          [value]="diagnosticChecks"
+          label="Diagnostic checks"
           accent="var(--emerald)"
-          icon="bolt"
+          icon="shield"
         />
       </div>
     </div>
@@ -92,7 +91,7 @@
         >
           <app-feature-detail [feature]="feature" [index]="i" />
           @if (!$last) {
-            <hr class="divider features-body__divider" />
+            <hr class="beacon-divider features-body__divider" aria-hidden="true" />
           }
         </div>
       }

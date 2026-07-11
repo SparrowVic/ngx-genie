@@ -26,7 +26,7 @@
   width: min(640px, 100%);
   border-radius: var(--radius-xl);
   overflow: hidden;
-  box-shadow: var(--shadow-lg), var(--glow-violet);
+  box-shadow: var(--shadow-3), var(--edge-light), var(--glow-violet);
   animation: palette-pop var(--dur) var(--ease-spring);
 }
 
@@ -73,6 +73,7 @@
 .palette__body {
   max-height: min(52vh, 420px);
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--space-3);
 }
 
@@ -108,12 +109,21 @@
   transition:
     background var(--dur-fast) var(--ease-out),
     color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 
   &.is-active {
     background: var(--gradient-panel), rgba(139, 92, 246, 0.16);
     color: var(--text-primary);
     box-shadow: inset 0 0 0 1px var(--border-strong);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:focus-visible {
+    border-radius: var(--radius-md);
   }
 }
 
@@ -224,8 +234,14 @@
   gap: 0.35rem;
 }
 
-.palette__brandline {
+.palette__count {
   margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.palette__brandline {
   font-family: var(--font-mono);
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -244,7 +260,9 @@
   color: var(--text-secondary);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  background: rgba(4, 5, 13, 0.4);
+  background: var(--bg-elevated);
+  /* Keycap: a hairline "step" along the bottom edge. */
+  box-shadow: inset 0 -1px 0 var(--border-strong);
 }
 
 @media (max-width: 540px) {
