@@ -378,3 +378,15 @@ input[type=range] {
     font-style: normal;
   }
 }
+
+/* Physics-only controls (SIMULATION, GRAVITY) are N/A in grouped/static layouts. */
+.control-row.disabled {
+  opacity: 0.42;
+}
+
+button[disabled],
+input[type='range'][disabled] {
+  opacity: 0.42;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+}

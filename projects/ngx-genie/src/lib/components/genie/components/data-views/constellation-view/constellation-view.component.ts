@@ -26,9 +26,9 @@ import {
   ConstellationGraphStats,
   ConstellationLinkRenderMode,
   RenderNode
-} from './constellation.models';
-import {ConstellationEngine} from './constellation.engine';
-import {ConstellationMapper} from './constellation.mapper';
+} from './models/constellation.models';
+import {ConstellationEngine} from './engine/constellation.engine';
+import {ConstellationMapper} from './mapper/constellation.mapper';
 import {GenieFilterState} from '../../../options-panel/options-panel.models';
 import {ConstellationStateService} from './constellation-state.service';
 
@@ -119,6 +119,11 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   private viewState: ViewState = {x: 0, y: 0, k: 1};
   private zoomTargetState: ViewState | null = null;
   private zoomAnimationFrameId = 0;
+  /** Track whether the auto-optimizer (LOD) — not the user — applied the pause / animation clamps. */
+  private _pauseAutoApplied = false;
+  private _animationsAutoDisabled = false;
+  /** Set when the user changed grouping, so the next graph rebuild re-frames the camera. */
+  private _pendingFit = false;
   private lastZoomAnimationAt = 0;
   private shouldEmitZoomAnimation = false;
   private isDragging = false;
@@ -356,6 +361,9 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   updateGroupingStrategy(strategy: ConstellationGroupingStrategy) {
     this.groupingStrategy.set(strategy);
     this.stateService.clear();
+    // Re-frame the camera once the new layout is built, so switching grouping shows the whole
+    // clustered structure instead of leaving the camera on a now-empty region.
+    this._pendingFit = true;
     this.scheduleGraphDataUpdate();
   }
 
@@ -372,7 +380,36 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   }
 
   resetLayout() {
-    if (this.engine) this.engine.resetEntropy();
+    if (!this.engine) return;
+    // "RESET VIEW": in a static (grouped/atlas) layout, fit the whole clustered structure into view;
+    // in the live force layout, recenter at the default zoom. This half was previously unimplemented.
+    if (this.graphStats()?.layoutMode !== 'force') {
+      this.fitToView();
+    } else {
+      this.cancelZoomAnimation();
+      this.viewState = {x: 0, y: 0, k: 1};
+      this.engine.updateTransform(this.viewState);
+      this.zoomLevelChange.emit(this.viewState.k);
+    }
+    // "ENTROPY": re-scramble the force simulation. No-op in static layouts (guarded in the engine).
+    this.engine.resetEntropy();
+  }
+
+  /** Frame the whole graph in the viewport (fit-to-bounds). Used by RESET and after a grouping change. */
+  private fitToView(): void {
+    if (!this.engine) return;
+    this.cancelZoomAnimation();
+    const b = this.engine.getGraphBounds();
+    const rect = this.containerRef().nativeElement.getBoundingClientRect();
+    if (!b || b.width <= 0 || b.height <= 0 || rect.width <= 0 || rect.height <= 0) {
+      this.viewState = {x: 0, y: 0, k: 1};
+    } else {
+      const pad = 1.16;
+      const k = this.clampZoom(Math.min(rect.width / (b.width * pad), rect.height / (b.height * pad)));
+      this.viewState = {x: rect.width / 2 - b.centerX * k, y: rect.height / 2 - b.centerY * k, k};
+    }
+    this.engine.updateTransform(this.viewState);
+    this.zoomLevelChange.emit(this.viewState.k);
   }
 
   updateRepulsion(val: number) {
@@ -405,6 +442,10 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
       this.viewState.k = this.clampZoom(this.viewState.k);
       this.engine.updateTransform(this.viewState);
       this.zoomLevelChange.emit(this.viewState.k);
+    } else {
+      // No saved camera → frame the graph once the first layout is built (important for a persisted
+      // grouping, whose organic layout would otherwise render off-screen at the default zoom).
+      this._pendingFit = true;
     }
 
   }
@@ -648,6 +689,20 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
     this.engine.updateGraphData(data.workerNodes, data.workerLinks, data.renderNodes, data.renderLinks, data.stats);
     completeEngineSpan();
     this.lastGraphDataInputKey = graphDataInputKey;
+
+    if (this._pendingFit) {
+      this._pendingFit = false;
+      // A static (grouped/atlas) layout has final positions now, so fit them; a force layout starts
+      // from a seed and settles over time, so just recenter at the default zoom.
+      if (data.stats.layoutMode !== 'force') {
+        this.fitToView();
+      } else {
+        this.cancelZoomAnimation();
+        this.viewState = {x: 0, y: 0, k: 1};
+        this.engine.updateTransform(this.viewState);
+        this.zoomLevelChange.emit(this.viewState.k);
+      }
+    }
   }
 
   private createGraphDataInputKey(
@@ -684,7 +739,13 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
 
   private applyAutoOptimizer(stats: ConstellationGraphStats): void {
     if (!this.autoOptimizeEnabled() || !this.engine) return;
-    if (!stats.isHuge && stats.layoutMode === 'force') return;
+
+    // Only huge graphs need the heavy LOD clamp. A non-huge grouped/static graph is cheap and should
+    // keep its animations (so the grouping transition animates) — and must never be force-paused.
+    if (!stats.isHuge) {
+      this._undoAutoOptimize();
+      return;
+    }
 
     if (this.linkRenderMode() === 'all') {
       this.linkRenderMode.set('adaptive');
@@ -692,11 +753,28 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
     if (this.animationsEnabled()) {
       this.animationsEnabled.set(false);
       this.engine.animationsEnabled = false;
+      this._animationsAutoDisabled = true;
     }
     if (!this.isPaused()) {
       this.isPaused.set(true);
       this.engine.isPaused = true;
+      this._pauseAutoApplied = true;
     }
+  }
+
+  /** Reverse ONLY the pause/animation clamps the auto-optimizer itself applied — never a user's own. */
+  private _undoAutoOptimize(): void {
+    if (!this.engine) return;
+    if (this._pauseAutoApplied && this.isPaused()) {
+      this.isPaused.set(false);
+      this.engine.isPaused = false;
+    }
+    if (this._animationsAutoDisabled && !this.animationsEnabled()) {
+      this.animationsEnabled.set(true);
+      this.engine.animationsEnabled = true;
+    }
+    this._pauseAutoApplied = false;
+    this._animationsAutoDisabled = false;
   }
 
   private _updateTooltipPosition(event: MouseEvent, rect: DOMRect) {
