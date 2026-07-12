@@ -15,7 +15,7 @@ export const DEFAULT_BRAND: BrandConfig = {
   name: 'GenieOS',
   codename: 'ngx-genie',
   tagline: 'Summon your Angular dependency graph',
-  version: '22.0.0-beta.0',
+  version: '22.0.0-beta.1',
   npm: 'https://www.npmjs.com/package/ngx-genie',
   github: 'https://github.com/SparrowVic/ngx-genie',
   docs: '/docs',
