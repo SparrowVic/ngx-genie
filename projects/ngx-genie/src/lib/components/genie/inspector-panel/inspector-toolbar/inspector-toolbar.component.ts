@@ -2,8 +2,8 @@ import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} fr
 import {FormsModule} from '@angular/forms';
 
 @Component({
-  selector: 'lib-inspector-toolbar',
   standalone: true,
+  selector: 'lib-inspector-toolbar',
   imports: [
     FormsModule
   ],

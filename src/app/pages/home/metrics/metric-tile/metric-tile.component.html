@@ -1,0 +1,19 @@
+<article class="metric-tile" [style.--accent]="metric().accent">
+  <header class="metric-tile__head">
+    <span class="metric-tile__icon" aria-hidden="true">
+      <ui-icon [name]="metric().icon" [size]="18" />
+    </span>
+    <span class="metric-tile__label">{{ metric().label }}</span>
+  </header>
+
+  <p class="metric-tile__value">
+    <!-- Static fact for assistive tech; the counting number is aria-hidden. -->
+    <span class="metric-tile__sr">{{ metric().value }}</span>
+    <span
+      class="metric-tile__number tnum"
+      aria-hidden="true"
+      [appCountUp]="metric().value"
+      [duration]="900"
+    ></span>
+  </p>
+</article>

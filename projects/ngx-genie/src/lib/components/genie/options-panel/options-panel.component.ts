@@ -4,7 +4,7 @@ import {
   signal,
   input, output, effect, untracked, ViewEncapsulation
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {FormsModule} from '@angular/forms';
 import {GenieServiceRegistration, GenieNode} from '../../../models/genie-node.model';
 import {GenieFilterState, MatchMode, SearchMode} from './options-panel.models';
@@ -25,10 +25,9 @@ import {OptionsPanelDeepSearchComponent} from './options-panel-deep-search/optio
 import {GenOptionsPanelFiltersComponent} from './options-panel-filters/options-panel-filters.component';
 
 @Component({
-  selector: 'lib-options-panel',
   standalone: true,
+  selector: 'lib-options-panel',
   imports: [
-    CommonModule,
     FormsModule,
     OptionsPanelControlsComponent,
     OptionsPanelProviderTypesComponent,
@@ -36,8 +35,8 @@ import {GenOptionsPanelFiltersComponent} from './options-panel-filters/options-p
     OptionsPanelScopeLifetimeComponent,
     OptionsPanelComplexityFilterComponent,
     OptionsPanelDeepSearchComponent,
-    GenOptionsPanelFiltersComponent,
-  ],
+    GenOptionsPanelFiltersComponent
+],
   templateUrl: './options-panel.component.html',
   styleUrl: './options-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -55,12 +54,14 @@ export class OptionsPanelComponent {
   readonly collapseAll = output<void>();
   readonly filterChange = output<GenieFilterState>();
 
-  protected readonly _hideUnusedDeps = signal(false);
-  protected readonly _hideIsolatedComponents = signal(false);
+  protected readonly _hideUnusedDeps = signal(true);
+  protected readonly _hideIsolatedComponents = signal(true);
   protected readonly _minDeps = signal(0);
   protected readonly _maxDeps = signal(100);
+  /** Whether the user has dragged the max-deps slider below the detected max (a real filter). */
+  private _maxDepsUserSet = false;
 
-  protected readonly _hideInternals = signal(false);
+  protected readonly _hideInternals = signal(true);
   protected readonly _groupSimilarSiblings = signal(true);
   protected readonly _showRootOnly = signal(false);
   protected readonly _showLocalOnly = signal(false);
@@ -91,9 +92,15 @@ export class OptionsPanelComponent {
   constructor() {
     effect(() => {
       const detectedMax = this.maxDetectedDeps();
-      const currentMax = untracked(this._maxDeps);
       untracked(() => {
-        if (currentMax !== detectedMax) {
+        if (!this._maxDepsUserSet) {
+          // Auto mode (the default): the upper bound tracks the detected maximum in BOTH directions,
+          // so "show all" stays "show all". Without following it UP, revealing more dependencies
+          // (e.g. turning off "Hide Angular Internals") would leave a stale low cap that silently
+          // filters out every node.
+          if (this._maxDeps() !== detectedMax) this._maxDeps.set(detectedMax);
+        } else if (this._maxDeps() > detectedMax) {
+          // The user picked a maximum, but detection shrank below it — clamp so it stays in range.
           this._maxDeps.set(detectedMax);
         }
       });
@@ -136,7 +143,7 @@ export class OptionsPanelComponent {
       };
 
       this.filterChange.emit(state);
-    });
+    }, {allowSignalWrites: true});
   }
 
   protected _setShowRootOnly(val: boolean): void {
@@ -168,6 +175,9 @@ export class OptionsPanelComponent {
 
   protected _setMaxDeps(val: number): void {
     if (val < this._minDeps()) val = this._minDeps();
+    // A value below the detected max is a deliberate filter and must stick; dragging back to (or
+    // above) the top returns to auto-follow, so later changes that grow the max aren't hidden.
+    this._maxDepsUserSet = val < this.maxDetectedDeps();
     this._maxDeps.set(val);
   }
 }

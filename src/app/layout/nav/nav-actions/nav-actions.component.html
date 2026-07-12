@@ -1,0 +1,39 @@
+<div class="nav-actions">
+  <button
+    type="button"
+    class="nav-actions__cmd"
+    [appRipple]="'rgba(139, 92, 246, 0.3)'"
+    [appMagnetic]="0.12"
+    (click)="openPalette()"
+    [attr.aria-label]="'Open command palette (' + shortcut + ')'"
+  >
+    <ui-icon name="search" [size]="16" />
+    <span class="nav-actions__cmd-label">Search</span>
+    <kbd class="nav-actions__kbd">{{ shortcut }}</kbd>
+  </button>
+
+  <button
+    type="button"
+    class="nav-actions__icon-btn"
+    [appRipple]="'rgba(34, 211, 238, 0.3)'"
+    (click)="toggleTheme()"
+    [attr.aria-label]="'Switch to ' + (theme.isDark() ? 'daylight' : 'cosmic') + ' theme'"
+    [attr.title]="theme.label() + ' theme'"
+  >
+    <span class="nav-actions__theme-icon" [class.is-dark]="theme.isDark()">
+      <ui-icon [name]="theme.icon()" [size]="18" />
+    </span>
+  </button>
+
+  <a
+    class="nav-actions__icon-btn"
+    [href]="brand.github"
+    target="_blank"
+    rel="noreferrer noopener"
+    [appRipple]="'rgba(148, 163, 255, 0.25)'"
+    aria-label="View GenieOS source on GitHub"
+    title="GitHub"
+  >
+    <ui-icon name="github" [size]="18" />
+  </a>
+</div>

@@ -2,31 +2,37 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  inject,
-  signal,
-  ViewChild,
   effect,
+  inject,
+  NgZone,
+  signal,
+  viewChild,
   computed,
-  OnDestroy,
-  ViewEncapsulation,
-  PLATFORM_ID
+  OnDestroy, ViewEncapsulation, PLATFORM_ID
 } from '@angular/core';
-import {CommonModule, DOCUMENT, isPlatformBrowser} from '@angular/common';
-import {interval, Subscription} from 'rxjs';
-
+import {isPlatformBrowser} from '@angular/common';
 import {GenieConfig} from '../../models/genie-config.model';
 import {GENIE_CONFIG} from '../../tokens/genie-config.token';
 import {GenieResizableDirective} from '../../shared/directives/resizable/resizable.directive';
-
+import {GenieWindowConstraintsDirective} from '../../shared/directives/window-constraints/window-constraints.directive';
 import {HeaderComponent} from './header/header.component';
 import {GenieViewMode, ViewportComponent} from './viewport/viewport.component';
 import {OptionsPanelComponent} from './options-panel/options-panel.component';
 import {InspectorPanelComponent} from './inspector-panel/inspector-panel.component';
-
+import {GenToastComponent} from '../../shared/components/toast/gen-toast.component';
 import {GenieExplorerStateService} from './explorer-state.service';
 import {GenieFilterState} from './options-panel/options-panel.models';
+import {GenieRegistryService} from '../../services/genie-registry.service';
+import {GeniePerformanceService} from '../../services/genie-performance.service';
 
 const STORAGE_KEY_LAYOUT = 'genie_layout_config';
+const FIRST_VISIBLE_SCAN_DELAY_MS = 350;
+const FOLLOW_UP_VISIBLE_SCAN_DELAY_MS = 1500;
+const MAX_VISIBLE_SCAN_ATTEMPTS = 3;
+// While the overlay is open, GenieOS watches for SPA navigations (History API) and re-scans the new
+// route so the graph stays in sync without needing to close and reopen it.
+const LIVE_RESCAN_DEBOUNCE_MS = 150;
+const LIVE_RESCAN_MAX_FREEZE_MS = 3000;
 
 interface GenieLayoutState {
   x: number;
@@ -44,12 +50,13 @@ interface GenieLayoutState {
   standalone: true,
   selector: 'ngx-genie',
   imports: [
-    CommonModule,
     GenieResizableDirective,
+    GenieWindowConstraintsDirective,
     HeaderComponent,
     ViewportComponent,
     OptionsPanelComponent,
     InspectorPanelComponent,
+    GenToastComponent
   ],
   providers: [GenieExplorerStateService],
   templateUrl: './genie.component.html',
@@ -61,13 +68,15 @@ export class GenieComponent implements OnDestroy {
 
   readonly state = inject(GenieExplorerStateService);
   readonly config: GenieConfig = inject(GENIE_CONFIG);
-  private readonly document = inject(DOCUMENT);
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly registry = inject(GenieRegistryService);
+  private readonly performance = inject(GeniePerformanceService);
+  private readonly zone = inject(NgZone);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
 
-  @ViewChild('windowRef') windowRef!: ElementRef<HTMLElement>;
+  readonly windowRef = viewChild<ElementRef<HTMLElement>>('windowRef');
 
-  private readonly initialState = this.loadLayoutState();
+  private readonly initialState = this.isBrowser ? this.loadLayoutState() : this.getDefaultLayoutState();
 
   readonly visible = signal<boolean>(this.config.visibleOnStart);
 
@@ -96,12 +105,37 @@ export class GenieComponent implements OnDestroy {
   private _lastOptionsWidth = 250;
   private _lastInspectorWidth = 400;
   private readonly _COLLAPSED_WIDTH = 24;
-  private _liveSub: Subscription | null = null;
   private _keyListener: ((e: KeyboardEvent) => void) | null = null;
 
   private _saveTimeout: any = null;
+  private _scanTimers: ReturnType<typeof setTimeout>[] = [];
+  private _idleScanHandles: number[] = [];
+  private _pendingScanCount = 0;
+  private _visibleScanAttempt = 0;
+
+  private _captureHeld = false;
+  private _navWatchActive = false;
+  private _originalPushState: History['pushState'] | null = null;
+  private _originalReplaceState: History['replaceState'] | null = null;
+  private _patchedPushState: History['pushState'] | null = null;
+  private _patchedReplaceState: History['replaceState'] | null = null;
+  private _popStateListener: (() => void) | null = null;
+  private _liveRescanTimer: ReturnType<typeof setTimeout> | null = null;
+  private _freezeSafetyTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
+    effect(() => {
+      const active = this.config.enabled && this.visible();
+      this.setCaptureHeld(active);
+      if (!active) {
+        this.stopLiveRescan();
+        this.cancelQueuedScan();
+        return;
+      }
+      this.scheduleScanWhenVisible();
+      this.startLiveRescan();
+    }, {allowSignalWrites: true});
+
     if (this.isBrowser && this.config.enabled && this.config.hotkey) {
       this._keyListener = (event: KeyboardEvent) => {
         if (event.key === this.config.hotkey) {
@@ -111,24 +145,33 @@ export class GenieComponent implements OnDestroy {
       };
       window.addEventListener('keydown', this._keyListener);
     }
-
-    effect(() => {
-      if (this.state.isLiveWatch()) {
-        this._liveSub = interval(500).subscribe(() =>
-          this.state.refreshTrigger.update(v => v + 1)
-        );
-      } else {
-        if (this._liveSub) {
-          this._liveSub.unsubscribe();
-          this._liveSub = null;
-        }
-      }
-    });
   }
 
   ngOnDestroy() {
     if (this.isBrowser && this._keyListener) {
       window.removeEventListener('keydown', this._keyListener);
+    }
+    // Release our capture lease so the registry's DI-capture spy is not left running (and the
+    // deferred buffer not left retained) when the overlay is destroyed while still open — the
+    // constructor effect is torn down without a final run, so it can no longer do this for us.
+    this.setCaptureHeld(false);
+    this.stopLiveRescan();
+    this.cancelQueuedScan();
+  }
+
+  /**
+   * Acquire/release a refcounted capture lease on the shared (root-singleton) registry as this
+   * overlay opens/closes. Refcounting — rather than a bare `setCaptureActive(boolean)` — keeps a
+   * second mounted `<ngx-genie/>` instance capturing when this one closes, instead of the last
+   * writer globally disabling capture and wiping the deferred buffer.
+   */
+  private setCaptureHeld(held: boolean): void {
+    if (held === this._captureHeld) return;
+    this._captureHeld = held;
+    if (held) {
+      this.registry.acquireCapture();
+    } else {
+      this.registry.releaseCapture();
     }
   }
 
@@ -163,8 +206,7 @@ export class GenieComponent implements OnDestroy {
     const svc = this.state.selectedService();
     if (svc?.instance) {
       console.log(`%c[Genie] Exported ${svc.label}:`, 'color: #3b82f6; font-weight: bold;', svc.instance);
-      // @ts-ignore
-      window['$ngx-genie'] = svc.instance;
+      (window as unknown as { $genie?: unknown }).$genie = svc.instance;
       console.log(`%cAccessible as window.$genie`, 'color: #10b981; font-style: italic;');
     }
   }
@@ -177,56 +219,16 @@ export class GenieComponent implements OnDestroy {
   selectDependency = (s: any) => this.state.selectDependency(s);
   selectNode = (n: any) => this.state.selectNode(n);
 
-  startWindowDrag(event: MouseEvent): void {
-    if (this.isMaximized()) return;
-
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const {x, y} = this.windowPosition();
-
-    const mouseMoveHandler = (e: MouseEvent) => {
-      this.windowPosition.set({
-        x: x + (e.clientX - startX),
-        y: y + (e.clientY - startY)
-      });
-    };
-
-    const mouseUpHandler = () => {
-      this.document.removeEventListener('mousemove', mouseMoveHandler);
-      this.document.removeEventListener('mouseup', mouseUpHandler);
-      this.saveLayoutState();
-    };
-
-    this.document.addEventListener('mousemove', mouseMoveHandler);
-    this.document.addEventListener('mouseup', mouseUpHandler);
+  onWindowPositionChange(position: { x: number; y: number }): void {
+    this.windowPosition.set(position);
   }
 
-  startWindowResize(event: MouseEvent): void {
-    if (this.isMaximized()) return;
-    event.stopPropagation();
-    event.preventDefault();
+  onWindowSizeChange(size: { width: number; height: number }): void {
+    this.windowSize.set(size);
+  }
 
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const rect = this.windowRef.nativeElement.getBoundingClientRect();
-    const startW = rect.width;
-    const startH = rect.height;
-
-    const mouseMoveHandler = (e: MouseEvent) => {
-      this.windowSize.set({
-        width: Math.max(600, startW + (e.clientX - startX)),
-        height: Math.max(400, startH + (e.clientY - startY))
-      });
-    };
-
-    const mouseUpHandler = () => {
-      this.document.removeEventListener('mousemove', mouseMoveHandler);
-      this.document.removeEventListener('mouseup', mouseUpHandler);
-      this.saveLayoutState();
-    };
-
-    this.document.addEventListener('mousemove', mouseMoveHandler);
-    this.document.addEventListener('mouseup', mouseUpHandler);
+  onWindowOperationEnd(): void {
+    this.saveLayoutState();
   }
 
   onOptionsPanelResize(delta: number): void {
@@ -274,6 +276,185 @@ export class GenieComponent implements OnDestroy {
     this._saveTimeout = setTimeout(() => this.saveLayoutState(), 500);
   }
 
+  private scheduleScanWhenVisible() {
+    if (!this.isBrowser || this._pendingScanCount > 0) return;
+
+    this._visibleScanAttempt = 0;
+    this.queueVisibleScan(FIRST_VISIBLE_SCAN_DELAY_MS);
+  }
+
+  private queueVisibleScan(delay: number) {
+    this._pendingScanCount++;
+
+    const runScan = () => {
+      this._pendingScanCount = Math.max(0, this._pendingScanCount - 1);
+      if (!this.visible()) return;
+      this.runApplicationScan(() => this.queueFollowUpScanIfNeeded());
+    };
+
+    this._visibleScanAttempt++;
+
+    const queueIdleScan = () => {
+      const win = window as any;
+      if (typeof win.requestIdleCallback === 'function') {
+        const handle = win.requestIdleCallback(runScan, {timeout: 1500});
+        this._idleScanHandles.push(handle);
+      } else {
+        const timer = setTimeout(runScan, 250);
+        this._scanTimers.push(timer);
+      }
+    };
+
+    this.zone.runOutsideAngular(() => {
+      if (delay === 0) {
+        queueIdleScan();
+      } else {
+        const timer = setTimeout(queueIdleScan, delay);
+        this._scanTimers.push(timer);
+      }
+    });
+  }
+
+  private runApplicationScan(onComplete: () => void) {
+    const completePerformanceSpan = this.performance.startSpan('scan.application', {
+      attempt: this._visibleScanAttempt
+    });
+
+    try {
+      this.registry.scanApplicationChunked(() => {
+        completePerformanceSpan({
+          nodes: this.registry.nodes().length,
+          services: this.registry.services().length,
+          dependencies: this.registry.dependencies().length,
+          phase: this.registry.scanStatus().phase
+        });
+        onComplete();
+      });
+    } catch (error) {
+      completePerformanceSpan({failed: true});
+      console.warn('[Genie] Application scan failed.', error);
+      onComplete();
+    }
+  }
+
+  private queueFollowUpScanIfNeeded() {
+    if (
+      this.visible()
+      && this.registry.hasPendingDeferredEvents()
+      && this._visibleScanAttempt < MAX_VISIBLE_SCAN_ATTEMPTS
+    ) {
+      this.queueVisibleScan(FOLLOW_UP_VISIBLE_SCAN_DELAY_MS);
+    }
+  }
+
+  private cancelQueuedScan() {
+    if (!this.isBrowser) return;
+
+    this._scanTimers.forEach(timer => clearTimeout(timer));
+    this._scanTimers = [];
+
+    const win = window as any;
+    if (typeof win.cancelIdleCallback === 'function') {
+      this._idleScanHandles.forEach(handle => win.cancelIdleCallback(handle));
+    }
+    this._idleScanHandles = [];
+
+    this._pendingScanCount = 0;
+    this._visibleScanAttempt = 0;
+  }
+
+  /**
+   * While the overlay is open, watch for SPA navigations by wrapping the History API (pushState /
+   * replaceState) and listening for popstate. On a navigation we freeze the tree and re-run the
+   * idempotent scan for the new route, so the graph tracks the live app without closing/reopening —
+   * and without reacting to unrelated DOM churn (animations etc.), which would otherwise flicker.
+   */
+  private startLiveRescan() {
+    if (!this.isBrowser || this._navWatchActive) return;
+    this._navWatchActive = true;
+
+    const onNav = () => this.onLiveNavigation();
+    // Capture the originals in the wrappers' own closures (not via a mutable field), so a wrapper
+    // that another History consumer chained on top of us keeps working even after we null our
+    // fields on teardown — otherwise it would dereference a now-null original and throw.
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+    this._originalPushState = originalPushState;
+    this._originalReplaceState = originalReplaceState;
+
+    const patchedPushState = function (this: History, ...args: unknown[]) {
+      const result = (originalPushState as Function).apply(this, args);
+      onNav();
+      return result;
+    } as History['pushState'];
+    const patchedReplaceState = function (this: History, ...args: unknown[]) {
+      const result = (originalReplaceState as Function).apply(this, args);
+      onNav();
+      return result;
+    } as History['replaceState'];
+
+    history.pushState = patchedPushState;
+    history.replaceState = patchedReplaceState;
+    this._patchedPushState = patchedPushState;
+    this._patchedReplaceState = patchedReplaceState;
+
+    this._popStateListener = onNav;
+    window.addEventListener('popstate', this._popStateListener);
+  }
+
+  private onLiveNavigation() {
+    if (!this.config.enabled || !this.visible()) return;
+
+    // Freeze the tree at the current (old-route) state, then re-scan the new route once it has
+    // rendered. The frozen tree is auto-released by the state service when the scan settles.
+    this.state.suspendTreeUpdates();
+
+    if (this._liveRescanTimer) clearTimeout(this._liveRescanTimer);
+    this._liveRescanTimer = setTimeout(() => {
+      this._liveRescanTimer = null;
+      if (this.config.enabled && this.visible()) this.scheduleScanWhenVisible();
+    }, LIVE_RESCAN_DEBOUNCE_MS);
+
+    // Safety net: never leave the tree frozen if a scan somehow fails to settle.
+    if (this._freezeSafetyTimer) clearTimeout(this._freezeSafetyTimer);
+    this._freezeSafetyTimer = setTimeout(() => {
+      this._freezeSafetyTimer = null;
+      this.state.resumeTreeUpdates();
+    }, LIVE_RESCAN_MAX_FREEZE_MS);
+  }
+
+  private stopLiveRescan() {
+    if (this._liveRescanTimer) {
+      clearTimeout(this._liveRescanTimer);
+      this._liveRescanTimer = null;
+    }
+    if (this._freezeSafetyTimer) {
+      clearTimeout(this._freezeSafetyTimer);
+      this._freezeSafetyTimer = null;
+    }
+
+    if (this._navWatchActive) {
+      // Only un-patch if our wrapper is still the currently installed one. If another History
+      // consumer (e.g. a second overlay instance) wrapped it after us, they own the restore chain —
+      // blindly reassigning the saved original here would clobber their live wrapper.
+      if (this._patchedPushState && history.pushState === this._patchedPushState && this._originalPushState) {
+        history.pushState = this._originalPushState;
+      }
+      if (this._patchedReplaceState && history.replaceState === this._patchedReplaceState && this._originalReplaceState) {
+        history.replaceState = this._originalReplaceState;
+      }
+      this._originalPushState = null;
+      this._originalReplaceState = null;
+      this._patchedPushState = null;
+      this._patchedReplaceState = null;
+      if (this._popStateListener) window.removeEventListener('popstate', this._popStateListener);
+      this._popStateListener = null;
+      this._navWatchActive = false;
+    }
+
+    this.state.resumeTreeUpdates();
+  }
+
   private saveLayoutState() {
     if (!this.isBrowser) return;
 
@@ -296,6 +477,8 @@ export class GenieComponent implements OnDestroy {
   }
 
   private loadLayoutState(): GenieLayoutState {
+    if (!this.isBrowser) return this.getDefaultLayoutState();
+
     const defaultState: GenieLayoutState = {
       x: 40,
       y: 40,
@@ -308,8 +491,6 @@ export class GenieComponent implements OnDestroy {
       inspectorCollapsed: false
     };
 
-    if (!this.isBrowser) return defaultState;
-
     try {
       const raw = localStorage.getItem(STORAGE_KEY_LAYOUT);
       if (raw) {
@@ -320,5 +501,13 @@ export class GenieComponent implements OnDestroy {
     }
 
     return defaultState;
+  }
+
+  private getDefaultLayoutState(): GenieLayoutState {
+    return {
+      x: 40, y: 40, width: 1200, height: 800,
+      isMaximized: false, optionsWidth: 350, inspectorWidth: 400,
+      optionsCollapsed: false, inspectorCollapsed: false
+    };
   }
 }

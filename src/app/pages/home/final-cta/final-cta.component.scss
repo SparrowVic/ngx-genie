@@ -1,0 +1,123 @@
+:host {
+  display: block;
+}
+
+.final-cta__panel {
+  --gx: 50%;
+  --gy: 0%;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  padding: clamp(var(--space-6), 7vw, var(--space-10)) clamp(var(--space-5), 5vw, var(--space-9));
+  text-align: center;
+  border-color: var(--border-strong);
+
+  /* Aurora edge: a 1px gradient hairline along the top of the closing panel. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: var(--gradient-aurora);
+    opacity: 0.65;
+  }
+}
+
+/* Gradient mesh: three fixed low-opacity blooms anchor the corners while a
+   fourth follows the cursor via appGlow's --gx / --gy. Large soft radials —
+   no blur filter — keep the glass crisp. */
+.final-cta__aurora {
+  position: absolute;
+  inset: -20%;
+  z-index: -2;
+  background:
+    radial-gradient(
+      46% 58% at var(--gx) var(--gy),
+      rgba(139, 92, 246, 0.36) 0%,
+      rgba(99, 102, 241, 0.18) 38%,
+      transparent 66%
+    ),
+    radial-gradient(50% 60% at 16% 18%, rgba(34, 211, 238, 0.14) 0%, transparent 70%),
+    radial-gradient(52% 64% at 86% 24%, rgba(236, 72, 153, 0.13) 0%, transparent 70%),
+    radial-gradient(78% 72% at 50% 106%, rgba(99, 102, 241, 0.22) 0%, transparent 72%);
+  opacity: 0.8;
+  transition: background var(--dur) var(--ease-out);
+}
+
+/* Faint constellation grid behind the copy. */
+.final-cta__grid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(75% 75% at 50% 38%, #000 0%, transparent 80%);
+}
+
+.final-cta__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 40rem;
+  margin-inline: auto;
+}
+
+.final-cta__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-h1);
+  line-height: var(--lh-heading);
+  letter-spacing: var(--ls-heading);
+  color: var(--text-primary);
+}
+
+.final-cta__subtitle {
+  color: var(--text-secondary);
+  font-size: clamp(var(--fs-body), 2.2vw, var(--fs-body-lg));
+  line-height: var(--lh-body);
+  max-width: 34rem;
+  text-wrap: pretty;
+}
+
+.final-cta__kbd {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-0), var(--edge-light);
+  white-space: nowrap;
+}
+
+.final-cta__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+
+  ui-button {
+    display: inline-flex;
+    will-change: transform;
+  }
+}
+
+.final-cta__meta {
+  margin-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .final-cta__aurora {
+    transition: none;
+  }
+}

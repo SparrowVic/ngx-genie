@@ -13,6 +13,15 @@
     "src/**/*.ts"
   ],
   "exclude": [
-    "**/*.spec.ts"
-  ]
+    "**/*.spec.ts",
+    "src/lib/testing/**"
+  ],
+  "angularCompilerOptions": {
+    "extendedDiagnostics": {
+      "checks": {
+        "nullishCoalescingNotNullable": "suppress",
+        "optionalChainNotNullable": "suppress"
+      }
+    }
+  }
 }

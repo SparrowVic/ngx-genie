@@ -154,6 +154,40 @@ $c-framework: #d97706;
   }
 }
 
+.diagnostics-progress {
+  flex-shrink: 0;
+  border: 1px solid rgba($c-info, 0.25);
+  background: rgba($c-info, 0.08);
+  border-radius: 6px;
+  padding: 8px 10px;
+
+  .progress-copy {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: $c-text-muted;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  .progress-track {
+    height: 4px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, $c-info, $c-success);
+    transition: width 0.2s ease;
+  }
+}
+
 .metrics-grid {
   display: flex;
   flex-wrap: wrap;
@@ -753,6 +787,10 @@ $c-framework: #d97706;
       grid-column: 1 / -1;
     }
 
+    .load-more-panel {
+      grid-column: 1 / -1;
+    }
+
     .anomaly-card .card-header {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -1107,9 +1145,64 @@ $c-framework: #d97706;
       }
     }
   }
-}
+  }
 
-.all-clear {
+  .load-more-panel {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 1px dashed rgba($c-info, 0.35);
+    border-radius: 6px;
+    background: rgba($c-info, 0.06);
+    color: $c-text-muted;
+
+    .load-more-text {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .load-more-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .load-more-btn {
+      border: 1px solid rgba($c-info, 0.45);
+      background: rgba($c-info, 0.16);
+      color: #bfdbfe;
+      border-radius: 4px;
+      padding: 7px 10px;
+      font-family: inherit;
+      font-size: 10px;
+      font-weight: 800;
+      cursor: pointer;
+
+      &:hover {
+        background: rgba($c-info, 0.26);
+        color: #fff;
+      }
+
+      &.ghost {
+        background: transparent;
+        border-color: rgba(255, 255, 255, 0.16);
+        color: $c-text-muted;
+
+        &:hover {
+          border-color: rgba(255, 255, 255, 0.35);
+          color: #fff;
+        }
+      }
+    }
+  }
+
+  .all-clear {
   text-align: center;
   padding: 60px 20px;
   color: $c-success;

@@ -1,0 +1,17 @@
+<section class="section mechanism">
+  <div class="container stack">
+    <div class="mechanism__head" appReveal>
+      <ui-section-header
+        eyebrow="The mechanism"
+        heading="How the *observatory* works"
+        subtitle="From a single interception seam to a living force-directed graph — four stages turn Angular's hidden dependency injection into something you can actually see."
+      />
+    </div>
+
+    <div class="mechanism__flow">
+      @for (s of steps(); track s.index; let i = $index) {
+        <app-mechanism-step [step]="s" [index]="i" [last]="i === lastIndex()" />
+      }
+    </div>
+  </div>
+</section>

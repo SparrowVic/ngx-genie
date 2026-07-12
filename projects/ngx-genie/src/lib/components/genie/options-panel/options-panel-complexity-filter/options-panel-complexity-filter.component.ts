@@ -2,8 +2,8 @@ import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} fr
 import {FormsModule} from '@angular/forms';
 
 @Component({
-  selector: 'lib-options-panel-complexity-filter',
   standalone: true,
+  selector: 'lib-options-panel-complexity-filter',
   imports: [
     FormsModule
   ],
@@ -18,4 +18,5 @@ export class OptionsPanelComplexityFilterComponent {
   readonly maxDetectedDeps = input.required<number>();
 
   readonly updateMinDeps = output<number>();
+  readonly updateMaxDeps = output<number>();
 }

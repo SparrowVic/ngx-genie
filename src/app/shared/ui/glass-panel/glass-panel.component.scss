@@ -1,0 +1,23 @@
+:host {
+  display: block;
+}
+
+.glass-panel {
+  position: relative;
+  height: 100%;
+  transition:
+    transform var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out);
+}
+
+.glass-panel--interactive {
+  cursor: pointer;
+}
+
+/* Coloured hover bloom — layered on top of the base panel shadow. The fallback
+   keeps box-shadow valid even if the custom property is momentarily unset. */
+.glass-panel--glow:hover {
+  box-shadow: var(--shadow-panel), var(--panel-glow, 0 0 0 transparent);
+  border-color: var(--border-strong);
+}

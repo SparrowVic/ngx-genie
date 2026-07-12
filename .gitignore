@@ -41,3 +41,17 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Local-only notes / TODOs (never committed)
+*.local.md
+/.notes/
+
+# AI coding tools — local config/state dirs (never committed)
+/.claude/
+/.codex/
+
+# Playwright MCP browser artifacts (transient screenshots / console logs)
+/.playwright-mcp/
+
+# Local Netlify folder
+.netlify

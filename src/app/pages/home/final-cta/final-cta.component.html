@@ -1,0 +1,48 @@
+<section id="get-started" class="section final-cta" appReveal>
+  <div class="container">
+    <div class="final-cta__panel panel" appGlow>
+      <span class="final-cta__aurora" aria-hidden="true"></span>
+      <span class="final-cta__grid" aria-hidden="true"></span>
+
+      <div class="final-cta__content">
+        <ui-chip class="tnum" icon="sparkles" accent="var(--cyan)">v{{ brand.version }} · Angular 18 ready</ui-chip>
+
+        <h2 class="final-cta__title">
+          Summon your <span class="gradient-text">dependency graph</span>
+        </h2>
+
+        <p class="final-cta__subtitle">
+          {{ brand.tagline }}. Install {{ brand.codename }} as a dev dependency, press
+          <kbd class="final-cta__kbd">{{ hotkey.key }}</kbd>, and watch the hidden injector tree light up as a
+          living constellation.
+        </p>
+
+        <div class="final-cta__actions">
+          <ui-button
+            variant="primary"
+            size="lg"
+            href="/docs"
+            icon="download"
+            iconRight="arrow-right"
+            appMagnetic
+          >
+            Get started
+          </ui-button>
+
+          <ui-button
+            variant="outline"
+            size="lg"
+            [href]="brand.github"
+            icon="github"
+            iconRight="star"
+            appMagnetic
+          >
+            Star on GitHub
+          </ui-button>
+        </div>
+
+        <p class="final-cta__meta">MIT + Commons Clause · zero production cost · free to use</p>
+      </div>
+    </div>
+  </div>
+</section>

@@ -8,7 +8,7 @@ import {
   output,
   signal, ViewEncapsulation,
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {FormsModule} from '@angular/forms';
 import {GenieResizableDirective} from '../../../shared/directives/resizable/resizable.directive';
 import {
@@ -23,16 +23,15 @@ import {InspectorToolbarComponent} from './inspector-toolbar/inspector-toolbar.c
 import {GenieFilterState} from '../options-panel/options-panel.models';
 
 @Component({
-  selector: 'lib-inspector-panel',
   standalone: true,
+  selector: 'lib-inspector-panel',
   imports: [
-    CommonModule,
     FormsModule,
     GenieResizableDirective,
     InspectorToolbarComponent,
     InspectorProvidersListComponent,
     InspectorProviderDetailsComponent
-  ],
+],
   providers: [InspectorStateService],
   templateUrl: './inspector-panel.component.html',
   styleUrl: './inspector-panel.component.scss',
@@ -61,7 +60,6 @@ export class InspectorPanelComponent {
 
   readonly closeSelection = output<void>();
   readonly selectService = output<GenieServiceRegistration>();
-  readonly toggleLiveWatch = output<void>();
   readonly consoleLog = output<void>();
 
 

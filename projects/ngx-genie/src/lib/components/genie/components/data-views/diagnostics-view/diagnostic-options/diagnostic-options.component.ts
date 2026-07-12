@@ -3,8 +3,8 @@ import {FormsModule} from '@angular/forms';
 import {DiagnosticsConfig} from '../../../../../../services/genie-diagnostics.service';
 
 @Component({
-  selector: 'lib-diagnostic-options',
   standalone: true,
+  selector: 'lib-diagnostic-options',
   imports: [
     FormsModule
   ],

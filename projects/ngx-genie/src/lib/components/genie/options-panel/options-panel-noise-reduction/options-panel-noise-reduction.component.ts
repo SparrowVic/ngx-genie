@@ -1,12 +1,8 @@
 import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} from '@angular/core';
-import {FormsModule} from '@angular/forms';
 
 @Component({
-  selector: 'lib-options-panel-noise-reduction',
   standalone: true,
-  imports: [
-    FormsModule
-  ],
+  selector: 'lib-options-panel-noise-reduction',
   templateUrl: './options-panel-noise-reduction.component.html',
   styleUrl: './options-panel-noise-reduction.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
