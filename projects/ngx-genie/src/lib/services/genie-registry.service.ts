@@ -11,8 +11,12 @@ import {
   ChangeDetectorRef,
   ViewRef,
   effect,
-  untracked
+  untracked,
+  inject,
+  PLATFORM_ID,
+  DestroyRef
 } from '@angular/core';
+import {isPlatformBrowser} from '@angular/common';
 import {isObservable} from 'rxjs';
 import {
   GenieNode,
@@ -24,10 +28,46 @@ import {
   GenieDependencyType,
   DependencyType
 } from '../models/genie-node.model';
-import {ANGULAR_CORE_SYSTEM} from '../configs/angular-internals';
+import {ANGULAR_CORE_SYSTEM, normalizeInternalName} from '../configs/angular-internals';
 import {GenFilterService} from './filter.service';
 
-const ORIGINAL_INJECTOR_GET = Injector.prototype.get;
+/**
+ * Marker stored on a patched injector instance. Holds the original `get` so the patch can be
+ * cleanly reverted on teardown. A Symbol keeps it non-enumerable and collision-free on host objects.
+ */
+const GENIE_PATCHED = Symbol('ngxGenie.injectorPatched');
+
+interface GeniePatchRecord {
+  originalGet: (token: any, notFoundValue?: any, flags?: any) => any;
+  hadOwnGet: boolean;
+}
+
+/**
+ * Decode Angular DI flags into a normalized {@link InjectionFlags}. Angular v21 removed the public
+ * numeric `InjectFlags` enum; modern callers pass an `InjectOptions` object, while the private
+ * `InternalInjectFlags` numeric bitmask (Optional=8, SkipSelf=4, Self=2, Host=1) is still used
+ * internally. Both forms are decoded here. Exported (not via public-api) so the internal-contract
+ * guard spec can pin the exact bit weights.
+ */
+export function decodeInjectFlags(flags: any): InjectionFlags {
+  if (typeof flags === 'number') {
+    return {
+      optional: (flags & 8) !== 0,
+      skipSelf: (flags & 4) !== 0,
+      self: (flags & 2) !== 0,
+      host: (flags & 1) !== 0
+    };
+  }
+  if (flags && typeof flags === 'object') {
+    return {
+      optional: !!flags.optional,
+      skipSelf: !!flags.skipSelf,
+      self: !!flags.self,
+      host: !!flags.host
+    };
+  }
+  return {optional: false, skipSelf: false, self: false, host: false};
+}
 
 const IGNORED_TOKENS = new Set<any>([
   Injector,
@@ -40,9 +80,23 @@ const IGNORED_TOKENS = new Set<any>([
   'GENIE_NODE'
 ]);
 
+// Stored unprefixed; every lookup normalises first, so both the esbuild-mangled runtime name
+// (`_GenieComponent`) and the plain name (`GenieComponent`, e.g. webpack builds) are excluded.
 const GENIE_INTERNAL_COMPONENTS = new Set([
-  '_GenieComponent'
+  'GenieComponent'
 ]);
+
+const EMPTY_SERVICES: GenieServiceRegistration[] = [];
+const EMPTY_DEPENDENCIES: GenieDependency[] = [];
+const MAX_SNAPSHOT_KEYS = 200;
+const MAX_DEFERRED_EVENTS = 50000;
+const SCAN_CHUNK_BUDGET_MS = 8;
+const SCAN_CHUNK_MAX_ELEMENTS = 250;
+const DEFERRED_EVENT_CHUNK_BUDGET_MS = 6;
+const DEFERRED_EVENT_CHUNK_MAX_ITEMS = 1000;
+const ENRICHMENT_CHUNK_BUDGET_MS = 6;
+const ENRICHMENT_CHUNK_MAX_NODES = 30;
+const SCAN_STATUS_MIN_INTERVAL_MS = 80;
 
 const NATIVE_JS_CONSTRUCTORS = new Set([
   'String', 'Number', 'Boolean', 'Object', 'Array', 'Symbol', 'Function',
@@ -63,6 +117,54 @@ interface DeferredInjectionEvent {
   flags: any;
 }
 
+interface DomScanQueueItem {
+  element: HTMLElement;
+  parentNode: GenieNode;
+}
+
+interface NodeEnrichmentJob {
+  nodeId: number;
+  componentType: Type<any>;
+}
+
+export type GenieScanPhase = 'idle' | 'scanning' | 'deferred' | 'enriching' | 'settled';
+
+export interface GenieScanStatus {
+  phase: GenieScanPhase;
+  isActive: boolean;
+  message: string;
+  startedAt: number | null;
+  finishedAt: number | null;
+  durationMs: number;
+  nodes: number;
+  services: number;
+  dependencies: number;
+  domProcessed: number;
+  domRemaining: number;
+  deferredProcessed: number;
+  deferredTotal: number;
+  enrichmentProcessed: number;
+  enrichmentTotal: number;
+}
+
+const INITIAL_SCAN_STATUS: GenieScanStatus = {
+  phase: 'idle',
+  isActive: false,
+  message: 'IDLE',
+  startedAt: null,
+  finishedAt: null,
+  durationMs: 0,
+  nodes: 0,
+  services: 0,
+  dependencies: 0,
+  domProcessed: 0,
+  domRemaining: 0,
+  deferredProcessed: 0,
+  deferredTotal: 0,
+  enrichmentProcessed: 0,
+  enrichmentTotal: 0
+};
+
 @Injectable()
 export class GenieRegistryService {
   private readonly _isOpen = signal(false);
@@ -77,31 +179,125 @@ export class GenieRegistryService {
   private readonly _dependencies = signal<GenieDependency[]>([]);
   readonly dependencies = computed(() => this._dependencies());
 
+  private readonly _scanStatus = signal<GenieScanStatus>(INITIAL_SCAN_STATUS);
+  readonly scanStatus = computed(() => this._scanStatus());
+
   private _nextNodeId = 1;
   private _nextServiceId = 1;
   private _hasWarnedAboutProduction = false;
 
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly isBrowser = isPlatformBrowser(this.platformId);
+  private readonly destroyRef = inject(DestroyRef);
+
+  /** Whether the DI-capture spy should record injections. Off while the overlay is closed. */
+  private _captureActive = false;
+  /** How many overlay instances currently hold a capture lease (refcount for multi-instance safety). */
+  private _captureConsumers = 0;
+  /** Injector instances whose `get` we have wrapped, so they can be reverted on teardown. */
+  private readonly _patchedInjectors = new Set<any>();
 
   private _isScanning = false;
 
   private injectorToNodeMap = new WeakMap<Injector, number>();
+  private componentInstanceToNodeMap = new WeakMap<object, number>();
   private instanceToServiceMap = new WeakMap<any, number>();
+  private tokenNameCache = new WeakMap<object, string>();
+  private dependencyKeySet = new Set<string>();
+  private nodeById = new Map<number, GenieNode>();
+  private serviceById = new Map<number, GenieServiceRegistration>();
+  private serviceIndexById = new Map<number, number>();
 
-
+  private _isRegistryBatchActive = false;
+  private _pendingNodes: GenieNode[] = [];
+  private _pendingServices: GenieServiceRegistration[] = [];
+  private _pendingServiceIndexById = new Map<number, number>();
+  private _pendingDependencies: GenieDependency[] = [];
+  private _pendingServiceUsage = new Map<number, number>();
+  private _isChunkedScanActive = false;
+  private _chunkedScanCompletionCallbacks: Array<() => void> = [];
   private _deferredEvents: DeferredInjectionEvent[] = [];
+  private _deferredTokensByInjector = new WeakMap<Injector, Set<any>>();
+  private _nodeEnrichmentQueue: NodeEnrichmentJob[] = [];
+  private _queuedNodeEnrichmentIds = new Set<number>();
+  private _enrichedNodeIds = new Set<number>();
+  private _isEnrichmentScheduled = false;
+  private _scanStartedAt: number | null = null;
+  private _lastScanStatusUpdateAt = 0;
+  private _domScanProcessed = 0;
+  private _deferredProcessed = 0;
+  private _deferredTotal = 0;
+  private _enrichmentProcessed = 0;
+  private _enrichmentTotal = 0;
+
+  private readonly _nodesById = computed(() => {
+    const index = new Map<number, GenieNode>();
+    for (const node of this._nodes()) {
+      index.set(node.id, node);
+    }
+    return index;
+  });
+
+  private readonly _servicesById = computed(() => {
+    const index = new Map<number, GenieServiceRegistration>();
+    for (const service of this._services()) {
+      index.set(service.id, service);
+    }
+    return index;
+  });
+
+  private readonly _servicesByNodeId = computed(() => {
+    const index = new Map<number, GenieServiceRegistration[]>();
+    for (const service of this._services()) {
+      const list = index.get(service.nodeId);
+      if (list) {
+        list.push(service);
+      } else {
+        index.set(service.nodeId, [service]);
+      }
+    }
+    return index;
+  });
+
+  private readonly _dependenciesByConsumerNodeId = computed(() => {
+    const index = new Map<number, GenieDependency[]>();
+    for (const dependency of this._dependencies()) {
+      const list = index.get(dependency.consumerNodeId);
+      if (list) {
+        list.push(dependency);
+      } else {
+        index.set(dependency.consumerNodeId, [dependency]);
+      }
+    }
+    return index;
+  });
+
+  private readonly _dependenciesByProviderId = computed(() => {
+    const index = new Map<number, GenieDependency[]>();
+    for (const dependency of this._dependencies()) {
+      if (dependency.providerId === null) continue;
+      const list = index.get(dependency.providerId);
+      if (list) {
+        list.push(dependency);
+      } else {
+        index.set(dependency.providerId, [dependency]);
+      }
+    }
+    return index;
+  });
 
   constructor(
     private appRef: ApplicationRef,
     private filterService: GenFilterService
   ) {
-    this.installSpy();
+    this.destroyRef.onDestroy(() => this.teardownCapture());
 
     effect(() => {
       this.filterService.configChanged();
       untracked(() => {
         this.reclassifyServices();
       });
-    });
+    }, {allowSignalWrites: true});
   }
 
   private reclassifyServices() {
@@ -124,47 +320,97 @@ export class GenieRegistryService {
     });
   }
 
-  private installSpy(): void {
-    const registry = this;
-
-    Injector.prototype.get = function (token: any, notFoundValue?: any, flags?: any): any {
-      const result = (ORIGINAL_INJECTOR_GET as any).apply(this, [token, notFoundValue, flags]);
-
-
-      if (registry._isScanning) return result;
-
-      if (registry.isIgnoredToken(token)) return result;
-      try {
-        registry.handleInjectionEvent(this, token, result, flags);
-      } catch (e) {
-
-      }
-      return result;
-    };
-  }
-
-
+  /**
+   * Wrap a single injector instance's `get` so we can observe what it resolves. We patch concrete
+   * injector *instances* (never `Injector.prototype`, whose abstract `get` is undefined on v21 and
+   * is never invoked) and remember the original `get` so the wrap can be reverted on teardown.
+   */
   private patchInjectorInstance(injector: any): void {
-    if (!injector || injector['__genie_patched__']) return;
+    if (!this.isBrowser || !injector || injector[GENIE_PATCHED]) return;
 
     const originalGet = injector.get;
+    if (typeof originalGet !== 'function') return;
+
+    const hadOwnGet = Object.prototype.hasOwnProperty.call(injector, 'get');
     const registry = this;
 
-    injector.get = function (token: any, notFoundValue?: any, flags?: any): any {
+    injector.get = function (this: any, token: any, notFoundValue?: any, flags?: any): any {
       const result = originalGet.apply(this, [token, notFoundValue, flags]);
 
-      if (registry._isScanning) return result;
-
-      if (registry.isIgnoredToken(token)) return result;
+      if (registry._isScanning || !registry._captureActive) return result;
+      if (registry.isIgnoredTokenFast(token)) return result;
       try {
-
         registry.handleInjectionEvent(this, token, result, flags);
       } catch (e) {
       }
       return result;
     };
 
-    injector['__genie_patched__'] = true;
+    const record: GeniePatchRecord = {originalGet, hadOwnGet};
+    Object.defineProperty(injector, GENIE_PATCHED, {
+      value: record,
+      configurable: true,
+      enumerable: false,
+      writable: true
+    });
+    this._patchedInjectors.add(injector);
+  }
+
+  /** Revert a single injector instance's `get` to its original, removing all trace of the patch. */
+  private restoreInjector(injector: any): void {
+    const record: GeniePatchRecord | undefined = injector && injector[GENIE_PATCHED];
+    if (!record) return;
+    try {
+      if (record.hadOwnGet) {
+        injector.get = record.originalGet;
+      } else {
+        delete injector.get;
+      }
+      delete injector[GENIE_PATCHED];
+    } catch (e) {
+    }
+    this._patchedInjectors.delete(injector);
+  }
+
+  /**
+   * Enable/disable DI capture. The overlay calls this when it opens/closes so we never retain host
+   * instances (through the deferred-event buffer) while the inspector is not in use.
+   */
+  setCaptureActive(active: boolean): void {
+    this._captureActive = active;
+    if (!active && !this._isScanning && !this._isChunkedScanActive) {
+      this._deferredEvents = [];
+      this._deferredTokensByInjector = new WeakMap();
+    }
+  }
+
+  /**
+   * Acquire a capture lease. Each mounted overlay instance takes one while it is open. Capture stays
+   * on as long as at least one lease is held, so a second overlay closing does not silently disable
+   * capture (and wipe the deferred buffer) for one that is still open.
+   */
+  acquireCapture(): void {
+    this._captureConsumers++;
+    this._captureActive = true;
+  }
+
+  /** Release a capture lease. When the last one is released, capture is disabled and the buffer cleared. */
+  releaseCapture(): void {
+    this._captureConsumers = Math.max(0, this._captureConsumers - 1);
+    if (this._captureConsumers === 0) {
+      this.setCaptureActive(false);
+    }
+  }
+
+  /** Restore every patched injector and drop buffered events. Runs when the registry is destroyed. */
+  private teardownCapture(): void {
+    this._captureActive = false;
+    for (const injector of Array.from(this._patchedInjectors)) {
+      this.restoreInjector(injector);
+    }
+    this._patchedInjectors.clear();
+    this._deferredEvents = [];
+    this._deferredTokensByInjector = new WeakMap();
   }
 
   handleInjectionEvent(requestingInjector: Injector, token: any, instance: any, flags: any) {
@@ -172,7 +418,7 @@ export class GenieRegistryService {
 
 
     if (!consumerId) {
-      this._deferredEvents.push({injector: requestingInjector, token, instance, flags});
+      this.queueDeferredEvent(requestingInjector, token, instance, flags);
       return;
     }
 
@@ -181,6 +427,8 @@ export class GenieRegistryService {
 
 
   private processInjection(consumerId: number, token: any, instance: any, flags: any) {
+    if (this.isIgnoredToken(token)) return;
+
     let providerId: number | null = null;
     if (instance && (typeof instance === 'object' || typeof instance === 'function')) {
       providerId = this.instanceToServiceMap.get(instance) || null;
@@ -189,13 +437,7 @@ export class GenieRegistryService {
       }
     }
 
-    const flagsNum = typeof flags === 'number' ? flags : 0;
-    const decodedFlags: InjectionFlags = {
-      optional: (flagsNum & 8) !== 0,
-      skipSelf: (flagsNum & 4) !== 0,
-      self: (flagsNum & 2) !== 0,
-      host: (flagsNum & 1) !== 0
-    };
+    const decodedFlags = decodeInjectFlags(flags);
 
     const tokenName = this.describeToken(token);
     this.upsertDependency(consumerId, providerId, tokenName, decodedFlags, 'Direct');
@@ -221,11 +463,16 @@ export class GenieRegistryService {
     };
 
     this.instanceToServiceMap.set(instance, id);
-    this._services.update(existing => [...existing, reg]);
+    this.serviceById.set(id, reg);
+    this.addServices([reg]);
     return id;
   }
 
   scanApplication(): void {
+    if (!this.isBrowser) return;
+    this._captureActive = true;
+    this.startScanMetrics();
+    this.beginRegistryBatch();
     this._isScanning = true;
 
     try {
@@ -235,67 +482,213 @@ export class GenieRegistryService {
       });
     } finally {
       this._isScanning = false;
+      this.flushRegistryBatch();
+      this.processDeferredEventsChunked(() => this.scheduleNodeEnrichmentProcessing());
     }
-
-
-    this.processDeferredEvents();
   }
 
-  private processDeferredEvents(): void {
-    const events = this._deferredEvents;
-    this._deferredEvents = [];
+  scanApplicationChunked(onComplete?: () => void): void {
+    if (!this.isBrowser) {
+      onComplete?.();
+      return;
+    }
+    if (onComplete) this._chunkedScanCompletionCallbacks.push(onComplete);
+    if (this._isChunkedScanActive) return;
 
-    events.forEach(evt => {
-      const consumerId = this.injectorToNodeMap.get(evt.injector);
-      if (consumerId) {
+    this._captureActive = true;
+    this.startScanMetrics();
+    this.beginRegistryBatch();
+    this._isChunkedScanActive = true;
 
-        this.processInjection(consumerId, evt.token, evt.instance, evt.flags);
+    const queue: DomScanQueueItem[] = [];
+
+    try {
+      this._isScanning = true;
+      for (const rootRef of this.appRef.components) {
+        const rootNode = this.scanComponentRef(rootRef, null);
+        const nativeElement = rootRef.location.nativeElement as HTMLElement;
+        this.enqueueChildElements(nativeElement, rootNode, queue);
       }
+    } catch (error) {
+      this.finishChunkedScan();
+      throw error;
+    } finally {
+      this._isScanning = false;
+    }
+
+    this.processDomScanQueue(queue);
+  }
+
+  private processDeferredEventsChunked(onComplete: () => void): void {
+    const events = this._deferredEvents;
+    if (events.length === 0) {
+      onComplete();
+      return;
+    }
+
+    const remainingEvents: DeferredInjectionEvent[] = [];
+    const remainingTokensByInjector = new WeakMap<Injector, Set<any>>();
+    let cursor = 0;
+    this._deferredProcessed = 0;
+    this._deferredTotal = events.length;
+    this.updateScanStatus('deferred', {
+      deferredProcessed: this._deferredProcessed,
+      deferredTotal: this._deferredTotal
     });
+
+    this._deferredEvents = [];
+    this._deferredTokensByInjector = new WeakMap();
+
+    const processChunk = () => {
+      const startedAt = this.now();
+      let processed = 0;
+
+      this.beginRegistryBatch();
+      try {
+        while (
+          cursor < events.length
+          && processed < DEFERRED_EVENT_CHUNK_MAX_ITEMS
+          && this.now() - startedAt < DEFERRED_EVENT_CHUNK_BUDGET_MS
+        ) {
+          const evt = events[cursor];
+          cursor++;
+          processed++;
+          this._deferredProcessed++;
+
+          const consumerId = this.injectorToNodeMap.get(evt.injector);
+          if (consumerId) {
+            if (this.shouldDeferInjectionUntilEnrichment(evt)) {
+              this.keepDeferredEvent(evt, remainingEvents, remainingTokensByInjector);
+              continue;
+            }
+            this.processInjection(consumerId, evt.token, evt.instance, evt.flags);
+            continue;
+          }
+
+          this.keepDeferredEvent(evt, remainingEvents, remainingTokensByInjector);
+        }
+      } finally {
+        this.flushRegistryBatch();
+        this.updateScanStatus('deferred', {
+          deferredProcessed: this._deferredProcessed,
+          deferredTotal: this._deferredTotal
+        });
+      }
+
+      if (cursor < events.length) {
+        this.scheduleScanChunk(processChunk);
+        return;
+      }
+
+      // Merge rather than overwrite, so any events the capture spy queued while we processed chunks
+      // asynchronously are not silently dropped. In the current design nothing pushes to
+      // _deferredEvents during this window — host DI never routes through our patched wrappers — so
+      // when the buffer is empty this is exactly the old overwrite; it only hardens a latent path.
+      this._deferredEvents = this._deferredEvents.length > 0
+        ? [...remainingEvents, ...this._deferredEvents]
+        : remainingEvents;
+      this._deferredTokensByInjector = remainingTokensByInjector;
+      onComplete();
+    };
+
+    this.scheduleScanChunk(processChunk);
+  }
+
+  private keepDeferredEvent(
+    evt: DeferredInjectionEvent,
+    remainingEvents: DeferredInjectionEvent[],
+    remainingTokensByInjector: WeakMap<Injector, Set<any>>
+  ): void {
+    if (remainingEvents.length >= MAX_DEFERRED_EVENTS) return;
+    remainingEvents.push(evt);
+
+    let tokens = remainingTokensByInjector.get(evt.injector);
+    if (!tokens) {
+      tokens = new Set<any>();
+      remainingTokensByInjector.set(evt.injector, tokens);
+    }
+    tokens.add(evt.token);
+  }
+
+  private shouldDeferInjectionUntilEnrichment(evt: DeferredInjectionEvent): boolean {
+    if (this._nodeEnrichmentQueue.length === 0) return false;
+    if (!evt.instance || (typeof evt.instance !== 'object' && typeof evt.instance !== 'function')) return false;
+    return !this.instanceToServiceMap.get(evt.instance);
+  }
+
+  private queueDeferredEvent(injector: Injector, token: any, instance: any, flags: any): void {
+    let tokens = this._deferredTokensByInjector.get(injector);
+    if (!tokens) {
+      tokens = new Set<any>();
+      this._deferredTokensByInjector.set(injector, tokens);
+    }
+
+    if (tokens.has(token)) return;
+    if (this._deferredEvents.length >= MAX_DEFERRED_EVENTS) return;
+
+    tokens.add(token);
+    this._deferredEvents.push({injector, token, instance, flags});
   }
 
   private scanComponentTree(compRef: ComponentRef<any>, parentNode: GenieNode | null): void {
-    const componentType = compRef.componentType;
-    const name = componentType.name || 'AnonymousComponent';
-    if (this.isGenieInternalComponent(name)) return;
-
-    const injector = compRef.injector;
-
-
-    this.patchInjectorInstance(injector);
-
-    let node = this.findNodeByInjector(injector);
-
-    if (!node) {
-      node = this.register(name, injector, parentNode, 'Element');
-      node.componentInstance = compRef.instance;
-      this.injectorToNodeMap.set(injector, node.id);
-
-      this.extractProvidersFromComponent(componentType, node);
-      this.scanConstructorDependencies(componentType, node);
-      this.scanInjectedProperties(node);
-      this.scanTemplateDependencies(node);
-    }
-
+    const node = this.scanComponentRef(compRef, parentNode);
     const nativeElement = compRef.location.nativeElement as HTMLElement;
     this.scanDomForComponents(nativeElement, node);
   }
 
+  private scanComponentRef(compRef: ComponentRef<any>, parentNode: GenieNode | null): GenieNode {
+    const componentType = compRef.componentType;
+    const name = componentType.name || 'AnonymousComponent';
+    if (this.isGenieInternalComponent(name)) {
+      const existing = this.findNodeByComponentInstance(compRef.instance);
+      if (existing) return existing;
+      if (parentNode) return parentNode;
+    }
+
+    const injector = compRef.injector;
+
+    let node = this.findNodeByInjector(injector) ?? this.findNodeByComponentInstance(compRef.instance);
+
+    if (!node) {
+      // Patch only the injector we are about to bind to a brand-new node. On a rescan the component
+      // is already known and `compRef.injector` hands back a fresh NodeInjector wrapper every call;
+      // patching (and strongly retaining) one per rescan would leak its lView, because cleanupNode
+      // only ever restores the single injector stored as `node.injector`.
+      this.patchInjectorInstance(injector);
+      node = this.register(name, injector, parentNode, 'Element');
+      node.componentInstance = compRef.instance;
+      this.bindComponentInstanceToNode(compRef.instance, node);
+      this.queueNodeEnrichment(node, componentType);
+    } else {
+      if (!node.componentInstance) node.componentInstance = compRef.instance;
+      this.bindComponentInstanceToNode(compRef.instance, node);
+      this.queueNodeEnrichment(node, componentType);
+    }
+
+    return node;
+  }
+
   private scanDomForComponents(element: HTMLElement, parentNode: GenieNode): void {
     // @ts-ignore
-    const ng = window.ng;
+    const ng = typeof window !== 'undefined' ? window.ng : null;
     if (!ng || !ng.getComponent || !ng.getInjector) {
       if (!this._hasWarnedAboutProduction) {
-        console.warn('[Genie] ⚠️ Debugging utilities (window.ng) are missing.');
+        console.warn('[Genie] Debugging utilities (window.ng) are missing. Child component discovery is limited in production builds.');
         this._hasWarnedAboutProduction = true;
       }
       return;
     }
-    const children = Array.from(element.children);
-    for (const child of children) {
+    const children = element.children;
+    for (let index = 0; index < children.length; index++) {
+      const child = children[index] as HTMLElement;
       // @ts-ignore
       const context = ng.getComponent(child);
       if (context) {
+        if (context === parentNode.componentInstance) {
+          this.scanDomForComponents(child as HTMLElement, parentNode);
+          continue;
+        }
+
         // @ts-ignore
         const childInjector = ng.getInjector(child);
         if (childInjector) {
@@ -303,23 +696,329 @@ export class GenieRegistryService {
           const name = componentType.name || 'AnonymousComponent';
           if (this.isGenieInternalComponent(name)) continue;
 
-          this.patchInjectorInstance(childInjector);
-
-          let node = this.findNodeByInjector(childInjector);
+          let node = this.findNodeByInjector(childInjector) ?? this.findNodeByComponentInstance(context);
           if (!node) {
+            // Patch only when registering a new node; see scanComponentRef for why re-patching a
+            // fresh ng.getInjector() wrapper on every rescan would leak the retained lView.
+            this.patchInjectorInstance(childInjector);
             node = this.register(name, childInjector, parentNode, 'Element');
             node.componentInstance = context;
-            this.injectorToNodeMap.set(childInjector, node.id);
-            this.extractProvidersFromComponent(componentType, node);
-            this.scanConstructorDependencies(componentType, node);
-            this.scanInjectedProperties(node);
-            this.scanTemplateDependencies(node);
+            this.bindComponentInstanceToNode(context, node);
+            this.queueNodeEnrichment(node, componentType);
+          } else {
+            if (!node.componentInstance) node.componentInstance = context;
+            this.bindComponentInstanceToNode(context, node);
+            this.queueNodeEnrichment(node, componentType);
           }
-          this.scanDomForComponents(child as HTMLElement, node);
+          this.scanDomForComponents(child, node);
           continue;
         }
       }
-      this.scanDomForComponents(child as HTMLElement, parentNode);
+      this.scanDomForComponents(child, parentNode);
+    }
+  }
+
+  private processDomScanQueue(queue: DomScanQueueItem[], cursor = 0): void {
+    if (cursor >= queue.length) {
+      this.finishChunkedScan();
+      return;
+    }
+
+    this.scheduleScanChunk(() => {
+      const startedAt = this.now();
+      let processed = 0;
+      this._isScanning = true;
+
+      try {
+        while (cursor < queue.length && processed < SCAN_CHUNK_MAX_ELEMENTS) {
+          const item = queue[cursor];
+          cursor++;
+          this.scanDomElement(item.element, item.parentNode, queue);
+          processed++;
+          this._domScanProcessed++;
+
+          if (this.now() - startedAt >= SCAN_CHUNK_BUDGET_MS) {
+            break;
+          }
+        }
+      } finally {
+        this._isScanning = false;
+        this.updateScanStatus('scanning', {
+          domProcessed: this._domScanProcessed,
+          domRemaining: Math.max(0, queue.length - cursor)
+        });
+      }
+
+      if (cursor < queue.length) {
+        this.processDomScanQueue(queue, cursor);
+      } else {
+        this.finishChunkedScan();
+      }
+    });
+  }
+
+  private scanDomElement(element: HTMLElement, parentNode: GenieNode, queue: DomScanQueueItem[]): void {
+    // @ts-ignore
+    const ng = typeof window !== 'undefined' ? window.ng : null;
+    if (!ng || !ng.getComponent || !ng.getInjector) {
+      if (!this._hasWarnedAboutProduction) {
+        console.warn('[Genie] Debugging utilities (window.ng) are missing. Child component discovery is limited in production builds.');
+        this._hasWarnedAboutProduction = true;
+      }
+      return;
+    }
+
+    try {
+      // @ts-ignore
+      const context = ng.getComponent(element);
+      if (context) {
+        if (context === parentNode.componentInstance) {
+          this.enqueueChildElements(element, parentNode, queue);
+          return;
+        }
+
+        // @ts-ignore
+        const childInjector = ng.getInjector(element);
+        if (childInjector) {
+          const componentType = context.constructor as Type<any>;
+          const name = componentType.name || 'AnonymousComponent';
+          if (this.isGenieInternalComponent(name)) {
+            this.enqueueChildElements(element, parentNode, queue);
+            return;
+          }
+
+          let node = this.findNodeByInjector(childInjector) ?? this.findNodeByComponentInstance(context);
+          if (!node) {
+            // Patch only when registering a new node; see scanComponentRef for why re-patching a
+            // fresh ng.getInjector() wrapper on every rescan would leak the retained lView.
+            this.patchInjectorInstance(childInjector);
+            node = this.register(name, childInjector, parentNode, 'Element');
+            node.componentInstance = context;
+            this.bindComponentInstanceToNode(context, node);
+            this.queueNodeEnrichment(node, componentType);
+          } else {
+            if (!node.componentInstance) node.componentInstance = context;
+            this.bindComponentInstanceToNode(context, node);
+            this.queueNodeEnrichment(node, componentType);
+          }
+
+          this.enqueueChildElements(element, node, queue);
+          return;
+        }
+      }
+    } catch {
+    }
+
+    this.enqueueChildElements(element, parentNode, queue);
+  }
+
+  private enqueueChildElements(element: HTMLElement, parentNode: GenieNode, queue: DomScanQueueItem[]): void {
+    const children = element.children;
+    for (let index = 0; index < children.length; index++) {
+      queue.push({element: children[index] as HTMLElement, parentNode});
+    }
+  }
+
+  private scheduleScanChunk(callback: () => void): void {
+    const win = typeof window !== 'undefined' ? window as any : null;
+    if (win && typeof win.requestIdleCallback === 'function') {
+      win.requestIdleCallback(callback, {timeout: 80});
+      return;
+    }
+    setTimeout(callback, 0);
+  }
+
+  private finishChunkedScan(): void {
+    this._isScanning = false;
+    this.flushRegistryBatch();
+
+    this.processDeferredEventsChunked(() => {
+      this._isChunkedScanActive = false;
+      this.scheduleNodeEnrichmentProcessing();
+      this.finishScanIfIdle();
+
+      const callbacks = this._chunkedScanCompletionCallbacks;
+      this._chunkedScanCompletionCallbacks = [];
+      callbacks.forEach(callback => {
+        try {
+          callback();
+        } catch {
+        }
+      });
+    });
+  }
+
+  private now(): number {
+    return typeof performance !== 'undefined' ? performance.now() : Date.now();
+  }
+
+  private startScanMetrics(): void {
+    const now = this.now();
+    this._scanStartedAt = now;
+    this._lastScanStatusUpdateAt = 0;
+    this._domScanProcessed = 0;
+    this._deferredProcessed = 0;
+    this._deferredTotal = 0;
+    this._enrichmentProcessed = 0;
+    this._enrichmentTotal = 0;
+    this.updateScanStatus('scanning', {
+      startedAt: now,
+      finishedAt: null,
+      durationMs: 0,
+      domProcessed: 0,
+      domRemaining: 0,
+      deferredProcessed: 0,
+      deferredTotal: 0,
+      enrichmentProcessed: 0,
+      enrichmentTotal: 0
+    });
+  }
+
+  private updateScanStatus(phase: GenieScanPhase, patch: Partial<GenieScanStatus> = {}): void {
+    const now = this.now();
+    this._lastScanStatusUpdateAt = now;
+    const startedAt = patch.startedAt ?? this._scanStatus().startedAt ?? this._scanStartedAt;
+    const finishedAt = patch.finishedAt ?? null;
+    const durationMs = patch.durationMs ?? (startedAt ? Math.max(0, now - startedAt) : 0);
+    const status: GenieScanStatus = {
+      ...this._scanStatus(),
+      ...patch,
+      phase,
+      isActive: phase !== 'idle' && phase !== 'settled',
+      startedAt,
+      finishedAt,
+      durationMs,
+      nodes: this._nodes().length,
+      services: this._services().length,
+      dependencies: this._dependencies().length
+    };
+
+    this._scanStatus.set({
+      ...status,
+      message: this.describeScanStatus(status)
+    });
+  }
+
+  private updateScanStatusThrottled(phase: GenieScanPhase, patch: Partial<GenieScanStatus> = {}): void {
+    const now = this.now();
+    if (now - this._lastScanStatusUpdateAt < SCAN_STATUS_MIN_INTERVAL_MS) return;
+    this.updateScanStatus(phase, patch);
+  }
+
+  private finishScanIfIdle(): void {
+    if (
+      this._isChunkedScanActive
+      || this._isScanning
+      || this._nodeEnrichmentQueue.length > 0
+    ) {
+      return;
+    }
+
+    const now = this.now();
+    const startedAt = this._scanStatus().startedAt ?? this._scanStartedAt;
+    this.updateScanStatus('settled', {
+      finishedAt: now,
+      durationMs: startedAt ? Math.max(0, now - startedAt) : 0,
+      domRemaining: 0,
+      deferredProcessed: this._deferredProcessed,
+      deferredTotal: this._deferredTotal,
+      enrichmentProcessed: this._enrichmentProcessed,
+      enrichmentTotal: this._enrichmentTotal
+    });
+  }
+
+  private describeScanStatus(status: GenieScanStatus): string {
+    if (status.phase === 'idle') return 'IDLE';
+    if (status.phase === 'scanning') return `SCAN ${status.domProcessed}/${status.domProcessed + status.domRemaining}`;
+    if (status.phase === 'deferred') return `DEPS ${status.deferredProcessed}/${status.deferredTotal}`;
+    if (status.phase === 'enriching') return `ENRICH ${status.enrichmentProcessed}/${status.enrichmentTotal}`;
+    const seconds = Math.max(0, status.durationMs / 1000);
+    return `READY ${seconds.toFixed(seconds >= 10 ? 0 : 1)}s`;
+  }
+
+  private queueNodeEnrichment(node: GenieNode, componentType: Type<any>): void {
+    if (!node.componentInstance) return;
+    if (this._enrichedNodeIds.has(node.id) || this._queuedNodeEnrichmentIds.has(node.id)) return;
+
+    this._queuedNodeEnrichmentIds.add(node.id);
+    this._nodeEnrichmentQueue.push({nodeId: node.id, componentType});
+    this._enrichmentTotal = Math.max(
+      this._enrichmentTotal,
+      this._enrichedNodeIds.size + this._nodeEnrichmentQueue.length
+    );
+    this.updateScanStatusThrottled(this._isChunkedScanActive || this._isScanning ? 'scanning' : 'enriching', {
+      enrichmentProcessed: this._enrichmentProcessed,
+      enrichmentTotal: this._enrichmentTotal
+    });
+    this.scheduleNodeEnrichmentProcessing();
+  }
+
+  private scheduleNodeEnrichmentProcessing(): void {
+    if (this._isEnrichmentScheduled) return;
+    if (this._nodeEnrichmentQueue.length === 0) {
+      this.finishScanIfIdle();
+      return;
+    }
+
+    this._isEnrichmentScheduled = true;
+    this.scheduleScanChunk(() => this.processNodeEnrichmentQueue());
+  }
+
+  private processNodeEnrichmentQueue(): void {
+    this._isEnrichmentScheduled = false;
+
+    if (this._isChunkedScanActive || this._isScanning) {
+      this.scheduleNodeEnrichmentProcessing();
+      return;
+    }
+
+    const startedAt = this.now();
+    let processed = 0;
+    const wasScanning = this._isScanning;
+
+    this.beginRegistryBatch();
+    this._isScanning = true;
+    this.updateScanStatus('enriching', {
+      enrichmentProcessed: this._enrichmentProcessed,
+      enrichmentTotal: this._enrichmentTotal
+    });
+    try {
+      while (
+        this._nodeEnrichmentQueue.length > 0
+        && processed < ENRICHMENT_CHUNK_MAX_NODES
+        && this.now() - startedAt < ENRICHMENT_CHUNK_BUDGET_MS
+      ) {
+        const job = this._nodeEnrichmentQueue.pop()!;
+        this._queuedNodeEnrichmentIds.delete(job.nodeId);
+
+        if (this._enrichedNodeIds.has(job.nodeId)) continue;
+
+        const node = this.nodeById.get(job.nodeId);
+        if (!node || !node.componentInstance) continue;
+
+        this.extractProvidersFromComponent(job.componentType, node);
+        this.scanConstructorDependencies(job.componentType, node);
+        this.scanInjectedProperties(node);
+        this.scanTemplateDependencies(node);
+        this._enrichedNodeIds.add(job.nodeId);
+        this._enrichmentProcessed = this._enrichedNodeIds.size;
+        processed++;
+      }
+    } finally {
+      this._isScanning = wasScanning;
+      this.flushRegistryBatch();
+      this.updateScanStatus('enriching', {
+        enrichmentProcessed: this._enrichmentProcessed,
+        enrichmentTotal: this._enrichmentTotal
+      });
+    }
+
+    if (this._nodeEnrichmentQueue.length > 0) {
+      this.scheduleNodeEnrichmentProcessing();
+    } else if (this._deferredEvents.length > 0) {
+      this.processDeferredEventsChunked(() => this.finishScanIfIdle());
+    } else {
+      this.finishScanIfIdle();
     }
   }
 
@@ -337,7 +1036,7 @@ export class GenieRegistryService {
         if (value && (typeof value === 'object' || typeof value === 'function')) {
           const providerId = this.instanceToServiceMap.get(value);
           if (providerId) {
-            const svc = this._services().find(s => s.id === providerId);
+            const svc = this.getServiceById(providerId);
             if (svc) {
               this.upsertDependency(node.id, providerId, svc.label, {}, 'Direct', key);
             }
@@ -367,7 +1066,7 @@ export class GenieRegistryService {
   private isLikelySystemObject(value: any): boolean {
     if (!value || !value.constructor) return false;
     const name = value.constructor.name;
-    return ANGULAR_CORE_SYSTEM.has(name) || name === 'ViewRef';
+    return ANGULAR_CORE_SYSTEM.has(normalizeInternalName(name)) || name === 'ViewRef';
   }
 
   private scanTemplateDependencies(node: GenieNode): void {
@@ -438,7 +1137,7 @@ export class GenieRegistryService {
 
 
         const typeName = this.describeToken(type);
-        if (ANGULAR_CORE_SYSTEM.has(typeName)) {
+        if (ANGULAR_CORE_SYSTEM.has(normalizeInternalName(typeName))) {
           try {
             const wasScanning = this._isScanning;
             this._isScanning = false;
@@ -457,17 +1156,17 @@ export class GenieRegistryService {
   }
 
   private upsertDependency(consumerId: number, providerId: number | null, tokenName: string, flags: InjectionFlags, type: DependencyType, propName?: string) {
-    this._dependencies.update(deps => {
-      const exists = deps.some(d => d.consumerNodeId === consumerId && d.tokenName === tokenName && d.providerId === providerId);
-      if (exists) return deps;
-      if (providerId) {
-        const svc = this._services().find(s => s.id === providerId);
-        if (svc) this.incrementServiceUsage(providerId, svc.token);
-      }
-      return [...deps, {
-        consumerNodeId: consumerId, providerId: providerId, tokenName: tokenName,
-        type: type, propName: propName, flags: flags, resolutionPath: []
-      }];
+    const key = this.getDependencyKey(consumerId, providerId, tokenName);
+    if (this.dependencyKeySet.has(key)) return;
+
+    this.dependencyKeySet.add(key);
+    if (providerId) {
+      this.incrementServiceUsage(providerId);
+    }
+
+    this.addDependency({
+      consumerNodeId: consumerId, providerId: providerId, tokenName: tokenName,
+      type: type, propName: propName, flags: flags, resolutionPath: []
     });
   }
 
@@ -478,12 +1177,17 @@ export class GenieRegistryService {
 
   private isIgnoredToken(token: any): boolean {
     if (IGNORED_TOKENS.has(token)) return true;
-    const name = this.describeToken(token);
+    const name = normalizeInternalName(this.describeToken(token));
     return IGNORED_TOKENS.has(name);
   }
 
+  private isIgnoredTokenFast(token: any): boolean {
+    if (IGNORED_TOKENS.has(token)) return true;
+    return typeof token === 'string' && IGNORED_TOKENS.has(normalizeInternalName(token));
+  }
+
   private isGenieInternalComponent(name: string): boolean {
-    return GENIE_INTERNAL_COMPONENTS.has(name);
+    return GENIE_INTERNAL_COMPONENTS.has(normalizeInternalName(name));
   }
 
   private extractProvidersFromComponent(componentType: Type<any>, node: GenieNode): void {
@@ -540,15 +1244,20 @@ export class GenieRegistryService {
       const reg: GenieServiceRegistration = {
         id, nodeId: node.id, token, instance, label: label,
         dependencyType: depType, providerType: providerType, usageCount: 0,
-        properties: this.snapshotProperties(instance),
+        properties: this.shouldSnapshotServiceProperties() ? this.snapshotProperties(instance) : {},
         isRoot: this.checkIsRoot(token), isFramework: isFramework
       };
       this.instanceToServiceMap.set(instance, id);
+      this.serviceById.set(id, reg);
       newServices.push(reg);
     });
     if (newServices.length > 0) {
-      this._services.update(existing => [...existing, ...newServices]);
+      this.addServices(newServices);
     }
+  }
+
+  private shouldSnapshotServiceProperties(): boolean {
+    return !this._isScanning && !this._isChunkedScanActive && this._nodeEnrichmentQueue.length === 0;
   }
 
   private getDependencyType(instance: any, token: any): GenieDependencyType {
@@ -568,7 +1277,7 @@ export class GenieRegistryService {
     }
 
     if (token instanceof InjectionToken) return 'Token';
-    if (ANGULAR_CORE_SYSTEM.has(tokenName)) return 'System';
+    if (ANGULAR_CORE_SYSTEM.has(normalizeInternalName(tokenName))) return 'System';
 
     const ctorName = ctor?.name;
     if (NATIVE_JS_CONSTRUCTORS.has(ctorName)) return 'Value';
@@ -619,28 +1328,92 @@ export class GenieRegistryService {
       }
     } catch (e) {
     }
-    this._nodes.update(nodes => [...nodes, node]);
+    this.nodeById.set(node.id, node);
+    this.addNode(node);
+    this.bindInjectorToNode(injector, node);
     return node;
   }
 
   private cleanupNode(nodeId: number): void {
-    const servicesToRemove = this._services().filter(s => s.nodeId === nodeId);
+    const node = this.getNodeById(nodeId);
+    const servicesToRemove = this.getServicesForNode(nodeId);
     const serviceIdsToRemove = new Set(servicesToRemove.map(s => s.id));
+    if (node) {
+      this.restoreInjector(node.injector);
+      this.injectorToNodeMap.delete(node.injector);
+      this.nodeById.delete(node.id);
+    }
+    if (node?.componentInstance && typeof node.componentInstance === 'object') {
+      this.componentInstanceToNodeMap.delete(node.componentInstance);
+    }
+    for (const service of servicesToRemove) {
+      if (service.instance && (typeof service.instance === 'object' || typeof service.instance === 'function')) {
+        this.instanceToServiceMap.delete(service.instance);
+      }
+      this.serviceById.delete(service.id);
+    }
+    // If a chunked scan's batch is still open, the node may live only in the pending buffers (not yet
+    // in the signals). Purge it there too, otherwise flushRegistryBatch re-appends this just-destroyed
+    // node as an unremovable ghost that strongly retains its dead view.
+    if (this._isRegistryBatchActive) {
+      this.removeNodeFromPendingBatch(nodeId);
+    }
     this._nodes.update(nodes => nodes.filter(n => n.id !== nodeId));
-    this._services.update(services => services.filter(s => s.nodeId !== nodeId));
-    this._dependencies.update(deps => deps.filter(d => d.consumerNodeId !== nodeId && (d.providerId === null || !serviceIdsToRemove.has(d.providerId))));
+    const nextServices = this._services().filter(s => s.nodeId !== nodeId);
+    this.rebuildServiceIndex(nextServices);
+    this._services.set(nextServices);
+    const nextDependencies = this._dependencies().filter(d => d.consumerNodeId !== nodeId && (d.providerId === null || !serviceIdsToRemove.has(d.providerId)));
+    this.rebuildDependencyKeys(nextDependencies);
+    this._dependencies.set(nextDependencies);
+  }
+
+  /**
+   * Remove a node — and its services and dependencies — from the still-open registry batch's pending
+   * buffers, mirroring what cleanupNode does for the committed signals. Called when a node is destroyed
+   * mid-scan so flushRegistryBatch cannot resurrect it.
+   */
+  private removeNodeFromPendingBatch(nodeId: number): void {
+    if (this._pendingNodes.length) {
+      this._pendingNodes = this._pendingNodes.filter(n => n.id !== nodeId);
+    }
+
+    const removedServiceIds = new Set<number>();
+    if (this._pendingServices.length) {
+      const kept: GenieServiceRegistration[] = [];
+      for (const service of this._pendingServices) {
+        if (service.nodeId === nodeId) {
+          removedServiceIds.add(service.id);
+          if (service.instance && (typeof service.instance === 'object' || typeof service.instance === 'function')) {
+            this.instanceToServiceMap.delete(service.instance);
+          }
+          this.serviceById.delete(service.id);
+          this._pendingServiceUsage.delete(service.id);
+        } else {
+          kept.push(service);
+        }
+      }
+      if (removedServiceIds.size) {
+        this._pendingServices = kept;
+        this._pendingServiceIndexById.clear();
+        for (let index = 0; index < kept.length; index++) {
+          this._pendingServiceIndexById.set(kept[index].id, index);
+        }
+      }
+    }
+
+    if (this._pendingDependencies.length) {
+      this._pendingDependencies = this._pendingDependencies.filter(
+        d => d.consumerNodeId !== nodeId && (d.providerId === null || !removedServiceIds.has(d.providerId))
+      );
+    }
   }
 
   guessProviderType(token: any, instance: any): GenieProviderType {
     const type = typeof instance;
     if (type === 'string' || type === 'number' || type === 'boolean') return 'Value';
-    if (token && (token as any).ɵprov) {
-      const prov = (token as any).ɵprov;
-      if (prov.useValue !== undefined) return 'Value';
-      if (prov.useFactory !== undefined) return 'Factory';
-      if (prov.useExisting !== undefined) return 'Existing';
-      if (prov.useClass !== undefined) return 'Class';
-    }
+    // NOTE: the compiled `ɵprov` (ɵɵdefineInjectable output) never carries useValue/useFactory/
+    // useExisting/useClass — those are provider-config keys, not part of the injectable def — so we
+    // classify from the token/instance relationship instead.
     const tokenName = this.describeToken(token);
     const instanceName = instance?.constructor?.name;
     if (instanceName && tokenName === instanceName) return 'Class';
@@ -652,12 +1425,18 @@ export class GenieRegistryService {
   snapshotProperties(instance: any): Record<string, any> {
     if (!instance || typeof instance !== 'object') return {};
     const snapshot: Record<string, any> = {};
+    let scannedKeys = 0;
     for (const key in instance) {
+      scannedKeys++;
+      if (scannedKeys > MAX_SNAPSHOT_KEYS) {
+        snapshot['...'] = `[truncated after ${MAX_SNAPSHOT_KEYS} keys]`;
+        break;
+      }
       if (key.startsWith('_') || key.startsWith('ng') || key.startsWith('ɵ')) continue;
       try {
         const val = instance[key];
         if (isSignal(val)) {
-          snapshot[key] = `[Signal] ${val()}`;
+          snapshot[key] = '[Signal]';
           continue;
         }
         if (val && typeof val.subscribe === 'function') {
@@ -677,11 +1456,78 @@ export class GenieRegistryService {
   }
 
   getServicesForNode(nodeId: number): GenieServiceRegistration[] {
-    return this._services().filter(s => s.nodeId === nodeId);
+    return this._servicesByNodeId().get(nodeId) ?? EMPTY_SERVICES;
   }
 
-  incrementServiceUsage(serviceId: number, token: unknown): void {
-    this._services.update(list => list.map(s => s.id === serviceId ? {...s, usageCount: s.usageCount + 1} : s));
+  getServicesByNodeIdIndex(): ReadonlyMap<number, GenieServiceRegistration[]> {
+    return this._servicesByNodeId();
+  }
+
+  getDependenciesForNode(nodeId: number): GenieDependency[] {
+    return this._dependenciesByConsumerNodeId().get(nodeId) ?? EMPTY_DEPENDENCIES;
+  }
+
+  getDependenciesByConsumerNodeIdIndex(): ReadonlyMap<number, GenieDependency[]> {
+    return this._dependenciesByConsumerNodeId();
+  }
+
+  getDependenciesForService(serviceId: number): GenieDependency[] {
+    return this._dependenciesByProviderId().get(serviceId) ?? EMPTY_DEPENDENCIES;
+  }
+
+  getDependenciesByProviderIdIndex(): ReadonlyMap<number, GenieDependency[]> {
+    return this._dependenciesByProviderId();
+  }
+
+  getServiceById(serviceId: number): GenieServiceRegistration | null {
+    return this.serviceById.get(serviceId) ?? null;
+  }
+
+  getNodeById(nodeId: number): GenieNode | null {
+    return this.nodeById.get(nodeId) ?? null;
+  }
+
+  hasPendingDeferredEvents(): boolean {
+    return this._deferredEvents.length > 0;
+  }
+
+  incrementServiceUsage(serviceId: number): void {
+    const pendingIndex = this._pendingServiceIndexById.get(serviceId);
+    if (pendingIndex !== undefined) {
+      const updated = {
+        ...this._pendingServices[pendingIndex],
+        usageCount: this._pendingServices[pendingIndex].usageCount + 1
+      };
+      this._pendingServices[pendingIndex] = updated;
+      this.serviceById.set(serviceId, updated);
+      return;
+    }
+
+    if (this._isRegistryBatchActive) {
+      this._pendingServiceUsage.set(serviceId, (this._pendingServiceUsage.get(serviceId) ?? 0) + 1);
+      const service = this.serviceById.get(serviceId);
+      if (service) {
+        this.serviceById.set(serviceId, {...service, usageCount: service.usageCount + 1});
+      }
+      return;
+    }
+
+    this._services.update(list => {
+      let index = this.serviceIndexById.get(serviceId) ?? -1;
+      if (index === -1 || list[index]?.id !== serviceId) {
+        index = list.findIndex(s => s.id === serviceId);
+        if (index === -1) {
+          this.serviceIndexById.delete(serviceId);
+          return list;
+        }
+        this.serviceIndexById.set(serviceId, index);
+      }
+      if (index === -1) return list;
+      const updated = list.slice();
+      updated[index] = {...updated[index], usageCount: updated[index].usageCount + 1};
+      this.serviceById.set(serviceId, updated[index]);
+      return updated;
+    });
   }
 
   toggle(): void {
@@ -696,23 +1542,216 @@ export class GenieRegistryService {
     this._nextServiceId = 1;
     this._hasWarnedAboutProduction = false;
     this.injectorToNodeMap = new WeakMap();
+    this.componentInstanceToNodeMap = new WeakMap();
     this.instanceToServiceMap = new WeakMap();
+    this.tokenNameCache = new WeakMap();
+    this.nodeById.clear();
+    this.serviceById.clear();
+    this.dependencyKeySet.clear();
+    this.serviceIndexById.clear();
+    this._pendingNodes = [];
+    this._pendingServices = [];
+    this._pendingServiceIndexById.clear();
+    this._pendingDependencies = [];
+    this._pendingServiceUsage.clear();
+    this._isRegistryBatchActive = false;
+    for (const injector of Array.from(this._patchedInjectors)) {
+      this.restoreInjector(injector);
+    }
+    this._patchedInjectors.clear();
+    this._captureActive = false;
     this._deferredEvents = [];
+    this._deferredTokensByInjector = new WeakMap();
+    this._nodeEnrichmentQueue = [];
+    this._queuedNodeEnrichmentIds.clear();
+    this._enrichedNodeIds.clear();
+    this._isEnrichmentScheduled = false;
+    this._scanStartedAt = null;
+    this._domScanProcessed = 0;
+    this._deferredProcessed = 0;
+    this._deferredTotal = 0;
+    this._enrichmentProcessed = 0;
+    this._enrichmentTotal = 0;
+    this._scanStatus.set(INITIAL_SCAN_STATUS);
   }
 
   findNodeByInjector(injector: Injector): GenieNode | null {
-    return this._nodes().find(n => n.injector === injector) ?? null;
+    const nodeId = this.injectorToNodeMap.get(injector);
+    return nodeId ? this.getNodeById(nodeId) : null;
+  }
+
+  private findNodeByComponentInstance(instance: any): GenieNode | null {
+    if (!instance || typeof instance !== 'object') return null;
+    const nodeId = this.componentInstanceToNodeMap.get(instance);
+    return nodeId ? this.getNodeById(nodeId) : null;
+  }
+
+  private bindInjectorToNode(injector: Injector, node: GenieNode): void {
+    this.injectorToNodeMap.set(injector, node.id);
+  }
+
+  private bindComponentInstanceToNode(instance: any, node: GenieNode): void {
+    if (!instance || typeof instance !== 'object') return;
+    this.componentInstanceToNodeMap.set(instance, node.id);
+  }
+
+  private beginRegistryBatch(): void {
+    this._pendingNodes = [];
+    this._pendingServices = [];
+    this._pendingServiceIndexById.clear();
+    this._pendingDependencies = [];
+    this._pendingServiceUsage.clear();
+    this._isRegistryBatchActive = true;
+  }
+
+  private flushRegistryBatch(): void {
+    this._isRegistryBatchActive = false;
+
+    if (this._pendingNodes.length > 0) {
+      this._nodes.update(nodes => [...nodes, ...this._pendingNodes]);
+      this._pendingNodes = [];
+    }
+
+    if (this._pendingServices.length > 0 || this._pendingServiceUsage.size > 0) {
+      let nextServices = this._services();
+      let servicesChanged = false;
+
+      if (this._pendingServices.length > 0) {
+        const baseIndex = nextServices.length;
+        nextServices = [...nextServices, ...this._pendingServices];
+        for (let index = 0; index < this._pendingServices.length; index++) {
+          this.serviceIndexById.set(this._pendingServices[index].id, baseIndex + index);
+        }
+        this._pendingServices = [];
+        this._pendingServiceIndexById.clear();
+        servicesChanged = true;
+      }
+
+      if (this._pendingServiceUsage.size > 0) {
+        const updatedServices = servicesChanged ? nextServices : nextServices.slice();
+        let hasUsageChanges = false;
+
+        for (const [serviceId, usageDelta] of this._pendingServiceUsage) {
+          if (!usageDelta) continue;
+          let index = this.serviceIndexById.get(serviceId);
+          if (index === undefined || updatedServices[index]?.id !== serviceId) {
+            index = updatedServices.findIndex(service => service.id === serviceId);
+            if (index === -1) {
+              this.serviceIndexById.delete(serviceId);
+              continue;
+            }
+            this.serviceIndexById.set(serviceId, index);
+          }
+
+          const updated = {
+            ...updatedServices[index],
+            usageCount: updatedServices[index].usageCount + usageDelta
+          };
+          updatedServices[index] = updated;
+          this.serviceById.set(serviceId, updated);
+          hasUsageChanges = true;
+        }
+
+        this._pendingServiceUsage.clear();
+        if (hasUsageChanges) {
+          nextServices = updatedServices;
+          servicesChanged = true;
+        }
+      }
+
+      if (servicesChanged) {
+        this._services.set(nextServices);
+      }
+    }
+
+    if (this._pendingDependencies.length > 0) {
+      this._dependencies.update(dependencies => [...dependencies, ...this._pendingDependencies]);
+      this._pendingDependencies = [];
+    }
+  }
+
+  private addNode(node: GenieNode): void {
+    if (this._isRegistryBatchActive) {
+      this._pendingNodes.push(node);
+      return;
+    }
+    this._nodes.update(nodes => [...nodes, node]);
+  }
+
+  private addServices(services: GenieServiceRegistration[]): void {
+    if (this._isRegistryBatchActive) {
+      for (const service of services) {
+        this._pendingServiceIndexById.set(service.id, this._pendingServices.length);
+        this._pendingServices.push(service);
+      }
+      return;
+    }
+
+    const currentServices = this._services();
+    const nextServices = [...currentServices, ...services];
+    for (let index = 0; index < services.length; index++) {
+      this.serviceIndexById.set(services[index].id, currentServices.length + index);
+    }
+    this._services.set(nextServices);
+  }
+
+  private addDependency(dependency: GenieDependency): void {
+    if (this._isRegistryBatchActive) {
+      this._pendingDependencies.push(dependency);
+      return;
+    }
+    this._dependencies.update(dependencies => [...dependencies, dependency]);
+  }
+
+  private getDependencyKey(consumerId: number, providerId: number | null, tokenName: string): string {
+    return `${consumerId}|${providerId ?? 'null'}|${tokenName}`;
+  }
+
+  private rebuildDependencyKeys(dependencies: GenieDependency[]): void {
+    this.dependencyKeySet.clear();
+    for (const dependency of dependencies) {
+      this.dependencyKeySet.add(this.getDependencyKey(
+        dependency.consumerNodeId,
+        dependency.providerId,
+        dependency.tokenName
+      ));
+    }
+  }
+
+  private rebuildServiceIndex(services: GenieServiceRegistration[]): void {
+    this.serviceIndexById.clear();
+    services.forEach((service, index) => {
+      this.serviceIndexById.set(service.id, index);
+    });
   }
 
   private describeToken(token: unknown): string {
     if (!token) return 'Unknown';
+    const tokenType = typeof token;
+
+    if (tokenType === 'object' || tokenType === 'function') {
+      const objectToken = token as object;
+      const cached = this.tokenNameCache.get(objectToken);
+      if (cached) return cached;
+
+      const name = this.resolveTokenName(token);
+      this.tokenNameCache.set(objectToken, name);
+      return name;
+    }
+
+    if (tokenType === 'string') return token as string;
+    return 'Unknown';
+  }
+
+  private resolveTokenName(token: unknown): string {
     if (token instanceof InjectionToken) return token.toString().replace('InjectionToken ', '');
     if (typeof token === 'function' && (token as any).name) return (token as any).name;
-    if (typeof token === 'string') return token;
-    if (typeof token === 'object') {
+    if (typeof token === 'object' && token) {
       if ((token as any).name) return (token as any).name;
-      if ((token as any).constructor?.name && (token as any).constructor.name !== 'Object') return (token as any).constructor.name;
+      const constructorName = (token as any).constructor?.name;
+      if (constructorName && constructorName !== 'Object') return constructorName;
     }
+
     return 'Unknown';
   }
 }

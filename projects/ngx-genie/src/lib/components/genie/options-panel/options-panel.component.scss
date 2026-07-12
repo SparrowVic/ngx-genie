@@ -1,4 +1,4 @@
-@import 'options-panel-vars';
+@use 'options-panel-vars' as *;
 
 :host {
   display: block;

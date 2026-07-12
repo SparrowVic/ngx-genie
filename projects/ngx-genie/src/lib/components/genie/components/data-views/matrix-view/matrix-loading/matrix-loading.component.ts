@@ -9,12 +9,12 @@ import {
   signal,
   ViewEncapsulation
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+import {DecimalPipe} from '@angular/common';
 
 @Component({
-  selector: 'lib-matrix-loading',
   standalone: true,
-  imports: [CommonModule],
+  selector: 'lib-matrix-loading',
+  imports: [DecimalPipe],
   templateUrl: './matrix-loading.component.html',
   styleUrl: './matrix-loading.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -49,7 +49,7 @@ export class MatrixLoadingComponent implements OnInit, OnDestroy {
         this.isPaused = false;
         this.runNextStep();
       }
-    });
+    }, {allowSignalWrites: true});
   }
 
   ngOnInit() {

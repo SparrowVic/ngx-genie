@@ -1,8 +1,8 @@
 import {Directive, ElementRef, inject, input, Input, InputSignal, OnChanges} from '@angular/core';
 
 @Directive({
+  standalone: true,
   selector: '[genieSvgIcon]',
-  standalone: true
 })
 export class SvgIconDirective implements OnChanges {
   private readonly elementRef = inject(ElementRef);

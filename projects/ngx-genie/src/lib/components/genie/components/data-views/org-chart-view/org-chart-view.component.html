@@ -1,4 +1,5 @@
 <div class="genie-chart-container"
+     [class.large-graph]="isLargeGraph()"
      (mousedown)="onMouseDown($event)"
      (window:mouseup)="onMouseUp()"
      (mousemove)="onMouseMove($event)"
@@ -9,7 +10,7 @@
   <div class="zoom-wrapper" [style.transform]="currentTransform">
     <div class="genie-chart-tree">
       <ul>
-        @for (node of filteredTree(); track node.id) {
+        @for (node of renderedTree(); track node.id) {
           <ng-container
             [ngTemplateOutlet]="nodeTemplate"
             [ngTemplateOutletContext]="{ $implicit: node }"
@@ -25,14 +26,17 @@
 
 <ng-template #nodeTemplate let-node>
   <li>
+    @let serviceSlice = getServiceSlice(node);
 
     <lib-org-chart-node
       [node]="node"
-      [services]="getProvidersForNode()(node)"
+      [services]="serviceSlice.visible"
+      [hiddenServiceCount]="serviceSlice.hiddenCount"
       [expanded]="isNodeExpanded()(node.id)"
-      (nodeClick)="selectNode()(node)"
+      [performanceMode]="isLargeGraph()"
+      (nodeClick)="onNodeClick(node)"
       (serviceClick)="selectService()($event)"
-      (toggleClick)="toggleNode()(node.id)"
+      (toggleClick)="onToggleNode(node)"
     ></lib-org-chart-node>
 
 

@@ -11,11 +11,11 @@ import {
 import {MatchMode, SearchMode} from '../options-panel.models';
 import {GenieNode, GenieServiceRegistration} from '../../../../models/genie-node.model';
 import {FormsModule} from '@angular/forms';
-import {ANGULAR_INTERNALS} from '../../../../configs/angular-internals';
+import {ANGULAR_INTERNALS, normalizeInternalName} from '../../../../configs/angular-internals';
 
 @Component({
-  selector: 'lib-options-panel-deep-search',
   standalone: true,
+  selector: 'lib-options-panel-deep-search',
   imports: [
     FormsModule
   ],
@@ -43,6 +43,9 @@ export class OptionsPanelDeepSearchComponent {
 
   readonly showServices = input<boolean>(true);
   readonly showTokens = input<boolean>(true);
+  readonly showValues = input<boolean>(true);
+  readonly showObservables = input<boolean>(true);
+  readonly showSignals = input<boolean>(false);
   readonly showComponents = input<boolean>(true);
   readonly showDirectives = input<boolean>(true);
   readonly showPipes = input<boolean>(true);
@@ -71,7 +74,10 @@ export class OptionsPanelDeepSearchComponent {
       options = nodes
         .filter(n => {
 
-          if (hideInternals && (ANGULAR_INTERNALS.has(n.label) || n.label.startsWith('ɵ'))) {
+          // Normalise the runtime label first (dev builds mangle names to `_Name`), matching how the
+          // main tree hides internals — otherwise `_ɵEmptyOutletComponent` slips through both checks.
+          const label = normalizeInternalName(n.label);
+          if (hideInternals && (ANGULAR_INTERNALS.has(label) || label.startsWith('ɵ'))) {
             return false;
           }
           return true;
@@ -85,6 +91,9 @@ export class OptionsPanelDeepSearchComponent {
 
       const showSvc = this.showServices();
       const showTok = this.showTokens();
+      const showVal = this.showValues();
+      const showObs = this.showObservables();
+      const showSig = this.showSignals();
       const showComp = this.showComponents();
       const showDir = this.showDirectives();
       const showPipe = this.showPipes();
@@ -97,7 +106,10 @@ export class OptionsPanelDeepSearchComponent {
 
           const type = s.dependencyType || 'Service';
           if (type === 'Service' && !showSvc) return false;
-          if ((type === 'Token' || type === 'Value') && !showTok) return false;
+          if (type === 'Token' && !showTok) return false;
+          if (type === 'Value' && !showVal) return false;
+          if (type === 'Observable' && !showObs) return false;
+          if (type === 'Signal' && !showSig) return false;
           if (type === 'Component' && !showComp) return false;
           if (type === 'Directive' && !showDir) return false;
           if (type === 'Pipe' && !showPipe) return false;
@@ -130,7 +142,7 @@ export class OptionsPanelDeepSearchComponent {
     this._isDropdownOpen.set(true);
   }
 
-  protected _toggleTag(tag: string, event: MouseEvent): void {
+  protected _toggleTag(tag: string, event: Event): void {
     event.stopPropagation();
     event.preventDefault();
 
@@ -170,9 +182,10 @@ export class OptionsPanelDeepSearchComponent {
     const inputEl = this._searchInput()?.nativeElement;
 
     if (dropdown && inputEl) {
-      const clickedInsideDropdown = dropdown.contains(event.target as Node);
-      const clickedInsideInput = inputEl.contains(event.target as Node);
-      if (!clickedInsideDropdown && !clickedInsideInput) {
+      // The listener is on `document`, outside this ShadowDom, so event.target is retargeted to
+      // the shadow host — contains() would always be false. composedPath() keeps the real path.
+      const path = event.composedPath();
+      if (!path.includes(dropdown) && !path.includes(inputEl)) {
         this._isDropdownOpen.set(false);
       }
     }

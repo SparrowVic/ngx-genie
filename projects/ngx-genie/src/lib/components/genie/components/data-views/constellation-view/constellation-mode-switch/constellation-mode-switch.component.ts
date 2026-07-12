@@ -1,8 +1,8 @@
 import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} from '@angular/core';
 
 @Component({
-  selector: 'lib-constellation-mode-switch',
   standalone: true,
+  selector: 'lib-constellation-mode-switch',
   imports: [],
   templateUrl: './constellation-mode-switch.component.html',
   styleUrl: './constellation-mode-switch.component.scss',

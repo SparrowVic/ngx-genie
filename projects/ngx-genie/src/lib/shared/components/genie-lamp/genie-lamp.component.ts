@@ -3,8 +3,8 @@ import {GENIE_ICONS} from '../../../resources/icons/icons';
 import {SvgIconDirective} from '../../directives/svg-icon/svg-icon.directive';
 
 @Component({
-  selector: 'lib-ngx-genie-lamp',
   standalone: true,
+  selector: 'lib-ngx-genie-lamp',
   imports: [
     SvgIconDirective
   ],

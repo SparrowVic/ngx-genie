@@ -1,0 +1,22 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 14px;
+  min-height: 0;
+  box-sizing: border-box;
+}
+*, *::before, *::after { box-sizing: border-box; }
+
+/* ---------------- framework ---------------- */
+.fw-intro { color: var(--txt-2); font-size: 12.5px; line-height: 1.5; padding: 12px 14px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius); }
+.fw-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding-right: 4px; align-content: start; }
+
+/* scrollbars */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(148,163,255,0.2); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(148,163,255,0.35); }
+
+@media (max-width: 900px) {
+  .fw-grid { grid-template-columns: 1fr; }
+}

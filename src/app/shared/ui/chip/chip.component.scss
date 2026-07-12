@@ -1,0 +1,46 @@
+:host {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+/* Shares the .pill language (mono, 600, full radius, hairline) with an
+   accent-tinted fill driven by a single custom property. */
+.chip {
+  --chip-accent: var(--violet);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.75rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  /* Live counts render inside chips — keep digits from jittering. */
+  font-variant-numeric: tabular-nums lining-nums;
+  color: color-mix(in srgb, var(--chip-accent) 70%, var(--text-primary));
+  background: color-mix(in srgb, var(--chip-accent) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chip-accent) 36%, transparent);
+  box-shadow: var(--edge-light);
+  transition:
+    background var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out);
+}
+.chip:hover {
+  background: color-mix(in srgb, var(--chip-accent) 20%, transparent);
+  border-color: color-mix(in srgb, var(--chip-accent) 55%, transparent);
+}
+
+.chip__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  line-height: 0;
+  color: var(--chip-accent);
+}
+
+.chip__label {
+  display: inline-flex;
+  align-items: center;
+}

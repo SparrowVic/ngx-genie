@@ -1,8 +1,8 @@
 import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} from '@angular/core';
 
 @Component({
-  selector: 'lib-options-panel-controls',
   standalone: true,
+  selector: 'lib-options-panel-controls',
   imports: [],
   templateUrl: './options-panel-controls.component.html',
   styleUrl: './options-panel-controls.component.scss',

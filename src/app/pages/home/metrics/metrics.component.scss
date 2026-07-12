@@ -1,0 +1,44 @@
+:host {
+  display: block;
+}
+
+/* One shared glass band; the tiles inside are separated by hairline seams
+   drawn as cell borders (per column count), never by gaps. */
+.metrics__band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: var(--space-6);
+  overflow: hidden;
+}
+
+app-metric-tile {
+  min-width: 0;
+  border-top: 1px solid var(--border);
+}
+app-metric-tile:first-child {
+  border-top: 0;
+}
+
+@media (40rem <= width < 64rem) {
+  .metrics__band {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  app-metric-tile:nth-child(2) {
+    border-top: 0;
+  }
+  app-metric-tile:nth-child(2n) {
+    border-inline-start: 1px solid var(--border);
+  }
+}
+
+@media (width >= 64rem) {
+  .metrics__band {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  app-metric-tile:nth-child(-n + 3) {
+    border-top: 0;
+  }
+  app-metric-tile:not(:nth-child(3n + 1)) {
+    border-inline-start: 1px solid var(--border);
+  }
+}

@@ -2,8 +2,8 @@ import {ChangeDetectionStrategy, Component, input, output, ViewEncapsulation} fr
 import {FormsModule} from '@angular/forms';
 
 @Component({
-  selector: 'lib-options-panel-scope-lifetime',
   standalone: true,
+  selector: 'lib-options-panel-scope-lifetime',
   imports: [
     FormsModule
   ],

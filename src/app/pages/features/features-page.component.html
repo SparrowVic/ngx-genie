@@ -1,0 +1,103 @@
+<!-- ===================== Hero ===================== -->
+<section class="section features-hero">
+  <div class="container">
+    <div class="features-hero__inner" appReveal>
+      <ui-section-header
+        eyebrow="The observatory"
+        heading="Six lenses on your *dependency graph*"
+        [subtitle]="heroSubtitle"
+        align="center"
+      >
+        <div class="features-hero__actions">
+          <ui-button href="/docs" icon="download" appMagnetic>Install GenieOS</ui-button>
+          <ui-button variant="outline" href="/playground" iconRight="arrow-right">
+            Open the playground
+          </ui-button>
+        </div>
+      </ui-section-header>
+
+      <div class="features-hero__stats" [appReveal]="120">
+        <ui-stat [value]="viewCount()" label="Inspector views" accent="var(--violet)" icon="grid" />
+        <ui-stat
+          [value]="providerTypes"
+          label="Provider types"
+          accent="var(--cyan)"
+          icon="layers"
+        />
+        <ui-stat
+          [value]="capabilityCount()"
+          label="Capabilities"
+          accent="var(--magenta)"
+          icon="sparkles"
+        />
+        <ui-stat
+          [value]="diagnosticChecks"
+          label="Diagnostic checks"
+          accent="var(--emerald)"
+          icon="shield"
+        />
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Views (nav + spotlights) ===================== -->
+<section class="section features-body">
+  <div class="container features-body__grid">
+    <!-- Sticky mini-nav -->
+    <aside class="features-nav" aria-label="Inspector views">
+      <p class="features-nav__eyebrow eyebrow">Jump to a view</p>
+      <nav class="features-nav__list">
+        @for (feature of features(); track feature.id; let i = $index) {
+          <button
+            type="button"
+            class="features-nav__item"
+            [class.is-active]="activeId() === feature.id"
+            [style.--accent]="feature.accent"
+            [attr.aria-current]="activeId() === feature.id ? 'true' : null"
+            (click)="focus(feature.id)"
+          >
+            <span class="features-nav__index mono">{{ (i + 1).toString().padStart(2, '0') }}</span>
+            <span class="features-nav__glyph" aria-hidden="true">
+              <ui-icon [name]="feature.icon" [size]="18" />
+            </span>
+            <span class="features-nav__text">
+              <span class="features-nav__name">{{ feature.name }}</span>
+              <span class="features-nav__tagline">{{ feature.tagline }}</span>
+            </span>
+            <span class="features-nav__caret" aria-hidden="true">
+              <ui-icon name="chevron-right" [size]="16" />
+            </span>
+          </button>
+        }
+      </nav>
+
+      <div class="features-nav__foot glass">
+        <ui-chip icon="command" accent="var(--indigo)">Press {{ hotkey.key }} anywhere</ui-chip>
+        <p class="features-nav__hint">
+          Every view ships in {{ brand.name }} v{{ brand.version }} — OnPush and
+          signal-driven, so the overlay never blocks your app.
+        </p>
+      </div>
+    </aside>
+
+    <!-- Alternating spotlights -->
+    <div class="features-body__stack">
+      @for (feature of features(); track feature.id; let i = $index) {
+        <div
+          class="features-body__section"
+          [id]="feature.id"
+          [attr.data-feature-section]="feature.id"
+        >
+          <app-feature-detail [feature]="feature" [index]="i" />
+          @if (!$last) {
+            <hr class="beacon-divider features-body__divider" aria-hidden="true" />
+          }
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Roadmap ===================== -->
+<app-roadmap />

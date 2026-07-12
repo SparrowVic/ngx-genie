@@ -3,8 +3,8 @@ import {SlicePipe} from '@angular/common';
 import {InspectorViewModel} from '../inspector-state.service';
 
 @Component({
-  selector: 'lib-inspector-providers-list',
   standalone: true,
+  selector: 'lib-inspector-providers-list',
   imports: [
     SlicePipe
   ],

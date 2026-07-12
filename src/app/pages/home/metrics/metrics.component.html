@@ -1,0 +1,16 @@
+<section class="section metrics" appReveal>
+  <div class="container">
+    <ui-section-header
+      eyebrow="By the numbers"
+      heading="What the overlay *actually inspects*"
+      subtitle="The real facts behind GenieOS — every number here is verifiable in the source."
+      align="left"
+    />
+
+    <div class="metrics__band panel">
+      @for (m of metrics(); track m.id) {
+        <app-metric-tile [appReveal]="$index * 70" [metric]="m" />
+      }
+    </div>
+  </div>
+</section>

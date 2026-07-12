@@ -7,7 +7,7 @@ import {
   input,
   output,
   signal,
-  ViewChild, ViewEncapsulation
+  viewChild, ViewEncapsulation
 } from '@angular/core';
 import {GenieTreeNode, GenieServiceRegistration} from '../../../models/genie-node.model';
 import {TreeViewComponent} from '../components/data-views/tree-view/tree-view.component';
@@ -22,8 +22,8 @@ import {GenieMatrixViewComponent} from '../components/data-views/matrix-view/mat
 export type GenieViewMode = 'tree' | 'org' | 'constellation' | 'matrix' | 'diagnostics';
 
 @Component({
-  selector: 'lib-viewport',
   standalone: true,
+  selector: 'lib-viewport',
   imports: [
     TreeViewComponent,
     OrgChartViewComponent,
@@ -39,7 +39,7 @@ export type GenieViewMode = 'tree' | 'org' | 'constellation' | 'matrix' | 'diagn
   encapsulation: ViewEncapsulation.ShadowDom
 })
 export class ViewportComponent {
-  @ViewChild('viewportContent') viewportRef!: ElementRef<HTMLElement>;
+  readonly viewportRef = viewChild<ElementRef<HTMLElement>>('viewportContent');
 
   tree = input.required<GenieTreeNode[]>();
   filterState = input.required<GenieFilterState>();
@@ -50,6 +50,8 @@ export class ViewportComponent {
   getProvidersForNode = input.required<(node: GenieTreeNode) => GenieServiceRegistration[]>();
   selectDependency = input.required<(s: GenieServiceRegistration) => void>();
   selectNode = input.required<(n: GenieTreeNode) => void>();
+  selectedNode = input<GenieTreeNode | null>(null);
+  selectedDependency = input<GenieServiceRegistration | null>(null);
 
 
   viewMode = input.required<GenieViewMode>();
@@ -92,6 +94,12 @@ export class ViewportComponent {
     this.uiScale.update(z => Math.max(z - 0.1, 0.5));
   }
 
+  protected setVisualScale(value: number | string) {
+    const nextScale = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(nextScale)) return;
+    this.visualScale.set(Math.max(0.0005, Math.min(nextScale, 8.0)));
+  }
+
   private resetTransform() {
     this.panX.set(0);
     this.panY.set(0);
@@ -106,10 +114,11 @@ export class ViewportComponent {
     const currentScale = this.visualScale();
     const zoomFactor = 0.1;
     const delta = event.deltaY > 0 ? -1 : 1;
-    let newScale = Math.max(0.1, Math.min(currentScale + (delta * zoomFactor * currentScale), 10.0));
+    let newScale = Math.max(0.0005, Math.min(currentScale + (delta * zoomFactor * currentScale), 8.0));
 
-    if (this.viewportRef) {
-      const rect = this.viewportRef.nativeElement.getBoundingClientRect();
+    const ref = this.viewportRef();
+    if (ref) {
+      const rect = ref.nativeElement.getBoundingClientRect();
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
       const worldX = (mouseX - this.panX()) / currentScale;

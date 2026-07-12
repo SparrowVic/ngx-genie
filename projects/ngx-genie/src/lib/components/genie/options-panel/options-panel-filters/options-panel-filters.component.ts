@@ -5,8 +5,8 @@ import {GenAdvancedFiltersConfigComponent} from './advanced-filters-config/advan
 import {GenFilterService} from '../../../../services/filter.service';
 
 @Component({
-  selector: 'gen-options-panel-filters',
   standalone: true,
+  selector: 'gen-options-panel-filters',
   imports: [
     FormsModule,
     GenModalComponent,

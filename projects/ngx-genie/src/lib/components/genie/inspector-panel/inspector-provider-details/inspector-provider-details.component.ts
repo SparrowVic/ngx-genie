@@ -15,8 +15,8 @@ import {GenieResizableDirective} from '../../../../shared/directives/resizable/r
 import {NgClass} from '@angular/common';
 
 @Component({
-  selector: 'lib-inspector-provider-details',
   standalone: true,
+  selector: 'lib-inspector-provider-details',
   imports: [
     JsonTreeComponent,
     GenieResizableDirective,
@@ -39,7 +39,6 @@ export class InspectorProviderDetailsComponent {
   snapshotHeight = signal(300);
 
   consoleLog = output<void>();
-  toggleLive = output<void>();
 
 
   readonly HEADER_HEIGHT = 34;
