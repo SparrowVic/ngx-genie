@@ -41,7 +41,7 @@ export class ContentService {
 
   readonly roadmap = signal<RoadmapPhase[]>([
     { quarter: 'Shipped', title: 'The six views', status: 'shipped', items: [{ text: 'Tree, Org-chart, Matrix', done: true }, { text: 'Constellation + Diagnostics', done: true }, { text: 'Live signal inspector', done: true }] },
-    { quarter: 'Now', title: 'Angular 22 line', status: 'in-progress', items: [{ text: 'DI-internals fixes', done: true }, { text: 'Compatibility test suite', done: true }, { text: 'Enterprise graph perf', done: true }, { text: 'Export filtered tree to JSON', done: true }, { text: '22.0.0-beta.0 on npm', done: false }] },
+    { quarter: 'Now', title: 'Angular 22 line', status: 'in-progress', items: [{ text: 'DI-internals fixes', done: true }, { text: 'Compatibility test suite', done: true }, { text: 'Enterprise graph perf', done: true }, { text: 'Export filtered tree to JSON', done: true }, { text: '22.0.0-beta.1 on npm', done: false }] },
     { quarter: 'Next', title: 'Time travel', status: 'planned', items: [{ text: 'Snapshot & diff graphs', done: false }, { text: 'Record/replay resolutions', done: false }] },
   ]);
 
