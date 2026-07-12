@@ -57,6 +57,8 @@ export class OptionsPanelComponent {
   protected readonly _hideIsolatedComponents = signal(true);
   protected readonly _minDeps = signal(0);
   protected readonly _maxDeps = signal(100);
+  /** Whether the user has dragged the max-deps slider below the detected max (a real filter). */
+  private _maxDepsUserSet = false;
 
   protected readonly _hideInternals = signal(true);
   protected readonly _groupSimilarSiblings = signal(true);
@@ -90,9 +92,14 @@ export class OptionsPanelComponent {
     effect(() => {
       const detectedMax = this.maxDetectedDeps();
       untracked(() => {
-        // Clamp the upper bound DOWN if it now exceeds what's detected; never force it up, so a
-        // user-chosen maximum sticks (the default 100 collapses to detectedMax on the first run).
-        if (this._maxDeps() > detectedMax) {
+        if (!this._maxDepsUserSet) {
+          // Auto mode (the default): the upper bound tracks the detected maximum in BOTH directions,
+          // so "show all" stays "show all". Without following it UP, revealing more dependencies
+          // (e.g. turning off "Hide Angular Internals") would leave a stale low cap that silently
+          // filters out every node.
+          if (this._maxDeps() !== detectedMax) this._maxDeps.set(detectedMax);
+        } else if (this._maxDeps() > detectedMax) {
+          // The user picked a maximum, but detection shrank below it — clamp so it stays in range.
           this._maxDeps.set(detectedMax);
         }
       });
@@ -167,6 +174,9 @@ export class OptionsPanelComponent {
 
   protected _setMaxDeps(val: number): void {
     if (val < this._minDeps()) val = this._minDeps();
+    // A value below the detected max is a deliberate filter and must stick; dragging back to (or
+    // above) the top returns to auto-follow, so later changes that grow the max aren't hidden.
+    this._maxDepsUserSet = val < this.maxDetectedDeps();
     this._maxDeps.set(val);
   }
 }
