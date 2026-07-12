@@ -1,6 +1,6 @@
 # 🧞‍♂️ GenieOS – Angular Dependency Inspector
 
-> **Note:** This project is licensed under the **Apache License 2.0**.
+> **Note:** Source-available under the **MIT License + Commons Clause** — free for private and commercial use, but you may not sell it. See [LICENSE](LICENSE).
 
 
 <div align="center">
@@ -149,16 +149,16 @@ GenieOS is in active **beta** — a capable, real-world developer tool whose pub
 
 ## ⚖️ License
 
-This project is licensed under the **Apache License 2.0**.
+GenieOS is **source-available** under the **MIT License with the [Commons Clause](https://commonsclause.com/)** condition.
 
-You are free to use GenieOS in **commercial and non-commercial projects**, including internal tooling, development workflows, and enterprise applications.
+You are free to use GenieOS in **private and commercial projects** — personal use, internal tooling, development workflows, and enterprise applications — and to modify and redistribute it.
 
-The license:
+What the Commons Clause adds: you may **not "Sell" the Software** — you may not provide GenieOS (or a product/service whose value derives, entirely or substantially, from its functionality, including paid hosting, consulting or support around it) to third parties for a fee.
 
-* ✅ allows commercial use
-* ✅ allows modification and redistribution
-* ✅ includes an explicit patent grant
-* ❌ does not grant rights to use the GenieOS name or branding
+* ✅ use in private and commercial projects (internal / enterprise use)
+* ✅ modify and redistribute
+* ❌ sell GenieOS, or monetize a product/service whose value comes substantially from it
+* ❌ use of the **"GenieOS"** / **"ngx-genie"** name, logo, or branding
 
 The software is provided **"AS IS"**, without warranties or conditions of any kind.
 
