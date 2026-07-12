@@ -9,18 +9,23 @@ import {
 } from '../models/constellation.models';
 import {ConstellationPhysicsController} from './constellation-physics.controller';
 import {ATLAS_SPATIAL_CELL_SIZE, ConstellationSpatialIndex} from './constellation-spatial-index';
-
-interface ViewBounds {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-}
-
-interface DisplayPosition {
-  x: number;
-  y: number;
-}
+import {clamp01, easedFrameStep, lerp, smoothStep, stableHash} from './render/render-math';
+import {ConstellationLinkRenderer} from './render/link-renderer';
+import {ConstellationNodeRenderer} from './render/node-renderer';
+import {NodeVisuals} from './render/node-visuals';
+import {
+  ConstellationRegionRenderer,
+  GROUP_REGION_MAX_DRAWN,
+  SUBGROUP_REGION_MAX_DRAWN
+} from './render/region-renderer';
+import {
+  DisplayPosition,
+  FrameContext,
+  GroupRegion,
+  RenderScene,
+  ViewBounds,
+  VisibleLinkCandidates
+} from './render/render-types';
 
 interface GraphBounds {
   left: number;
@@ -40,33 +45,9 @@ interface RelationSlot {
   slotCount: number;
 }
 
-interface VisibleLinkCandidates {
-  providerLinks: RenderLink[];
-  dependencyLinks: RenderLink[];
-  componentLinks: RenderLink[];
-  aggregateLinks: RenderLink[];
-}
-
 interface RenderableNodesCache {
   key: string;
   nodes: RenderNode[];
-}
-
-interface VisibleLinkCandidatesCache {
-  key: string;
-  candidates: VisibleLinkCandidates;
-}
-
-interface GroupRegion {
-  key: string;
-  label: string;
-  level: 'group' | 'subgroup';
-  x: number;
-  y: number;
-  radius: number;
-  memberCount: number;
-  colorSeed: number;
-  importance: number;
 }
 
 export interface ConstellationEnginePerformanceSample {
@@ -83,16 +64,8 @@ export interface ConstellationEnginePerformanceSample {
 const ATLAS_MAX_DRAWN_NODES = 9000;
 const ATLAS_MAX_SPATIAL_CELLS_PER_FRAME = 25000;
 const FOCUS_TRANSITION_MS = 180;
-const FOCUS_DIM_NODE_OPACITY = 0.34;
-const FOCUS_DIM_LINK_OPACITY = 0.24;
 const VIEWPORT_LENS_MAX_NODES = 720;
 const VIEWPORT_LENS_TRANSITION_MS = 760;
-const DETAIL_SHRINK_ZOOM_START = 2.2;
-const DETAIL_SHRINK_ZOOM_END = 5.8;
-const DETAIL_MIN_SCALE = 0.56;
-const VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE = 36000;
-const GROUP_REGION_MAX_DRAWN = 160;
-const SUBGROUP_REGION_MAX_DRAWN = 260;
 const LAYOUT_TRANSITION_MS = 640;
 
 export class ConstellationEngine {
@@ -117,6 +90,16 @@ export class ConstellationEngine {
     getNodes: () => this._renderNodes,
     isStaticLayout: () => this._isStaticLayout()
   });
+  private readonly _nodeVisuals = new NodeVisuals({
+    degreeOf: (id) => this._dependencyDegreeByNodeId.get(id) ?? 0,
+    nodeCount: () => this._renderNodes.size,
+    isHugeGraph: () => this._isHugeGraph()
+  });
+  /** Live view of this engine's graph data + position helpers, handed to the renderers. */
+  private readonly _scene: RenderScene = this._createRenderScene();
+  private readonly _regionRenderer = new ConstellationRegionRenderer(this._scene);
+  private readonly _linkRenderer = new ConstellationLinkRenderer(this._scene);
+  private readonly _nodeRenderer = new ConstellationNodeRenderer(this._scene, this._nodeVisuals);
   private _groupRegions: GroupRegion[] = [];
   private _subgroupRegions: GroupRegion[] = [];
   private _graphBounds: GraphBounds | null = null;
@@ -143,7 +126,6 @@ export class ConstellationEngine {
   private _renderDataVersion = 0;
   private _displayPositionVersion = 0;
   private _renderableNodesCache: RenderableNodesCache | null = null;
-  private _visibleLinkCandidatesCache: VisibleLinkCandidatesCache | null = null;
   private _lastRenderableNodesKey = '';
 
 
@@ -170,6 +152,30 @@ export class ConstellationEngine {
       isHugeGraph: () => this._isHugeGraph()
     });
     this._createUnusedPattern();
+  }
+
+  /**
+   * Build the {@link RenderScene} the renderers read. Getters expose live engine state (the data maps are
+   * reassigned on each data update, so a snapshot would go stale), and the position helpers delegate to
+   * the engine's own transition/spread logic.
+   */
+  private _createRenderScene(): RenderScene {
+    const engine = this;
+    return {
+      get renderNodes() { return engine._renderNodes; },
+      get renderLinks() { return engine._renderLinks; },
+      get linksByNodeId() { return engine._linksByNodeId; },
+      get linkAnimStates() { return engine._linkAnimStates; },
+      get dependencyDegreeByNodeId() { return engine._dependencyDegreeByNodeId; },
+      get groupRegions() { return engine._groupRegions; },
+      get subgroupRegions() { return engine._subgroupRegions; },
+      get unusedPattern() { return engine._unusedPattern; },
+      get renderDataVersion() { return engine._renderDataVersion; },
+      get renderableNodesKey() { return engine._lastRenderableNodesKey; },
+      getDisplayPosition: (node) => engine._getDisplayPosition(node),
+      applyZoomOutSpread: (x, y) => engine._applyZoomOutSpread(x, y),
+      scaleZoomOutDistance: (value) => engine._scaleZoomOutDistance(value)
+    };
   }
 
   start() {
@@ -246,7 +252,7 @@ export class ConstellationEngine {
     this._maybeStartLayoutTransition(previousPositions);
     this._invalidateFrameCaches();
 
-    if (renderLinks.length > this._getAnimatedLinkLimit()) {
+    if (renderLinks.length > this._linkRenderer.animatedLinkLimit(this._isHugeGraph())) {
       this._linkAnimStates.clear();
     } else {
       const currentLinkIds = new Set<string>();
@@ -309,7 +315,7 @@ export class ConstellationEngine {
 
   private _invalidateFrameCaches(): void {
     this._renderableNodesCache = null;
-    this._visibleLinkCandidatesCache = null;
+    this._linkRenderer.invalidateCache();
     this._lastRenderableNodesKey = '';
   }
 
@@ -486,7 +492,7 @@ export class ConstellationEngine {
         const radius = node.meta?.groupRadius;
         if (centerX !== undefined && centerY !== undefined && radius !== undefined) {
           const existing = regionsByKey.get(key);
-          const importance = this._getNodeImportance(node);
+          const importance = this._nodeVisuals.importance(node);
           const memberCount = Math.max(1, node.meta?.groupMemberCount ?? 1);
           if (existing) {
             existing.memberCount = Math.max(existing.memberCount, memberCount);
@@ -501,7 +507,7 @@ export class ConstellationEngine {
               y: centerY,
               radius,
               memberCount,
-              colorSeed: node.meta?.groupColorSeed ?? this._stableHash(key),
+              colorSeed: node.meta?.groupColorSeed ?? stableHash(key),
               importance
             });
           }
@@ -518,7 +524,7 @@ export class ConstellationEngine {
 
       const regionKey = `${key ?? 'group'}:${subgroupKey}`;
       const existingSubgroup = subgroupRegionsByKey.get(regionKey);
-      const importance = this._getNodeImportance(node);
+      const importance = this._nodeVisuals.importance(node);
       const memberCount = Math.max(1, node.meta?.subgroupMemberCount ?? 1);
       if (existingSubgroup) {
         existingSubgroup.memberCount = Math.max(existingSubgroup.memberCount, memberCount);
@@ -533,7 +539,7 @@ export class ConstellationEngine {
           y: subgroupCenterY,
           radius: subgroupRadius,
           memberCount,
-          colorSeed: this._stableHash(regionKey),
+          colorSeed: stableHash(regionKey),
           importance
         });
       }
@@ -665,7 +671,7 @@ export class ConstellationEngine {
     }
 
     if (zoom < 0.72 && nodes.length > ATLAS_MAX_DRAWN_NODES) {
-      nodes.sort((a, b) => this._getNodeImportance(a) - this._getNodeImportance(b));
+      nodes.sort((a, b) => this._nodeVisuals.importance(a) - this._nodeVisuals.importance(b));
       return nodes.slice(nodes.length - ATLAS_MAX_DRAWN_NODES);
     }
 
@@ -673,7 +679,7 @@ export class ConstellationEngine {
   }
 
   private _isDisplayPositionInBounds(node: RenderNode, position: DisplayPosition, bounds: ViewBounds, zoom: number): boolean {
-    const radius = this._getVisualRadius(node, zoom) + 40 / Math.max(zoom, 0.2);
+    const radius = this._nodeVisuals.visualRadius(node, zoom) + 40 / Math.max(zoom, 0.2);
     return position.x + radius >= bounds.left
       && position.x - radius <= bounds.right
       && position.y + radius >= bounds.top
@@ -687,7 +693,7 @@ export class ConstellationEngine {
     if (zoom >= 0.7) return true;
 
     const degree = this._dependencyDegreeByNodeId.get(node.id) ?? 0;
-    const importance = this._getNodeImportance(node);
+    const importance = this._nodeVisuals.importance(node);
     if (zoom < 0.28) return importance >= 0.84 || degree >= 34;
     if (zoom < 0.45) return importance >= 0.70 || degree >= 18;
     if (importance >= 0.55) return true;
@@ -703,16 +709,6 @@ export class ConstellationEngine {
       if (link.sourceId === node.id) this._focusedNodeIds.add(link.targetId);
       if (link.targetId === node.id) this._focusedNodeIds.add(link.sourceId);
     }
-  }
-
-  private _lerp(start: number, end: number, t: number): number {
-    return start * (1 - t) + end * t;
-  }
-
-  private _easedFrameStep(deltaMs: number, durationMs: number): number {
-    const safeDuration = Math.max(1, durationMs);
-    const safeDelta = Math.max(0, Math.min(80, deltaMs));
-    return 1 - Math.pow(0.001, safeDelta / safeDuration);
   }
 
   private _shouldRenderFrame(): boolean {
@@ -744,23 +740,8 @@ export class ConstellationEngine {
     return this.animationsEnabled && !this._isStaticLayout();
   }
 
-  private _getAnimatedLinkLimit(): number {
-    if (this._isHugeGraph()) return 0;
-    return 2000;
-  }
 
-  private _shouldRenderLabels(zoom: number, minZoom: number): boolean {
-    return zoom > this._labelRenderThreshold(minZoom);
-  }
 
-  private _shouldRenderOverviewLabel(node: RenderNode, zoom: number): boolean {
-    if (zoom > 0.34) return false;
-    if (node.meta?.isRoot) return true;
-
-    const importance = this._getNodeImportance(node);
-    if (node.type === 'injector') return importance >= 0.92;
-    return importance >= 0.97;
-  }
 
   private _isHugeGraph(): boolean {
     return this._isStaticLayout()
@@ -781,19 +762,13 @@ export class ConstellationEngine {
   }
 
   private _isNodeInBounds(node: RenderNode, bounds: ViewBounds, zoom: number): boolean {
-    const radius = this._getVisualRadius(node, zoom) + 40 / Math.max(zoom, 0.2);
+    const radius = this._nodeVisuals.visualRadius(node, zoom) + 40 / Math.max(zoom, 0.2);
     return node.x + radius >= bounds.left
       && node.x - radius <= bounds.right
       && node.y + radius >= bounds.top
       && node.y - radius <= bounds.bottom;
   }
 
-  private _isLinkPositionInBounds(source: DisplayPosition, target: DisplayPosition, bounds: ViewBounds): boolean {
-    return Math.max(source.x, target.x) >= bounds.left
-      && Math.min(source.x, target.x) <= bounds.right
-      && Math.max(source.y, target.y) >= bounds.top
-      && Math.min(source.y, target.y) <= bounds.bottom;
-  }
 
   private _renderFrame() {
     if (!this._ctx) return;
@@ -819,27 +794,43 @@ export class ConstellationEngine {
 
     const activeFocusNode = this._getActiveFocusNode();
     const targetFocusLevel = this._targetFocusLevel();
-    this._currentFocusLevel = this._lerp(
+    this._currentFocusLevel = lerp(
       this._currentFocusLevel,
       targetFocusLevel,
-      this._easedFrameStep(frameDelta, FOCUS_TRANSITION_MS)
+      easedFrameStep(frameDelta, FOCUS_TRANSITION_MS)
     );
     if (this._currentFocusLevel < 0.001) this._currentFocusLevel = 0;
     if (Math.abs(this._currentFocusLevel - targetFocusLevel) < 0.002) this._currentFocusLevel = targetFocusLevel;
     const isFocusActive = this._currentFocusLevel > 0.01;
     const renderableNodes = this._getRenderableNodes(bounds, zoom);
     const visibleLinkCandidates = this._isHugeGraph()
-      ? this._collectVisibleLinkCandidates(renderableNodes)
+      ? this._linkRenderer.collectVisibleCandidates(renderableNodes)
       : null;
     this._prepareViewportLens(renderableNodes, zoom, frameDelta, visibleLinkCandidates);
 
+    const frame: FrameContext = {
+      ctx: _ctx,
+      zoom, tx, ty, bounds, time, frameDelta,
+      isFocusActive,
+      focusLevel: this._currentFocusLevel,
+      focusedNodeIds: this._focusedNodeIds,
+      activeFocusNode,
+      hoveredNode: this.hoveredNode,
+      pinnedNode: this.pinnedNode,
+      animationsEnabled: this.animationsEnabled,
+      animateVisuals: this._shouldAnimateVisuals(),
+      linkRenderMode: this.linkRenderMode,
+      staticLayout: this._isStaticLayout(),
+      hugeGraph: this._isHugeGraph()
+    };
+
     _ctx.lineCap = 'round';
-    this._drawGroupRegions(_ctx, zoom, bounds);
-    this._drawLinksForFrame(_ctx, zoom, isFocusActive, time, bounds, activeFocusNode, renderableNodes, visibleLinkCandidates);
-    this._drawDependencyDensity(_ctx, zoom, bounds, isFocusActive, renderableNodes);
+    this._regionRenderer.draw(frame);
+    this._linkRenderer.draw(frame, renderableNodes, visibleLinkCandidates);
+    this._linkRenderer.drawDensity(frame, renderableNodes);
 
     for (const node of renderableNodes) {
-      this._drawNode(_ctx, node, zoom, isFocusActive, time);
+      this._nodeRenderer.draw(frame, node);
     }
 
     this._recordFramePerformance(time, frameDelta, zoom, renderableNodes.length);
@@ -885,9 +876,9 @@ export class ConstellationEngine {
     }
 
     const targetScale = this._targetZoomOutSpreadScale(zoom);
-    const ease = this._easedFrameStep(frameDelta, VIEWPORT_LENS_TRANSITION_MS);
+    const ease = easedFrameStep(frameDelta, VIEWPORT_LENS_TRANSITION_MS);
     const previousScale = this._zoomOutSpreadScale;
-    this._zoomOutSpreadScale = this._lerp(previousScale, targetScale, ease);
+    this._zoomOutSpreadScale = lerp(previousScale, targetScale, ease);
 
     if (Math.abs(this._zoomOutSpreadScale - targetScale) < 0.002) {
       this._zoomOutSpreadScale = targetScale;
@@ -954,7 +945,7 @@ export class ConstellationEngine {
       return;
     }
 
-    const t = this._smoothStep(this._clamp01(raw));
+    const t = smoothStep(clamp01(raw));
     for (const [id, from] of transition.from) {
       const node = this._renderNodes.get(id);
       if (!node) continue;
@@ -971,13 +962,6 @@ export class ConstellationEngine {
     this._renderDirty = true;
   }
 
-  private _labelRenderThreshold(minZoom: number): number {
-    const count = this._renderNodes.size;
-    if (this._isHugeGraph()) return minZoom + 1.45;
-    if (count > 3000) return minZoom + 1.1;
-    if (count > 1000) return minZoom + 0.55;
-    return minZoom;
-  }
 
   private _getDisplayPosition(node: RenderNode): DisplayPosition {
     const position = this._transitionPositions.get(node.id) ?? this._displayPositions.get(node.id) ?? node;
@@ -1000,784 +984,14 @@ export class ConstellationEngine {
     return value * (this._zoomOutSpreadScale > 1.001 ? this._zoomOutSpreadScale : 1);
   }
 
-  private _clamp01(value: number): number {
-    return Math.max(0, Math.min(1, value));
-  }
 
-  private _smoothStep(value: number): number {
-    const t = this._clamp01(value);
-    return t * t * (3 - 2 * t);
-  }
 
-  private _stableHash(value: string): number {
-    let hash = 2166136261;
-    for (let index = 0; index < value.length; index++) {
-      hash ^= value.charCodeAt(index);
-      hash = Math.imul(hash, 16777619);
-    }
-    return hash >>> 0;
-  }
 
-  private _drawLinksForFrame(
-    _ctx: CanvasRenderingContext2D,
-    zoom: number,
-    isFocusActive: boolean,
-    time: number,
-    bounds: ViewBounds,
-    activeFocusNode: RenderNode | null,
-    renderableNodes: RenderNode[],
-    visibleLinkCandidates: VisibleLinkCandidates | null
-  ) {
-    if (!this._isHugeGraph()) {
-      this._drawLinkBatch(_ctx, this._renderLinks, zoom, isFocusActive, time, bounds, Number.POSITIVE_INFINITY);
-      return;
-    }
 
-    const visibleLinks = visibleLinkCandidates ?? this._collectVisibleLinkCandidates(renderableNodes);
 
-    if (this.linkRenderMode === 'all') {
-      if (zoom < 2.2) this._drawLinkBatch(_ctx, visibleLinks.aggregateLinks, zoom, isFocusActive, time, bounds, zoom > 1.1 ? 7000 : 3600);
-      this._drawLinkBatch(_ctx, visibleLinks.componentLinks, zoom, isFocusActive, time, bounds, zoom > 1.1 ? 10000 : 3500);
-      this._drawLinkBatch(_ctx, visibleLinks.providerLinks, zoom, isFocusActive, time, bounds, zoom > 1.1 ? 12000 : 4500);
-      this._drawLinkBatch(_ctx, visibleLinks.dependencyLinks, zoom, isFocusActive, time, bounds, zoom > 1.8 ? 14000 : 6000);
-      return;
-    }
 
-    const structuralCap = zoom > 1.1 ? 7000 : 2600;
-    if (zoom < 2.1) {
-      this._drawLinkBatch(_ctx, visibleLinks.aggregateLinks, zoom, isFocusActive, time, bounds, zoom > 0.9 ? 5200 : 2800);
-    }
-    this._drawLinkBatch(_ctx, visibleLinks.componentLinks, zoom, isFocusActive, time, bounds, structuralCap);
 
-    if (this.linkRenderMode !== 'focused' && zoom > 0.45) {
-      this._drawLinkBatch(_ctx, visibleLinks.providerLinks, zoom, isFocusActive, time, bounds, zoom > 1.2 ? 6500 : 1800);
-    }
 
-    if (activeFocusNode) {
-      const focusedLinks = this._linksByNodeId.get(activeFocusNode.id) ?? [];
-      this._drawLinkBatch(_ctx, focusedLinks, zoom, isFocusActive, time, bounds, zoom > 1.5 ? 4000 : 1800);
-      return;
-    }
-
-    if (this.linkRenderMode === 'adaptive' && zoom > 2.2) {
-      this._drawLinkBatch(_ctx, visibleLinks.dependencyLinks, zoom, isFocusActive, time, bounds, this._getAdaptiveDependencyLinkCap(zoom));
-    }
-  }
-
-  private _collectVisibleLinkCandidates(renderableNodes: RenderNode[]): VisibleLinkCandidates {
-    const cacheKey = `${this._renderDataVersion}:${this._lastRenderableNodesKey}:${renderableNodes.length}`;
-    if (this._visibleLinkCandidatesCache?.key === cacheKey) {
-      return this._visibleLinkCandidatesCache.candidates;
-    }
-
-    const providerLinks: RenderLink[] = [];
-    const dependencyLinks: RenderLink[] = [];
-    const componentLinks: RenderLink[] = [];
-    const aggregateLinks: RenderLink[] = [];
-    const visibleIds = new Set<string>();
-    const seenLinkIds = new Set<string>();
-
-    for (const node of renderableNodes) {
-      visibleIds.add(node.id);
-    }
-
-    for (const node of renderableNodes) {
-      const links = this._linksByNodeId.get(node.id);
-      if (!links) continue;
-
-      for (const link of links) {
-        if (seenLinkIds.has(link.uniqueId)) continue;
-        if (!visibleIds.has(link.sourceId) || !visibleIds.has(link.targetId)) continue;
-
-        seenLinkIds.add(link.uniqueId);
-
-        if (link.type === 'provider') {
-          if (providerLinks.length < VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE) providerLinks.push(link);
-        } else if (link.type === 'dependency') {
-          if (dependencyLinks.length < VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE) dependencyLinks.push(link);
-        } else if (link.type === 'component-child') {
-          if (componentLinks.length < VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE) componentLinks.push(link);
-        } else if (aggregateLinks.length < VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE) {
-          aggregateLinks.push(link);
-        }
-
-        if (
-          providerLinks.length >= VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE
-          && dependencyLinks.length >= VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE
-          && componentLinks.length >= VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE
-          && aggregateLinks.length >= VISIBLE_LINK_CANDIDATE_LIMIT_PER_TYPE
-        ) {
-          return this._cacheVisibleLinkCandidates(cacheKey, {
-            providerLinks,
-            dependencyLinks,
-            componentLinks,
-            aggregateLinks
-          });
-        }
-      }
-    }
-
-    return this._cacheVisibleLinkCandidates(cacheKey, {providerLinks, dependencyLinks, componentLinks, aggregateLinks});
-  }
-
-  private _cacheVisibleLinkCandidates(key: string, candidates: VisibleLinkCandidates): VisibleLinkCandidates {
-    this._visibleLinkCandidatesCache = {key, candidates};
-    return candidates;
-  }
-
-  private _drawLinkBatch(
-    _ctx: CanvasRenderingContext2D,
-    links: RenderLink[],
-    zoom: number,
-    isFocusActive: boolean,
-    time: number,
-    bounds: ViewBounds,
-    limit: number
-  ) {
-    let drawn = 0;
-    let checked = 0;
-    const maxChecked = Number.isFinite(limit) ? Math.max(3000, limit * 14) : Number.POSITIVE_INFINITY;
-    for (const link of links) {
-      if (drawn >= limit) return;
-      if (checked >= maxChecked) return;
-      checked++;
-      if (this._drawLink(_ctx, link, zoom, isFocusActive, time, bounds)) {
-        drawn++;
-      }
-    }
-  }
-
-  private _getAdaptiveDependencyLinkCap(zoom: number): number {
-    if (zoom > 3.5) return 6000;
-    if (zoom > 2.8) return 4200;
-    return 2400;
-  }
-
-  private _drawGroupRegions(
-    _ctx: CanvasRenderingContext2D,
-    zoom: number,
-    bounds: ViewBounds
-  ): void {
-    if (!this._isStaticLayout()) return;
-
-    const groupVisibility = this._groupRegionVisibility(zoom);
-    const subgroupVisibility = this._subgroupRegionVisibility(zoom);
-    if (groupVisibility <= 0 && subgroupVisibility <= 0) return;
-
-    _ctx.save();
-    _ctx.setLineDash([]);
-    _ctx.lineJoin = 'round';
-
-    if (groupVisibility > 0) {
-      this._drawRegionCollection(_ctx, this._groupRegions, zoom, bounds, groupVisibility, GROUP_REGION_MAX_DRAWN);
-    }
-    if (subgroupVisibility > 0) {
-      this._drawRegionCollection(_ctx, this._subgroupRegions, zoom, bounds, subgroupVisibility, SUBGROUP_REGION_MAX_DRAWN);
-    }
-
-    _ctx.restore();
-  }
-
-  private _drawRegionCollection(
-    _ctx: CanvasRenderingContext2D,
-    regions: GroupRegion[],
-    zoom: number,
-    bounds: ViewBounds,
-    visibility: number,
-    limit: number
-  ): void {
-    let drawn = 0;
-    for (let index = regions.length - 1; index >= 0; index--) {
-      const region = regions[index];
-      if (!this._isGroupRegionInBounds(region, bounds)) continue;
-      if (drawn++ >= limit) break;
-
-      const hue = this._groupRegionHue(region.colorSeed);
-      const isSubgroup = region.level === 'subgroup';
-      const radius = region.radius * this._lerp(isSubgroup ? 0.90 : 0.82, isSubgroup ? 1.02 : 1.10, visibility);
-      const fillAlpha = Math.min(
-        isSubgroup ? 0.075 : 0.16,
-        ((isSubgroup ? 0.016 : 0.035) + Math.log2(region.memberCount + 1) * (isSubgroup ? 0.006 : 0.012)) * visibility
-      );
-      const strokeAlpha = Math.min(
-        isSubgroup ? 0.24 : 0.42,
-        ((isSubgroup ? 0.06 : 0.12) + region.importance * (isSubgroup ? 0.08 : 0.14)) * visibility
-      );
-
-      this._drawOrganicGroupBlob(_ctx, region, radius, hue, fillAlpha, strokeAlpha);
-
-      if (!isSubgroup && zoom < 0.36 && (region.importance >= 0.58 || region.memberCount >= 14)) {
-        this._drawGroupRegionLabel(_ctx, region, zoom, hue, visibility);
-      }
-    }
-  }
-
-  private _drawOrganicGroupBlob(
-    _ctx: CanvasRenderingContext2D,
-    region: GroupRegion,
-    radius: number,
-    hue: number,
-    fillAlpha: number,
-    strokeAlpha: number
-  ): void {
-    const points = region.level === 'subgroup' ? 18 : 28;
-    const seedA = (region.colorSeed % 6283) / 1000;
-    const seedB = ((region.colorSeed >>> 8) % 6283) / 1000;
-    const xScale = (region.level === 'subgroup' ? 0.96 : 1.04) + ((region.colorSeed % 17) - 8) * 0.008;
-    const yScale = (region.level === 'subgroup' ? 0.86 : 0.78) + (((region.colorSeed >>> 5) % 21) - 10) * 0.009;
-    const center = this._applyZoomOutSpread(region.x, region.y);
-    const spreadRadius = this._scaleZoomOutDistance(radius);
-
-    _ctx.beginPath();
-    for (let index = 0; index <= points; index++) {
-      const angle = index * (Math.PI * 2 / points);
-      const organic = 1
-        + Math.sin(angle * 3 + seedA) * 0.075
-        + Math.cos(angle * 5 + seedB) * 0.045;
-      const x = center.x + Math.cos(angle) * spreadRadius * xScale * organic;
-      const y = center.y + Math.sin(angle) * spreadRadius * yScale * organic;
-      if (index === 0) _ctx.moveTo(x, y);
-      else _ctx.lineTo(x, y);
-    }
-    _ctx.closePath();
-    _ctx.fillStyle = `hsla(${hue}, 86%, 45%, ${fillAlpha})`;
-    _ctx.fill();
-    _ctx.strokeStyle = `hsla(${hue}, 95%, 62%, ${strokeAlpha})`;
-    _ctx.lineWidth = Math.max(1, 1.35 / Math.max(this._viewTransform.k, 0.0005));
-    _ctx.stroke();
-
-    _ctx.globalAlpha = Math.min(0.20, strokeAlpha * 0.52);
-    _ctx.beginPath();
-    _ctx.ellipse(center.x, center.y, spreadRadius * xScale * 0.58, spreadRadius * yScale * 0.45, seedA * 0.12, 0, Math.PI * 2);
-    _ctx.strokeStyle = `hsla(${hue}, 95%, 68%, 1)`;
-    _ctx.lineWidth = Math.max(0.8, 0.9 / Math.max(this._viewTransform.k, 0.0005));
-    _ctx.stroke();
-    _ctx.globalAlpha = 1;
-  }
-
-  private _drawGroupRegionLabel(
-    _ctx: CanvasRenderingContext2D,
-    region: GroupRegion,
-    zoom: number,
-    hue: number,
-    visibility: number
-  ): void {
-    const previousAlpha = _ctx.globalAlpha;
-    const safeZoom = Math.max(zoom, 0.0005);
-    const label = region.label.length > 26 ? `${region.label.slice(0, 24)}...` : region.label;
-    const fontSize = Math.max(10, Math.min(16, 10 + region.importance * 5)) / safeZoom;
-    const center = this._applyZoomOutSpread(region.x, region.y);
-
-    _ctx.globalAlpha = Math.min(0.82, visibility * 0.62);
-    _ctx.font = `800 ${fontSize}px JetBrains Mono, monospace`;
-    _ctx.textAlign = 'center';
-    _ctx.textBaseline = 'middle';
-    _ctx.fillStyle = `hsla(${hue}, 95%, 74%, 1)`;
-    _ctx.fillText(label.toUpperCase(), center.x, center.y);
-    _ctx.font = `700 ${Math.max(8, fontSize * safeZoom * 0.72) / safeZoom}px JetBrains Mono, monospace`;
-    _ctx.fillStyle = `hsla(${hue}, 95%, 78%, 0.68)`;
-    _ctx.fillText(`${region.memberCount} nodes`, center.x, center.y + fontSize * 1.05);
-    _ctx.globalAlpha = previousAlpha;
-  }
-
-  private _groupRegionVisibility(zoom: number): number {
-    if (zoom >= 0.92) return 0;
-    if (zoom <= 0.16) return 1;
-    return this._smoothStep(this._clamp01((0.92 - zoom) / 0.76));
-  }
-
-  private _subgroupRegionVisibility(zoom: number): number {
-    if (zoom >= 0.72) return 0;
-    if (zoom <= 0.20) return 0.72;
-    return 0.72 * this._smoothStep(this._clamp01((0.72 - zoom) / 0.52));
-  }
-
-  private _isGroupRegionInBounds(region: GroupRegion, bounds: ViewBounds): boolean {
-    const center = this._applyZoomOutSpread(region.x, region.y);
-    const radius = this._scaleZoomOutDistance(region.radius * 1.22);
-    return center.x + radius >= bounds.left
-      && center.x - radius <= bounds.right
-      && center.y + radius >= bounds.top
-      && center.y - radius <= bounds.bottom;
-  }
-
-  private _groupRegionHue(seed: number): number {
-    const palette = [188, 164, 204, 138, 48, 220, 174, 198];
-    return palette[seed % palette.length];
-  }
-
-  private _drawDependencyDensity(
-    _ctx: CanvasRenderingContext2D,
-    zoom: number,
-    bounds: ViewBounds,
-    isFocusActive: boolean,
-    renderableNodes: RenderNode[]
-  ) {
-    if (!this._isHugeGraph() || this.linkRenderMode === 'all' || zoom > 2.5) return;
-
-    _ctx.save();
-    _ctx.setLineDash([]);
-    for (const node of renderableNodes) {
-      const degree = this._dependencyDegreeByNodeId.get(node.id) ?? 0;
-      if (degree < 4) continue;
-
-      const intensity = Math.min(1, Math.log2(degree + 1) / 12);
-      const radius = node.radius + 8 + intensity * 24;
-      const alpha = (isFocusActive ? 0.085 : 0.12) * intensity;
-      const position = this._getDisplayPosition(node);
-
-      _ctx.beginPath();
-      _ctx.arc(position.x, position.y, radius / Math.max(zoom, 0.35), 0, Math.PI * 2);
-      _ctx.strokeStyle = `rgba(56, 189, 248, ${alpha})`;
-      _ctx.lineWidth = Math.max(0.6, 1.4 / zoom);
-      _ctx.stroke();
-    }
-    _ctx.restore();
-  }
-
-  private _drawLink(_ctx: CanvasRenderingContext2D, link: RenderLink, zoom: number, isFocusActive: boolean, time: number, bounds: ViewBounds): boolean {
-    const source = this._renderNodes.get(link.sourceId);
-    const target = this._renderNodes.get(link.targetId);
-    if (!source || !target) return false;
-    const sourcePosition = this._getDisplayPosition(source);
-    const targetPosition = this._getDisplayPosition(target);
-    if (!this._isLinkPositionInBounds(sourcePosition, targetPosition, bounds)) return false;
-
-    const sourceOriginal = {x: source.x, y: source.y};
-    const targetOriginal = {x: target.x, y: target.y};
-    source.x = sourcePosition.x;
-    source.y = sourcePosition.y;
-    target.x = targetPosition.x;
-    target.y = targetPosition.y;
-
-    try {
-      let linkOpacity = 0.6;
-      if (isFocusActive) {
-        const activeFocusNode = this._getActiveFocusNode();
-        const isRelated = activeFocusNode && (link.sourceId === activeFocusNode.id || link.targetId === activeFocusNode.id);
-        if (!isRelated) linkOpacity = this._lerp(1.0, FOCUS_DIM_LINK_OPACITY, this._currentFocusLevel);
-      }
-
-      _ctx.globalAlpha = linkOpacity;
-
-      if (link.type === 'provider') {
-        const isUnused = target.meta?.isUnused;
-        _ctx.beginPath();
-        _ctx.moveTo(source.x, source.y);
-        _ctx.lineTo(target.x, target.y);
-        _ctx.strokeStyle = isUnused ? 'rgba(100, 116, 139, 0.3)' : CONSTELLATION_THEME.links.base;
-        if (isUnused) _ctx.setLineDash([4, 4]);
-        else _ctx.setLineDash([1, 4]);
-        _ctx.lineWidth = 1 / zoom;
-        _ctx.stroke();
-        _ctx.setLineDash([]);
-      } else if (link.type === 'component-child') {
-        _ctx.beginPath();
-        _ctx.moveTo(source.x, source.y);
-        _ctx.lineTo(target.x, target.y);
-        _ctx.strokeStyle = CONSTELLATION_THEME.injector.color;
-        _ctx.lineWidth = 0.8 / zoom;
-        _ctx.stroke();
-      } else if (link.type === 'aggregate-dependency') {
-        this._drawAggregateDependencyLink(_ctx, source, target, link, zoom, linkOpacity);
-      } else {
-        const isUnused = target.meta?.isUnused;
-        if (isUnused) {
-          _ctx.beginPath();
-          _ctx.moveTo(source.x, source.y);
-          _ctx.lineTo(target.x, target.y);
-          _ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
-          _ctx.setLineDash([30, 20]);
-          _ctx.lineWidth = 1.5 / zoom;
-          _ctx.stroke();
-          _ctx.setLineDash([]);
-        } else {
-          const color = target.glowColor || '#fff';
-          _ctx.beginPath();
-          _ctx.moveTo(source.x, source.y);
-          _ctx.lineTo(target.x, target.y);
-          _ctx.strokeStyle = color;
-          _ctx.globalAlpha = linkOpacity * 0.15;
-          _ctx.lineWidth = 2 / zoom;
-          _ctx.stroke();
-
-          if (this._shouldAnimateVisuals() && this._renderLinks.length <= this._getAnimatedLinkLimit() && linkOpacity > 0.3) {
-            _ctx.globalAlpha = linkOpacity;
-            this._drawEnergy(_ctx, link, source, target, color, time, zoom);
-          }
-        }
-      }
-      _ctx.globalAlpha = 1.0;
-      return true;
-    } finally {
-      source.x = sourceOriginal.x;
-      source.y = sourceOriginal.y;
-      target.x = targetOriginal.x;
-      target.y = targetOriginal.y;
-    }
-  }
-
-  private _drawAggregateDependencyLink(
-    _ctx: CanvasRenderingContext2D,
-    source: RenderNode,
-    target: RenderNode,
-    link: RenderLink,
-    zoom: number,
-    linkOpacity: number
-  ): void {
-    const dx = target.x - source.x;
-    const dy = target.y - source.y;
-    const distance = Math.hypot(dx, dy) || 1;
-    const normalX = -dy / distance;
-    const normalY = dx / distance;
-    const hash = this._stableHash(link.uniqueId);
-    const direction = (hash & 1) === 0 ? 1 : -1;
-    const curve = Math.min(220, Math.max(34, distance * 0.12)) * direction;
-    const controlX = (source.x + target.x) / 2 + normalX * curve;
-    const controlY = (source.y + target.y) / 2 + normalY * curve;
-    const weight = Math.max(1, link.weight ?? 1);
-    const intensity = Math.min(1, Math.log2(weight + 1) / 9);
-
-    _ctx.beginPath();
-    _ctx.moveTo(source.x, source.y);
-    _ctx.quadraticCurveTo(controlX, controlY, target.x, target.y);
-    _ctx.strokeStyle = `rgba(20, 184, 166, ${0.12 + intensity * 0.28})`;
-    _ctx.globalAlpha = linkOpacity * (0.46 + intensity * 0.32);
-    _ctx.lineWidth = Math.max(1.1, 1.2 + intensity * 4.4) / Math.max(zoom, 0.0005);
-    _ctx.stroke();
-
-    if (intensity > 0.35) {
-      _ctx.globalAlpha = linkOpacity * 0.14 * intensity;
-      _ctx.beginPath();
-      _ctx.moveTo(source.x, source.y);
-      _ctx.quadraticCurveTo(controlX, controlY, target.x, target.y);
-      _ctx.strokeStyle = '#5eead4';
-      _ctx.lineWidth = Math.max(2.8, 4.8 * intensity) / Math.max(zoom, 0.0005);
-      _ctx.stroke();
-    }
-  }
-
-  private _drawEnergy(_ctx: CanvasRenderingContext2D, link: RenderLink, source: RenderNode, target: RenderNode, color: string, time: number, zoom: number) {
-    let anim = this._linkAnimStates.get(link.uniqueId);
-    if (!anim) {
-      anim = {
-        state: 'IDLE',
-        stateStartTime: time,
-        duration: Math.random() * 2000,
-        currentSpeed: 0,
-        currentLength: 0
-      };
-      this._linkAnimStates.set(link.uniqueId, anim);
-    }
-
-    const elapsed = time - anim.stateStartTime;
-    const dist = Math.hypot(target.x - source.x, target.y - source.y);
-
-    if (elapsed > anim.duration) {
-      if (anim.state === 'IDLE') {
-        anim.state = 'SHOOTING';
-        anim.stateStartTime = time;
-        const baseSpeed = 150 + Math.random() * 300;
-        const distFactor = Math.min(1.0, Math.max(0.4, dist / 200));
-        anim.currentSpeed = baseSpeed * distFactor;
-        anim.duration = (dist / anim.currentSpeed) * 1000;
-        anim.currentLength = 50 + Math.random() * (Math.min(150, dist * 0.8) - 50);
-      } else {
-        anim.state = 'IDLE';
-        anim.stateStartTime = time;
-        anim.duration = 1000 + Math.random() * 2000;
-      }
-    }
-
-    if (anim.state === 'SHOOTING') {
-      const t = (time - anim.stateStartTime) / anim.duration;
-      const headDist = t * dist;
-      const tailDist = headDist - anim.currentLength;
-
-      if (tailDist < dist && headDist > 0) {
-        const visibleStart = Math.max(0, tailDist);
-        const visibleEnd = Math.min(dist, headDist);
-        if (visibleStart < visibleEnd) {
-          const tStart = visibleStart / dist;
-          const tEnd = visibleEnd / dist;
-
-          const startX = source.x + (target.x - source.x) * tStart;
-          const startY = source.y + (target.y - source.y) * tStart;
-          const endX = source.x + (target.x - source.x) * tEnd;
-          const endY = source.y + (target.y - source.y) * tEnd;
-
-          const grad = _ctx.createLinearGradient(startX, startY, endX, endY);
-          grad.addColorStop(0, 'rgba(0,0,0,0)');
-          grad.addColorStop(0.5, color);
-          grad.addColorStop(1, '#fff');
-
-          _ctx.beginPath();
-          _ctx.moveTo(startX, startY);
-          _ctx.lineTo(endX, endY);
-          _ctx.strokeStyle = grad;
-          _ctx.lineWidth = 2.0 / zoom;
-          _ctx.shadowBlur = 8;
-          _ctx.shadowColor = color;
-          _ctx.stroke();
-          _ctx.shadowBlur = 0;
-        }
-      }
-    }
-  }
-
-  private _getNodeImportance(node: RenderNode): number {
-    if (node.meta?.isRoot) return 1;
-    const explicitImportance = node.meta?.importance;
-    if (typeof explicitImportance === 'number') return Math.max(0, Math.min(1, explicitImportance));
-
-    const degree = this._dependencyDegreeByNodeId.get(node.id) ?? 0;
-    return Math.max(0.08, Math.min(1, Math.log2(degree + 1) / 8));
-  }
-
-  private _getVisualRadius(node: RenderNode, zoom: number): number {
-    const baseRadius = node.radius;
-    const overview = this._overviewFactor(zoom);
-    if (overview <= 0) return baseRadius * this._detailScale(zoom);
-
-    const safeZoom = Math.max(zoom, 0.0005);
-    const isInjector = node.type === 'injector';
-    const isRoot = !!node.meta?.isRoot;
-    const unusedFactor = node.meta?.isUnused ? 0.74 : 1;
-    const tierScale = this._overviewTierScale(node);
-    const baseScreenRadius = baseRadius * zoom;
-    const fullScreenRadius = isInjector ? (isRoot ? 16 : 13) : 8.5 * unusedFactor;
-    const tieredScreenRadius = Math.max(isInjector ? 3.5 : 2.1, fullScreenRadius * tierScale);
-    const stepBoost = this._overviewStepBoost(zoom, tierScale, isRoot);
-    const targetScreenRadius = tieredScreenRadius + stepBoost;
-    const screenRadius = this._lerp(baseScreenRadius, targetScreenRadius, overview);
-
-    return Math.max(baseRadius * this._detailScale(zoom), screenRadius / safeZoom);
-  }
-
-  private _overviewFactor(zoom: number): number {
-    if (zoom >= 0.72) return 0;
-    if (zoom <= 0.20) return 1;
-    return Math.max(0, Math.min(1, (0.72 - zoom) / 0.52));
-  }
-
-  private _detailScale(zoom: number): number {
-    const factor = this._smoothStep(
-      this._clamp01((zoom - DETAIL_SHRINK_ZOOM_START) / (DETAIL_SHRINK_ZOOM_END - DETAIL_SHRINK_ZOOM_START))
-    );
-    return this._lerp(1, DETAIL_MIN_SCALE, factor);
-  }
-
-  private _overviewTierScale(node: RenderNode): number {
-    if (node.meta?.isRoot) return 1;
-
-    const importance = this._getNodeImportance(node);
-    if (importance >= 0.82) return 0.75;
-    if (importance >= 0.52) return 0.5;
-    return 0.25;
-  }
-
-  private _overviewStepBoost(zoom: number, tierScale: number, isRoot: boolean): number {
-    let boost = 0;
-    if (zoom < 0.42 && tierScale >= 0.5) boost += 1.2;
-    if (zoom < 0.24 && tierScale >= 0.75) boost += 1.6;
-    if (zoom < 0.12 && (tierScale >= 0.75 || isRoot)) boost += 1.8;
-    if (zoom < 0.06 && isRoot) boost += 2.2;
-    return boost;
-  }
-
-  private _drawOverviewBeacon(
-    _ctx: CanvasRenderingContext2D,
-    node: RenderNode,
-    zoom: number,
-    radius: number,
-    isHighlight: boolean
-  ): void {
-    const overview = this._overviewFactor(zoom);
-    if (overview <= 0) return;
-
-    const importance = this._getNodeImportance(node);
-    const isRoot = !!node.meta?.isRoot;
-    const isProminent = isRoot
-      || isHighlight
-      || (node.type === 'injector' && importance >= 0.52)
-      || (node.type === 'service' && importance >= 0.82);
-    if (!isProminent) return;
-
-    const previousAlpha = _ctx.globalAlpha;
-    const alpha = previousAlpha * overview * (isRoot ? 0.24 : node.type === 'injector' ? 0.15 : 0.10);
-    _ctx.globalAlpha = alpha;
-    _ctx.beginPath();
-    _ctx.arc(node.x, node.y, radius * (isRoot ? 2.4 : 1.95), 0, Math.PI * 2);
-    _ctx.strokeStyle = node.glowColor;
-    _ctx.lineWidth = Math.max(0.8, 1.15 / Math.max(zoom, 0.0005));
-    _ctx.stroke();
-
-    if (isRoot || importance >= 0.82 || isHighlight) {
-      _ctx.globalAlpha = alpha * 0.45;
-      _ctx.beginPath();
-      _ctx.arc(node.x, node.y, radius * (isRoot ? 3.6 : 2.75), 0, Math.PI * 2);
-      _ctx.stroke();
-    }
-
-    _ctx.globalAlpha = previousAlpha;
-  }
-
-  private _drawNode(_ctx: CanvasRenderingContext2D, node: RenderNode, zoom: number, isFocusActive: boolean, time: number) {
-    let nodeOpacity = 1.0;
-    const isHighlight = this.hoveredNode === node || this.pinnedNode === node;
-    const visualRadius = this._getVisualRadius(node, zoom);
-    const displayPosition = this._getDisplayPosition(node);
-    const originalX = node.x;
-    const originalY = node.y;
-    node.x = displayPosition.x;
-    node.y = displayPosition.y;
-
-    if (isFocusActive) {
-      const isNeighbor = this._focusedNodeIds.has(node.id);
-      if (!isHighlight && !isNeighbor) {
-        nodeOpacity = this._lerp(1.0, FOCUS_DIM_NODE_OPACITY, this._currentFocusLevel);
-      }
-    }
-
-    if (node.meta?.isUnused && !this._unusedPattern) nodeOpacity *= 0.4;
-
-    _ctx.globalAlpha = nodeOpacity;
-    this._drawOverviewBeacon(_ctx, node, zoom, visualRadius, isHighlight);
-
-    if (node.type === 'injector') {
-      this._drawHexagon(_ctx, node, zoom, isHighlight, time, visualRadius);
-    } else {
-      const isFramework = !!node.meta?.isFramework;
-      const isUnused = !!node.meta?.isUnused;
-      this._drawDiamond(_ctx, node, zoom, isHighlight, time, isFramework, isUnused, visualRadius);
-    }
-
-    node.x = originalX;
-    node.y = originalY;
-    _ctx.globalAlpha = 1.0;
-  }
-
-  private _drawHexagon(_ctx: CanvasRenderingContext2D, node: RenderNode, zoom: number, isHighlight: boolean, time: number, radius: number) {
-    const {x, y, baseColor, glowColor} = node;
-    let currentAngle = node.angle || 0;
-    if (this._shouldAnimateVisuals()) {
-      currentAngle += time * (isHighlight ? 0.002 : 0.0005);
-    }
-
-    if (isHighlight || node.meta?.isRoot) {
-      _ctx.shadowBlur = isHighlight ? 30 : 15;
-      _ctx.shadowColor = glowColor;
-    }
-
-    _ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const theta = currentAngle + (i * Math.PI * 2) / 6;
-      _ctx[i === 0 ? 'moveTo' : 'lineTo'](x + radius * Math.cos(theta), y + radius * Math.sin(theta));
-    }
-    _ctx.closePath();
-    _ctx.fillStyle = 'rgba(2, 6, 23, 0.9)';
-    _ctx.fill();
-    _ctx.shadowBlur = 0;
-
-    _ctx.strokeStyle = baseColor;
-    _ctx.lineWidth = (isHighlight ? 2 : 1.5) / zoom;
-    _ctx.stroke();
-
-    _ctx.beginPath();
-    if (node.meta?.isRoot) {
-      _ctx.arc(x, y, radius * 0.4, 0, Math.PI * 2);
-      _ctx.fillStyle = glowColor;
-      _ctx.fill();
-    } else {
-      for (let i = 0; i < 6; i++) {
-        const theta = -currentAngle * 2 + (i * Math.PI * 2) / 6;
-        const r = radius * 0.5;
-        _ctx[i === 0 ? 'moveTo' : 'lineTo'](x + r * Math.cos(theta), y + r * Math.sin(theta));
-      }
-      _ctx.closePath();
-      _ctx.strokeStyle = baseColor;
-      _ctx.lineWidth = 0.5 / zoom;
-      _ctx.stroke();
-    }
-
-    if (isHighlight || this._shouldRenderLabels(zoom, 0.6) || this._shouldRenderOverviewLabel(node, zoom)) {
-      this._drawLabel(_ctx, node, y + radius + 12 / zoom, zoom, isHighlight || this._shouldRenderOverviewLabel(node, zoom));
-    }
-  }
-
-  private _drawDiamond(_ctx: CanvasRenderingContext2D, node: RenderNode, zoom: number, isHighlight: boolean, time: number, isFramework: boolean, isUnused: boolean, radius: number) {
-    const {x, y, baseColor, glowColor} = node;
-    let sizeAnim = radius;
-
-    if (this._shouldAnimateVisuals()) {
-      const pulse = Math.sin((time + (node.pulseOffset || 0)) / (isFramework ? 600 : 400));
-      sizeAnim = radius * (1 + pulse * 0.1);
-    }
-
-
-    if (isHighlight || node.meta?.isRoot) {
-      _ctx.shadowBlur = isHighlight ? 20 : 10;
-      _ctx.shadowColor = glowColor;
-    } else if (isFramework) {
-      _ctx.shadowBlur = 5;
-      _ctx.shadowColor = baseColor;
-    }
-
-    _ctx.beginPath();
-    _ctx.moveTo(x, y - sizeAnim);
-    _ctx.lineTo(x + sizeAnim, y);
-    _ctx.lineTo(x, y + sizeAnim);
-    _ctx.lineTo(x - sizeAnim, y);
-    _ctx.closePath();
-
-
-    if (isUnused && this._unusedPattern) {
-      _ctx.fillStyle = this._unusedPattern;
-      _ctx.fill();
-    } else if (isFramework) {
-
-      const grad = _ctx.createLinearGradient(x - sizeAnim, y - sizeAnim, x + sizeAnim, y + sizeAnim);
-      grad.addColorStop(0, 'rgba(0,0,0,0.8)');
-      grad.addColorStop(0.5, baseColor + '11');
-      grad.addColorStop(1, 'rgba(0,0,0,0.8)');
-      _ctx.fillStyle = grad;
-      _ctx.fill();
-    } else {
-      _ctx.fillStyle = isHighlight ? glowColor : baseColor;
-      _ctx.fill();
-    }
-
-
-    _ctx.strokeStyle = isHighlight ? glowColor : baseColor;
-    _ctx.lineWidth = (isHighlight ? 2.5 : 1.5) / zoom;
-    if (isUnused) {
-      _ctx.strokeStyle = '#64748b';
-    }
-    _ctx.stroke();
-
-    _ctx.shadowBlur = 0;
-
-    if (isHighlight || this._shouldRenderLabels(zoom, 0.8) || this._shouldRenderOverviewLabel(node, zoom)) {
-      this._drawLabel(_ctx, node, y + radius + 10 / zoom, zoom, isHighlight || this._shouldRenderOverviewLabel(node, zoom));
-    }
-  }
-
-  private _drawLabel(_ctx: CanvasRenderingContext2D, node: RenderNode, yPos: number, zoom: number, isHighlight: boolean) {
-    _ctx.fillStyle = isHighlight ? '#fff' : 'rgba(226, 232, 240, 0.8)';
-    if (node.meta?.isUnused) _ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
-
-    const fontSize = this._labelScreenFontSizePx(zoom, isHighlight) / Math.max(zoom, 0.0005);
-    _ctx.font = `${isHighlight ? 'bold' : ''} ${fontSize}px "JetBrains Mono"`;
-    _ctx.textAlign = 'center';
-    _ctx.fillText(node.meta?.label || '', node.x, yPos);
-  }
-
-  private _labelScreenFontSizePx(zoom: number, isHighlight: boolean): number {
-    const baseSize = Math.max(9 * zoom, 11);
-    const detailScale = this._detailScale(zoom);
-    const highlightScale = isHighlight ? this._lerp(detailScale, 1, 0.35) : detailScale;
-    return baseSize * highlightScale;
-  }
 
   private _drawGrid(_ctx: CanvasRenderingContext2D, w: number, h: number, tx: number, ty: number, zoom: number) {
     const gridSize = Math.max(25, 100 * zoom);
