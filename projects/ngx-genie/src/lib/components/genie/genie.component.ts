@@ -112,9 +112,12 @@ export class GenieComponent implements OnDestroy {
   private _pendingScanCount = 0;
   private _visibleScanAttempt = 0;
 
+  private _captureHeld = false;
   private _navWatchActive = false;
   private _originalPushState: History['pushState'] | null = null;
   private _originalReplaceState: History['replaceState'] | null = null;
+  private _patchedPushState: History['pushState'] | null = null;
+  private _patchedReplaceState: History['replaceState'] | null = null;
   private _popStateListener: (() => void) | null = null;
   private _liveRescanTimer: ReturnType<typeof setTimeout> | null = null;
   private _freezeSafetyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -122,7 +125,7 @@ export class GenieComponent implements OnDestroy {
   constructor() {
     effect(() => {
       const active = this.config.enabled && this.visible();
-      this.registry.setCaptureActive(active);
+      this.setCaptureHeld(active);
       if (!active) {
         this.stopLiveRescan();
         this.cancelQueuedScan();
@@ -147,8 +150,28 @@ export class GenieComponent implements OnDestroy {
     if (this.isBrowser && this._keyListener) {
       window.removeEventListener('keydown', this._keyListener);
     }
+    // Release our capture lease so the registry's DI-capture spy is not left running (and the
+    // deferred buffer not left retained) when the overlay is destroyed while still open — the
+    // constructor effect is torn down without a final run, so it can no longer do this for us.
+    this.setCaptureHeld(false);
     this.stopLiveRescan();
     this.cancelQueuedScan();
+  }
+
+  /**
+   * Acquire/release a refcounted capture lease on the shared (root-singleton) registry as this
+   * overlay opens/closes. Refcounting — rather than a bare `setCaptureActive(boolean)` — keeps a
+   * second mounted `<ngx-genie/>` instance capturing when this one closes, instead of the last
+   * writer globally disabling capture and wiping the deferred buffer.
+   */
+  private setCaptureHeld(held: boolean): void {
+    if (held === this._captureHeld) return;
+    this._captureHeld = held;
+    if (held) {
+      this.registry.acquireCapture();
+    } else {
+      this.registry.releaseCapture();
+    }
   }
 
   handleViewChange(mode: GenieViewMode) {
@@ -350,20 +373,29 @@ export class GenieComponent implements OnDestroy {
     this._navWatchActive = true;
 
     const onNav = () => this.onLiveNavigation();
-    this._originalPushState = history.pushState;
-    this._originalReplaceState = history.replaceState;
+    // Capture the originals in the wrappers' own closures (not via a mutable field), so a wrapper
+    // that another History consumer chained on top of us keeps working even after we null our
+    // fields on teardown — otherwise it would dereference a now-null original and throw.
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+    this._originalPushState = originalPushState;
+    this._originalReplaceState = originalReplaceState;
 
-    const component = this;
-    history.pushState = function (this: History, ...args: unknown[]) {
-      const result = (component._originalPushState as Function).apply(this, args);
+    const patchedPushState = function (this: History, ...args: unknown[]) {
+      const result = (originalPushState as Function).apply(this, args);
       onNav();
       return result;
     } as History['pushState'];
-    history.replaceState = function (this: History, ...args: unknown[]) {
-      const result = (component._originalReplaceState as Function).apply(this, args);
+    const patchedReplaceState = function (this: History, ...args: unknown[]) {
+      const result = (originalReplaceState as Function).apply(this, args);
       onNav();
       return result;
     } as History['replaceState'];
+
+    history.pushState = patchedPushState;
+    history.replaceState = patchedReplaceState;
+    this._patchedPushState = patchedPushState;
+    this._patchedReplaceState = patchedReplaceState;
 
     this._popStateListener = onNav;
     window.addEventListener('popstate', this._popStateListener);
@@ -401,10 +433,19 @@ export class GenieComponent implements OnDestroy {
     }
 
     if (this._navWatchActive) {
-      if (this._originalPushState) history.pushState = this._originalPushState;
-      if (this._originalReplaceState) history.replaceState = this._originalReplaceState;
+      // Only un-patch if our wrapper is still the currently installed one. If another History
+      // consumer (e.g. a second overlay instance) wrapped it after us, they own the restore chain —
+      // blindly reassigning the saved original here would clobber their live wrapper.
+      if (this._patchedPushState && history.pushState === this._patchedPushState && this._originalPushState) {
+        history.pushState = this._originalPushState;
+      }
+      if (this._patchedReplaceState && history.replaceState === this._patchedReplaceState && this._originalReplaceState) {
+        history.replaceState = this._originalReplaceState;
+      }
       this._originalPushState = null;
       this._originalReplaceState = null;
+      this._patchedPushState = null;
+      this._patchedReplaceState = null;
       if (this._popStateListener) window.removeEventListener('popstate', this._popStateListener);
       this._popStateListener = null;
       this._navWatchActive = false;

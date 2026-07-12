@@ -157,7 +157,8 @@ export class ConstellationMapper {
     showComponentTree: boolean,
     currentPositions: Map<string, { x: number, y: number }>,
     layoutStrategy: ConstellationLayoutStrategy = 'auto',
-    groupingStrategy: ConstellationGroupingStrategy = 'auto'
+    groupingStrategy: ConstellationGroupingStrategy = 'auto',
+    forceShown: (label: string) => boolean = () => false
   ): MappedGraphData {
 
     const filteredTree = this._applyDeepSearch(tree, filterState);
@@ -179,7 +180,7 @@ export class ConstellationMapper {
     let providerLinkEstimate = 0;
     let maxServicesPerNode = 0;
     for (const node of visibleTreeNodes) {
-      const services = this._filterServicesForNode(getServicesForNode(node), filterState, usedProviderIds);
+      const services = this._filterServicesForNode(getServicesForNode(node), filterState, usedProviderIds, forceShown);
       servicesByNodeId.set(node.id, services);
       providerLinkEstimate += services.length;
       if (services.length > maxServicesPerNode) maxServicesPerNode = services.length;
@@ -800,11 +801,20 @@ export class ConstellationMapper {
   private static _filterServicesForNode(
     services: GenieServiceRegistration[],
     filterState: GenieFilterState | null,
-    usedProviderIds: Set<number>
+    usedProviderIds: Set<number>,
+    forceShown: (label: string) => boolean = () => false
   ): GenieServiceRegistration[] {
     if (!filterState) return services;
 
     return services.filter(s => {
+      if (filterState.showRootOnly && !s.isRoot) return false;
+      if (filterState.showLocalOnly && s.isRoot) return false;
+      if (filterState.hideUnusedDeps && !usedProviderIds.has(s.id)) return false;
+
+      // A token the user pinned visible (Advanced config → "Show") bypasses the internal + per-type
+      // gates, matching explorer-state._serviceMatchesFilters so the constellation agrees with the tree.
+      if (forceShown(s.label)) return true;
+
       const isFramework = s.isFramework;
       if (filterState.hideInternals && isFramework) return false;
 
@@ -829,10 +839,6 @@ export class ConstellationMapper {
         if (type === 'Observable' && !filterState.showUserObservables) return false;
         if (type === 'Signal' && !filterState.showUserSignals) return false;
       }
-
-      if (filterState.showRootOnly && !s.isRoot) return false;
-      if (filterState.showLocalOnly && s.isRoot) return false;
-      if (filterState.hideUnusedDeps && !usedProviderIds.has(s.id)) return false;
 
       return true;
     });

@@ -16,6 +16,7 @@ import {isPlatformBrowser} from '@angular/common';
 import {GenieDependency, GenieServiceRegistration, GenieTreeNode} from '../../../../../models/genie-node.model';
 import {GenieRegistryService} from '../../../../../services/genie-registry.service';
 import {GeniePerformanceService} from '../../../../../services/genie-performance.service';
+import {GenFilterService} from '../../../../../services/filter.service';
 import {ConstellationModeSwitchComponent} from './constellation-mode-switch/constellation-mode-switch.component';
 import {ConstellationControlsComponent} from './constellation-controls/constellation-controls.component';
 import {ConstellationLegendComponent} from './constellation-legend/constellation-legend.component';
@@ -79,6 +80,7 @@ interface GraphDataInputKey {
 export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   private registry = inject(GenieRegistryService);
   private performance = inject(GeniePerformanceService);
+  private filterService = inject(GenFilterService);
   private ngZone = inject(NgZone);
   private stateService = inject(ConstellationStateService);
   private platformId = inject(PLATFORM_ID);
@@ -620,7 +622,8 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
       this.showComponentTree(),
       positionsSource,
       undefined,
-      this.groupingStrategy()
+      this.groupingStrategy(),
+      (label) => this.filterService.isForceShown(label)
     );
     completePrepareSpan({
       renderNodes: data.renderNodes.size,

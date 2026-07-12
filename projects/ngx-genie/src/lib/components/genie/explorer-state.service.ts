@@ -221,6 +221,10 @@ export class GenieExplorerStateService {
     effect(() => {
       const services = this.services();
       const filters = this.filterState();
+      // Depend on the filter config too: the rebuild's predicate (_serviceMatchesFilters) honours
+      // isForceShown, but reads it inside an untracked idle callback, so a pin / custom "show" rule
+      // whose token classification is unchanged would otherwise never schedule a rebuild.
+      this.filterService.configChanged();
       if (this._treeUpdatesSuspended()) return;
       this._scheduleFilteredServicesRebuild(services, filters);
     });
@@ -235,6 +239,9 @@ export class GenieExplorerStateService {
         selectedNode: this.selectedNode(),
         servicesByNodeId: this.filteredServicesByNodeId()
       };
+      // Depend on the filter config too, for the same reason as the filtered-services effect: a pin
+      // must re-run the tree rebuild even when nothing else it reads has changed.
+      this.filterService.configChanged();
       // While a live route re-scan is in flight, freeze the tree at its last settled state so it
       // updates once (old route → new route) instead of flickering through the transient states.
       if (this._treeUpdatesSuspended()) return;

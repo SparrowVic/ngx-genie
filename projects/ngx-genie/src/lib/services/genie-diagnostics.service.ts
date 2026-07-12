@@ -1,6 +1,18 @@
 import {Injectable, inject, isSignal} from '@angular/core';
 import {GenieRegistryService} from './genie-registry.service';
 import {GenieServiceRegistration} from '../models/genie-node.model';
+import {normalizeInternalName} from '../configs/angular-internals';
+
+// Concrete runtime injector class names. `inject(Injector)` never yields a bare `Injector` instance
+// on Angular 21 — it is always one of these (and esbuild dev builds prefix them with `_`), so we
+// match the normalised constructor name instead of the abstract base's name.
+const INJECTOR_CLASS_NAMES = new Set<string>([
+  'Injector',
+  'R3Injector',
+  'NodeInjector',
+  'ChainedInjector',
+  'EnvironmentInjector',
+]);
 
 export type AnomalyType =
   | 'singleton-violation'
@@ -246,7 +258,12 @@ export class GenieDiagnosticsService {
         if (depCount > config.thresholdCoupling) {
           const svc = componentServiceByNodeId.get(node.id);
           const relatedIds = svc ? [svc.id] : [];
-          const isFramework = node.label.startsWith('ng-') || node.label.startsWith('_');
+          // Classify by the node's OWN label, normalised first. The old `startsWith('_')` clause
+          // misfired in dev builds (esbuild mangles every class name to `_Name`), suppressing this
+          // anomaly app-wide. Do NOT use svc.isFramework here: componentServiceByNodeId holds a
+          // *child* template-component service (line 1105 excludes the node's own instance), so its
+          // flag reflects the child, not this node.
+          const isFramework = normalizeInternalName(node.label).startsWith('ng-');
 
           if (!isFramework) {
             anomalies.push({
@@ -631,7 +648,9 @@ export class GenieDiagnosticsService {
       if (depCount > config.thresholdCoupling) {
         const svc = componentServiceByNodeId.get(node.id);
         const relatedIds = svc ? [svc.id] : [];
-        const isFramework = node.label.startsWith('ng-') || node.label.startsWith('_');
+        // See collectServiceAnomalies: classify by the node's own normalised label, NOT the child
+        // component service in componentServiceByNodeId.
+        const isFramework = normalizeInternalName(node.label).startsWith('ng-');
 
         if (!isFramework) {
           anomalies.push({
@@ -819,7 +838,7 @@ export class GenieDiagnosticsService {
       if (scanned > this.maxObjectKeysToScan) break;
       try {
         const val = (instance as any)[key];
-        if (val && val.constructor && val.constructor.name === 'Injector') {
+        if (val && val.constructor && INJECTOR_CLASS_NAMES.has(normalizeInternalName(val.constructor.name))) {
           result = true;
           break;
         }

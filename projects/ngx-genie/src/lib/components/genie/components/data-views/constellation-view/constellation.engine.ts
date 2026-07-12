@@ -405,6 +405,11 @@ export class ConstellationEngine {
         this._worker.onmessage = ({data}) => {
           if (data.type === 'TICK_RESULT') {
             this._physicsTickPending = false;
+            // Static layouts (atlas/organic) never dispatch a TICK (_canDispatchPhysicsTick returns
+            // false), so any TICK_RESULT arriving while static is a stale force-simulation result from
+            // before the layout switched. Applying it would overwrite the freshly computed static
+            // positions permanently (no further tick corrects it) and desync the spatial index.
+            if (this._isStaticLayout()) return;
             this._onTickPositionsUpdate(data.positions);
           }
         };

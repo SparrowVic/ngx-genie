@@ -7,8 +7,9 @@ import {
   GenieServiceRegistration,
   GenieTreeNode
 } from '../../../../../models/genie-node.model';
-import {MatrixWorkerResult, ProcessedColumn, ProcessedRow, matrixWorkerFn} from './matrix.worker';
+import {MatrixWorkerResult, ProcessedColumn, ProcessedRow, MATRIX_WORKER_SOURCE, calculateMatrix} from './matrix.worker';
 import {GeniePerformanceService} from '../../../../../services/genie-performance.service';
+import {GenFilterService} from '../../../../../services/filter.service';
 
 export interface MatrixViewState {
   scale: number;
@@ -46,6 +47,7 @@ export class MatrixDataService implements OnDestroy {
   private readonly registry = inject(GenieRegistryService);
   private readonly ngZone = inject(NgZone);
   private readonly performance = inject(GeniePerformanceService);
+  private readonly filterService = inject(GenFilterService);
 
   private worker: Worker | null = null;
   private workerUrl: string | null = null;
@@ -78,8 +80,7 @@ export class MatrixDataService implements OnDestroy {
   initWorker() {
     if (typeof Worker !== 'undefined' && !this.worker) {
       try {
-        const workerCode = `(${matrixWorkerFn.toString()})()`;
-        const blob = new Blob([workerCode], {type: 'application/javascript'});
+        const blob = new Blob([MATRIX_WORKER_SOURCE], {type: 'application/javascript'});
         this.workerUrl = URL.createObjectURL(blob);
 
         this.worker = new Worker(this.workerUrl);
@@ -89,24 +90,26 @@ export class MatrixDataService implements OnDestroy {
             if (data.requestId !== this.calculationRequestId) return;
 
             const result = data.payload as MatrixWorkerResult;
-            this.ngZone.run(() => {
-              this.rows.set(result.rows);
-              this.columns.set(result.columns);
-              this.totalRows.set(result.metadata.totalRows);
-              this.totalCols.set(result.metadata.totalCols);
-              this.isWorkerDone.set(true);
-            });
+            this.ngZone.run(() => this.applyResult(result));
           }
         };
       } catch (e) {
-        console.error('Genie Matrix Worker Init Error:', e);
+        // e.g. a host CSP that forbids `blob:` workers throws here. Leave `this.worker` null and fall
+        // back to computing on the main thread in calculate(), instead of hanging on the loader.
+        console.error('Genie Matrix Worker Init Error (falling back to main thread):', e);
       }
     }
   }
 
-  calculate(tree: GenieTreeNode[], filter: GenieFilterState | null) {
-    if (!this.worker) return;
+  private applyResult(result: MatrixWorkerResult) {
+    this.rows.set(result.rows);
+    this.columns.set(result.columns);
+    this.totalRows.set(result.metadata.totalRows);
+    this.totalCols.set(result.metadata.totalCols);
+    this.isWorkerDone.set(true);
+  }
 
+  calculate(tree: GenieTreeNode[], filter: GenieFilterState | null) {
     const allServices = this.registry.services();
     const dependencies = this.registry.dependencies();
 
@@ -150,7 +153,13 @@ export class MatrixDataService implements OnDestroy {
       dependencies: safeDependencies.length
     });
 
-    this.worker.postMessage({type: 'CALCULATE', requestId, payload});
+    if (this.worker) {
+      this.worker.postMessage({type: 'CALCULATE', requestId, payload});
+    } else {
+      // No worker (e.g. blocked by a host CSP): compute synchronously on the main thread so the view
+      // renders. The calc is pure and there is no async gap, so requestId is always current here.
+      this.applyResult(calculateMatrix(payload as any));
+    }
   }
 
   private isSameCalculationInput(
@@ -253,6 +262,10 @@ export class MatrixDataService implements OnDestroy {
     }
 
     if (filters.hideUnusedDeps && (s.usageCount || 0) === 0) return false;
+
+    // A token the user pinned visible (Advanced config → "Show") bypasses the internal + per-type
+    // gates, matching explorer-state._serviceMatchesFilters so the matrix agrees with the tree view.
+    if (this.filterService.isForceShown(s.label)) return true;
 
     const type = s.dependencyType;
     const isFramework = s.isFramework;
