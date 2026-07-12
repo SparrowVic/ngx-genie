@@ -1,5 +1,5 @@
 import {ChangeDetectionStrategy, Component, input, ViewEncapsulation} from '@angular/core';
-import {RenderNode} from '../constellation.models';
+import {RenderNode} from '../models/constellation.models';
 
 @Component({
   selector: 'lib-constellation-tooltip',

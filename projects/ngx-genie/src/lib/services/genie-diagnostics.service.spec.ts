@@ -466,12 +466,30 @@ describe('GenieDiagnosticsService', () => {
       expect(svc.runDiagnostics(cfg).anomalies).toEqual([]);
     });
 
-    it('treats ng- and _ prefixed node labels as framework and skips them', () => {
-      fake.nodesData = [
-        nodeReg({id: 30, label: 'ng-container'}),
-        nodeReg({id: 31, label: '_GenieComponent'}),
+    it('flags an underscore-mangled user component (dev builds prefix every class name with _)', () => {
+      // The `_` prefix alone must NOT mark a node framework — in dev builds esbuild mangles every
+      // class name to `_Name`, so relying on it would suppress high-coupling app-wide. Classification
+      // is by the node's own normalised label.
+      fake.nodesData = [nodeReg({id: 33, label: '_UserWidgetComponent'})];
+      fake.dependenciesData = depsFor(33, 5);
+      expect(anomalyOf('coupling-33', svc.runDiagnostics(cfg))).toBeTruthy();
+    });
+
+    it('classifies by the node label, not an attached child-component service', () => {
+      // componentServiceByNodeId holds a *child* template-component service (the node's own instance
+      // is excluded), so its isFramework flag reflects the child. A user component that renders a
+      // framework child (e.g. <router-outlet>) must still be flagged for high coupling.
+      fake.servicesData = [
+        svcReg({id: 52, nodeId: 34, label: 'RouterOutlet', dependencyType: 'Component', isFramework: true}),
       ];
-      fake.dependenciesData = [...depsFor(30, 5), ...depsFor(31, 5)];
+      fake.nodesData = [nodeReg({id: 34, label: 'DashboardComponent'})];
+      fake.dependenciesData = depsFor(34, 5);
+      expect(anomalyOf('coupling-34', svc.runDiagnostics(cfg))).toBeTruthy();
+    });
+
+    it('skips ng- prefixed framework nodes', () => {
+      fake.nodesData = [nodeReg({id: 30, label: 'ng-container'})];
+      fake.dependenciesData = depsFor(30, 5);
       expect(svc.runDiagnostics(cfg).anomalies).toEqual([]);
     });
   });

@@ -80,8 +80,10 @@ const IGNORED_TOKENS = new Set<any>([
   'GENIE_NODE'
 ]);
 
+// Stored unprefixed; every lookup normalises first, so both the esbuild-mangled runtime name
+// (`_GenieComponent`) and the plain name (`GenieComponent`, e.g. webpack builds) are excluded.
 const GENIE_INTERNAL_COMPONENTS = new Set([
-  '_GenieComponent'
+  'GenieComponent'
 ]);
 
 const EMPTY_SERVICES: GenieServiceRegistration[] = [];
@@ -190,6 +192,8 @@ export class GenieRegistryService {
 
   /** Whether the DI-capture spy should record injections. Off while the overlay is closed. */
   private _captureActive = false;
+  /** How many overlay instances currently hold a capture lease (refcount for multi-instance safety). */
+  private _captureConsumers = 0;
   /** Injector instances whose `get` we have wrapped, so they can be reverted on teardown. */
   private readonly _patchedInjectors = new Set<any>();
 
@@ -380,6 +384,24 @@ export class GenieRegistryService {
     }
   }
 
+  /**
+   * Acquire a capture lease. Each mounted overlay instance takes one while it is open. Capture stays
+   * on as long as at least one lease is held, so a second overlay closing does not silently disable
+   * capture (and wipe the deferred buffer) for one that is still open.
+   */
+  acquireCapture(): void {
+    this._captureConsumers++;
+    this._captureActive = true;
+  }
+
+  /** Release a capture lease. When the last one is released, capture is disabled and the buffer cleared. */
+  releaseCapture(): void {
+    this._captureConsumers = Math.max(0, this._captureConsumers - 1);
+    if (this._captureConsumers === 0) {
+      this.setCaptureActive(false);
+    }
+  }
+
   /** Restore every patched injector and drop buffered events. Runs when the registry is destroyed. */
   private teardownCapture(): void {
     this._captureActive = false;
@@ -558,7 +580,13 @@ export class GenieRegistryService {
         return;
       }
 
-      this._deferredEvents = remainingEvents;
+      // Merge rather than overwrite, so any events the capture spy queued while we processed chunks
+      // asynchronously are not silently dropped. In the current design nothing pushes to
+      // _deferredEvents during this window — host DI never routes through our patched wrappers — so
+      // when the buffer is empty this is exactly the old overwrite; it only hardens a latent path.
+      this._deferredEvents = this._deferredEvents.length > 0
+        ? [...remainingEvents, ...this._deferredEvents]
+        : remainingEvents;
       this._deferredTokensByInjector = remainingTokensByInjector;
       onComplete();
     };
@@ -619,18 +647,19 @@ export class GenieRegistryService {
 
     const injector = compRef.injector;
 
-
-    this.patchInjectorInstance(injector);
-
     let node = this.findNodeByInjector(injector) ?? this.findNodeByComponentInstance(compRef.instance);
 
     if (!node) {
+      // Patch only the injector we are about to bind to a brand-new node. On a rescan the component
+      // is already known and `compRef.injector` hands back a fresh NodeInjector wrapper every call;
+      // patching (and strongly retaining) one per rescan would leak its lView, because cleanupNode
+      // only ever restores the single injector stored as `node.injector`.
+      this.patchInjectorInstance(injector);
       node = this.register(name, injector, parentNode, 'Element');
       node.componentInstance = compRef.instance;
       this.bindComponentInstanceToNode(compRef.instance, node);
       this.queueNodeEnrichment(node, componentType);
     } else {
-      this.bindInjectorToNode(injector, node);
       if (!node.componentInstance) node.componentInstance = compRef.instance;
       this.bindComponentInstanceToNode(compRef.instance, node);
       this.queueNodeEnrichment(node, componentType);
@@ -667,16 +696,16 @@ export class GenieRegistryService {
           const name = componentType.name || 'AnonymousComponent';
           if (this.isGenieInternalComponent(name)) continue;
 
-          this.patchInjectorInstance(childInjector);
-
           let node = this.findNodeByInjector(childInjector) ?? this.findNodeByComponentInstance(context);
           if (!node) {
+            // Patch only when registering a new node; see scanComponentRef for why re-patching a
+            // fresh ng.getInjector() wrapper on every rescan would leak the retained lView.
+            this.patchInjectorInstance(childInjector);
             node = this.register(name, childInjector, parentNode, 'Element');
             node.componentInstance = context;
             this.bindComponentInstanceToNode(context, node);
             this.queueNodeEnrichment(node, componentType);
           } else {
-            this.bindInjectorToNode(childInjector, node);
             if (!node.componentInstance) node.componentInstance = context;
             this.bindComponentInstanceToNode(context, node);
             this.queueNodeEnrichment(node, componentType);
@@ -758,16 +787,16 @@ export class GenieRegistryService {
             return;
           }
 
-          this.patchInjectorInstance(childInjector);
-
           let node = this.findNodeByInjector(childInjector) ?? this.findNodeByComponentInstance(context);
           if (!node) {
+            // Patch only when registering a new node; see scanComponentRef for why re-patching a
+            // fresh ng.getInjector() wrapper on every rescan would leak the retained lView.
+            this.patchInjectorInstance(childInjector);
             node = this.register(name, childInjector, parentNode, 'Element');
             node.componentInstance = context;
             this.bindComponentInstanceToNode(context, node);
             this.queueNodeEnrichment(node, componentType);
           } else {
-            this.bindInjectorToNode(childInjector, node);
             if (!node.componentInstance) node.componentInstance = context;
             this.bindComponentInstanceToNode(context, node);
             this.queueNodeEnrichment(node, componentType);
@@ -1148,16 +1177,17 @@ export class GenieRegistryService {
 
   private isIgnoredToken(token: any): boolean {
     if (IGNORED_TOKENS.has(token)) return true;
-    const name = this.describeToken(token);
+    const name = normalizeInternalName(this.describeToken(token));
     return IGNORED_TOKENS.has(name);
   }
 
   private isIgnoredTokenFast(token: any): boolean {
-    return IGNORED_TOKENS.has(token) || (typeof token === 'string' && IGNORED_TOKENS.has(token));
+    if (IGNORED_TOKENS.has(token)) return true;
+    return typeof token === 'string' && IGNORED_TOKENS.has(normalizeInternalName(token));
   }
 
   private isGenieInternalComponent(name: string): boolean {
-    return GENIE_INTERNAL_COMPONENTS.has(name);
+    return GENIE_INTERNAL_COMPONENTS.has(normalizeInternalName(name));
   }
 
   private extractProvidersFromComponent(componentType: Type<any>, node: GenieNode): void {
@@ -1322,6 +1352,12 @@ export class GenieRegistryService {
       }
       this.serviceById.delete(service.id);
     }
+    // If a chunked scan's batch is still open, the node may live only in the pending buffers (not yet
+    // in the signals). Purge it there too, otherwise flushRegistryBatch re-appends this just-destroyed
+    // node as an unremovable ghost that strongly retains its dead view.
+    if (this._isRegistryBatchActive) {
+      this.removeNodeFromPendingBatch(nodeId);
+    }
     this._nodes.update(nodes => nodes.filter(n => n.id !== nodeId));
     const nextServices = this._services().filter(s => s.nodeId !== nodeId);
     this.rebuildServiceIndex(nextServices);
@@ -1329,6 +1365,47 @@ export class GenieRegistryService {
     const nextDependencies = this._dependencies().filter(d => d.consumerNodeId !== nodeId && (d.providerId === null || !serviceIdsToRemove.has(d.providerId)));
     this.rebuildDependencyKeys(nextDependencies);
     this._dependencies.set(nextDependencies);
+  }
+
+  /**
+   * Remove a node — and its services and dependencies — from the still-open registry batch's pending
+   * buffers, mirroring what cleanupNode does for the committed signals. Called when a node is destroyed
+   * mid-scan so flushRegistryBatch cannot resurrect it.
+   */
+  private removeNodeFromPendingBatch(nodeId: number): void {
+    if (this._pendingNodes.length) {
+      this._pendingNodes = this._pendingNodes.filter(n => n.id !== nodeId);
+    }
+
+    const removedServiceIds = new Set<number>();
+    if (this._pendingServices.length) {
+      const kept: GenieServiceRegistration[] = [];
+      for (const service of this._pendingServices) {
+        if (service.nodeId === nodeId) {
+          removedServiceIds.add(service.id);
+          if (service.instance && (typeof service.instance === 'object' || typeof service.instance === 'function')) {
+            this.instanceToServiceMap.delete(service.instance);
+          }
+          this.serviceById.delete(service.id);
+          this._pendingServiceUsage.delete(service.id);
+        } else {
+          kept.push(service);
+        }
+      }
+      if (removedServiceIds.size) {
+        this._pendingServices = kept;
+        this._pendingServiceIndexById.clear();
+        for (let index = 0; index < kept.length; index++) {
+          this._pendingServiceIndexById.set(kept[index].id, index);
+        }
+      }
+    }
+
+    if (this._pendingDependencies.length) {
+      this._pendingDependencies = this._pendingDependencies.filter(
+        d => d.consumerNodeId !== nodeId && (d.providerId === null || !removedServiceIds.has(d.providerId))
+      );
+    }
   }
 
   guessProviderType(token: any, instance: any): GenieProviderType {

@@ -5,7 +5,7 @@ import {
   ConstellationGroupingStrategy,
   ConstellationGraphStats,
   ConstellationLinkRenderMode
-} from '../constellation.models';
+} from '../models/constellation.models';
 
 @Component({
   selector: 'lib-constellation-controls',
@@ -60,5 +60,11 @@ export class ConstellationControlsComponent {
   protected layoutModeValue(stats: ConstellationGraphStats): string {
     if (stats.layoutMode === 'force') return this.formatCount(stats.simulationLinks);
     return 'SPREAD';
+  }
+
+  /** The live force simulation only runs in 'force' layout; physics controls are N/A when grouped/static. */
+  protected isForceLayout(): boolean {
+    const mode = this.graphStats()?.layoutMode;
+    return !mode || mode === 'force';
   }
 }

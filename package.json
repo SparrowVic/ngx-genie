@@ -9,6 +9,8 @@
     "test": "ng test",
     "build:genie": "npm run gen:svg-to-ts --prefix projects/ngx-genie && ng build ngx-genie",
     "build:demo": "ng build ngx-genie-demo --configuration demo",
+    "preview": "npm run build:genie && npm run build:demo && node tools/preview-demo.js",
+    "preview:serve": "node tools/preview-demo.js",
     "perf:constellation": "node tools/perf/constellation-harness.js"
   },
   "prettier": {

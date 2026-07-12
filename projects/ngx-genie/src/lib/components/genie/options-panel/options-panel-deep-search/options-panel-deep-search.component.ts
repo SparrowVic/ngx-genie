@@ -11,7 +11,7 @@ import {
 import {MatchMode, SearchMode} from '../options-panel.models';
 import {GenieNode, GenieServiceRegistration} from '../../../../models/genie-node.model';
 import {FormsModule} from '@angular/forms';
-import {ANGULAR_INTERNALS} from '../../../../configs/angular-internals';
+import {ANGULAR_INTERNALS, normalizeInternalName} from '../../../../configs/angular-internals';
 
 @Component({
   selector: 'lib-options-panel-deep-search',
@@ -73,7 +73,10 @@ export class OptionsPanelDeepSearchComponent {
       options = nodes
         .filter(n => {
 
-          if (hideInternals && (ANGULAR_INTERNALS.has(n.label) || n.label.startsWith('ɵ'))) {
+          // Normalise the runtime label first (dev builds mangle names to `_Name`), matching how the
+          // main tree hides internals — otherwise `_ɵEmptyOutletComponent` slips through both checks.
+          const label = normalizeInternalName(n.label);
+          if (hideInternals && (ANGULAR_INTERNALS.has(label) || label.startsWith('ɵ'))) {
             return false;
           }
           return true;
