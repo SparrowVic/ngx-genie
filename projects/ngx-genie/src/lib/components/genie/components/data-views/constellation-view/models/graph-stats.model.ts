@@ -2,7 +2,8 @@
 
 export type ConstellationLinkRenderMode = 'adaptive' | 'focused' | 'all';
 export type ConstellationLayoutStrategy = 'auto' | 'atlas' | 'organic';
-export type ConstellationGroupingStrategy = 'auto' | 'node-type' | 'scope' | 'tree' | 'type' | 'none';
+// 'type' is a legacy stored alias for 'node-type' (migrated on load); it is not a user-facing option.
+export type ConstellationGroupingStrategy = 'node-type' | 'scope' | 'tree' | 'type' | 'none';
 export type ConstellationLayoutMode = 'force' | 'atlas' | 'organic';
 
 export interface ConstellationGraphStats {

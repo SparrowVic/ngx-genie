@@ -7,30 +7,17 @@ import {ConstellationGroupingStrategy} from '../models/constellation.models';
  * that keeps every member of a subtree under one stable group label. Pure and side-effect free.
  */
 export class ConstellationGrouping {
-  static _resolveGroupingStrategy(
-    groupingStrategy: ConstellationGroupingStrategy,
-    useOrganicLayout: boolean
-  ): Exclude<ConstellationGroupingStrategy, 'auto'> {
+  /** Normalize the stored strategy: the legacy 'type' alias maps to 'node-type'; others pass through. */
+  static _resolveGroupingStrategy(groupingStrategy: ConstellationGroupingStrategy): ConstellationGroupingStrategy {
     if (groupingStrategy === 'type') return 'node-type';
-    if (
-      groupingStrategy === 'node-type'
-      || groupingStrategy === 'scope'
-      || groupingStrategy === 'tree'
-      || groupingStrategy === 'none'
-    ) {
-      return groupingStrategy;
-    }
-
-    // 'auto': group by node type whenever the layout is organic (consistent with the AUTO label),
-    // instead of only above an invisible node-count threshold.
-    return useOrganicLayout ? 'node-type' : 'none';
+    return groupingStrategy;
   }
 
   static _organicGroupingKey(
     node: GenieTreeNode,
     rootNodeId: number,
     nodeById: Map<number, GenieTreeNode>,
-    groupingStrategy: Exclude<ConstellationGroupingStrategy, 'auto'>
+    groupingStrategy: ConstellationGroupingStrategy
   ): string {
     if (groupingStrategy === 'none') return 'all';
     if (node.id === rootNodeId) return 'root';
@@ -47,7 +34,7 @@ export class ConstellationGrouping {
     node: GenieTreeNode,
     rootNodeId: number,
     nodeById: Map<number, GenieTreeNode>,
-    groupingStrategy: Exclude<ConstellationGroupingStrategy, 'auto'>
+    groupingStrategy: ConstellationGroupingStrategy
   ): string {
     if (node.id === rootNodeId) return 'ROOT';
     if (groupingStrategy === 'node-type' || groupingStrategy === 'type') return 'Injector / Node';
@@ -63,7 +50,7 @@ export class ConstellationGrouping {
     node: GenieTreeNode,
     rootNodeId: number,
     nodeById: Map<number, GenieTreeNode>,
-    groupingStrategy: Exclude<ConstellationGroupingStrategy, 'auto'>
+    groupingStrategy: ConstellationGroupingStrategy
   ): string {
     if (groupingStrategy === 'none') return 'all';
     if (node.id === rootNodeId) return 'root';
@@ -87,7 +74,7 @@ export class ConstellationGrouping {
     node: GenieTreeNode,
     rootNodeId: number,
     nodeById: Map<number, GenieTreeNode>,
-    groupingStrategy: Exclude<ConstellationGroupingStrategy, 'auto'>
+    groupingStrategy: ConstellationGroupingStrategy
   ): string {
     if (node.id === rootNodeId) return 'ROOT';
     if (groupingStrategy === 'node-type' || groupingStrategy === 'type') return node.label;

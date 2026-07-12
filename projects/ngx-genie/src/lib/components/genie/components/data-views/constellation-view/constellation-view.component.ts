@@ -806,22 +806,22 @@ export class ConstellationViewComponent implements OnDestroy, AfterViewInit {
   }
 
   private loadGroupingStrategy(): ConstellationGroupingStrategy {
-    if (!this.isBrowser) return 'auto';
+    if (!this.isBrowser) return 'none';
     try {
       const stored = localStorage.getItem(STORAGE_KEY_CONSTELLATION_GROUPING_STRATEGY);
       if (stored === 'type') return 'node-type';
       if (
-        stored === 'auto'
-        || stored === 'node-type'
+        stored === 'node-type'
         || stored === 'scope'
         || stored === 'tree'
         || stored === 'none'
       ) {
         return stored;
       }
-      return 'auto';
+      // Anything else (including the removed 'auto' default) falls back to OFF.
+      return 'none';
     } catch (e) {
-      return 'auto';
+      return 'none';
     }
   }
 

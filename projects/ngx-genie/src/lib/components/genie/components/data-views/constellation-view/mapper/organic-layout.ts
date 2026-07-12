@@ -44,7 +44,7 @@ export class OrganicLayout {
     rootNodeId: number,
     centerX: number,
     centerY: number,
-    groupingStrategy: Exclude<ConstellationGroupingStrategy, 'auto'>,
+    groupingStrategy: ConstellationGroupingStrategy,
     usedProviderIds: Set<number>
   ): StaticLayoutResult {
     const injectorPositions = new Map<number, { x: number; y: number }>();
@@ -450,7 +450,7 @@ export class OrganicLayout {
   static _buildOrganicServiceEntries(
     rankedNodes: OrganicRankedNode[],
     servicesByNodeId: Map<number, GenieServiceRegistration[]>,
-    groupingStrategy: Exclude<ConstellationGroupingStrategy, 'auto'>,
+    groupingStrategy: ConstellationGroupingStrategy,
     usedProviderIds: Set<number>
   ): OrganicServiceRankedNode[] {
     const entries: OrganicServiceRankedNode[] = [];

@@ -264,10 +264,6 @@ $c-accent: #06b6d4;
   &.four {
     grid-template-columns: repeat(4, 1fr);
   }
-
-  &.five {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
 }
 
 
