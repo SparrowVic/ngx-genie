@@ -46,8 +46,12 @@ Thumbs.db
 *.local.md
 /.notes/
 
-# Claude Code local skills (kept local until polished for publishing)
-/.claude/skills/
+# AI coding tools — local config/state dirs (never committed)
+/.claude/
+/.codex/
 
 # Playwright MCP browser artifacts (transient screenshots / console logs)
 /.playwright-mcp/
+
+# Local Netlify folder
+.netlify
