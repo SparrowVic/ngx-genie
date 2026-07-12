@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { APP_BRAND } from '../../../core/tokens/brand.token';
+import { HotkeyService } from '../../../core/services/hotkey.service';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
 import { ChipComponent } from '../../../shared/ui/chip/chip.component';
 import { GlowDirective } from '../../../core/directives/glow.directive';
@@ -26,4 +27,5 @@ import { RevealOnScrollDirective } from '../../../core/directives/reveal-on-scro
 })
 export class FinalCtaComponent {
   protected readonly brand = inject(APP_BRAND);
+  protected readonly hotkey = inject(HotkeyService);
 }

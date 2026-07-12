@@ -1,5 +1,6 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { CommandAction } from '../models/content.model';
+import { HotkeyService } from './hotkey.service';
 
 /**
  * ⌘K command palette store. `query` is a public writable signal so the input can
@@ -8,22 +9,24 @@ import { CommandAction } from '../models/content.model';
  */
 @Injectable({ providedIn: 'root' })
 export class CommandPaletteService {
+  private readonly hotkey = inject(HotkeyService);
+
   private readonly _open = signal(false);
   readonly open = this._open.asReadonly();
 
   readonly query = signal('');
 
-  private readonly _actions = signal<CommandAction[]>([
+  private readonly _actions = computed<CommandAction[]>(() => [
     { id: 'home', label: 'Go to Home', hint: 'Landing', icon: 'home', group: 'Navigate', path: '/' },
     { id: 'features', label: 'Go to Features', hint: 'The six views', icon: 'sparkles', group: 'Navigate', path: '/features' },
     { id: 'playground', label: 'Open Playground', hint: 'Live DI lab', icon: 'flask', group: 'Navigate', path: '/playground' },
     { id: 'docs', label: 'Read the Docs', hint: 'Install & config', icon: 'book', group: 'Navigate', path: '/docs' },
-    { id: 'toggle-genie', label: 'Toggle GenieOS overlay', hint: 'Press F1', icon: 'bolt', group: 'Actions' },
+    { id: 'toggle-genie', label: 'Toggle GenieOS overlay', hint: `Press ${this.hotkey.key}`, icon: 'bolt', group: 'Actions' },
     { id: 'theme', label: 'Switch theme', hint: 'Cosmic ⇄ Daylight', icon: 'moon', group: 'Actions' },
     { id: 'npm', label: 'Open on npm', hint: 'ngx-genie', icon: 'npm', group: 'External', external: 'https://www.npmjs.com/package/ngx-genie' },
     { id: 'github', label: 'View source on GitHub', hint: 'SparrowVic/ngx-genie', icon: 'github', group: 'External', external: 'https://github.com/SparrowVic/ngx-genie' },
   ]);
-  readonly actions = this._actions.asReadonly();
+  readonly actions = this._actions;
 
   readonly results = computed(() => {
     const q = this.query().toLowerCase().trim();

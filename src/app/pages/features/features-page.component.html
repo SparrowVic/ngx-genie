@@ -5,7 +5,7 @@
       <ui-section-header
         eyebrow="The observatory"
         heading="Six lenses on your *dependency graph*"
-        subtitle="GenieOS reconstructs Angular's hidden injector graph and renders it six different ways — from a familiar tree to a living constellation. Press F1, pick your view."
+        [subtitle]="heroSubtitle"
         align="center"
       >
         <div class="features-hero__actions">
@@ -73,7 +73,7 @@
       </nav>
 
       <div class="features-nav__foot glass">
-        <ui-chip icon="command" accent="var(--indigo)">Press F1 anywhere</ui-chip>
+        <ui-chip icon="command" accent="var(--indigo)">Press {{ hotkey.key }} anywhere</ui-chip>
         <p class="features-nav__hint">
           Every view ships in {{ brand.name }} v{{ brand.version }} — OnPush and
           signal-driven, so the overlay never blocks your app.

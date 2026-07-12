@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { TitleCasePipe, isPlatformBrowser } from '@angular/common';
 import { ConstellationFieldService } from '../../../core/services/constellation-field.service';
+import { HotkeyService } from '../../../core/services/hotkey.service';
 import { GraphEdge, GraphNode, NodeKind } from '../../../core/models/constellation.model';
 import { SectionHeaderComponent } from '../../../shared/ui/section-header/section-header.component';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
@@ -86,6 +87,10 @@ const KIND_ICON: Record<NodeKind, string> = {
 export class ConstellationDemoComponent {
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   readonly field = inject(ConstellationFieldService);
+  private readonly hotkey = inject(HotkeyService);
+
+  /** Section subtitle — mentions the configured overlay hotkey. */
+  readonly subtitle = `This is a miniature of the force-directed constellation GenieOS paints behind ${this.hotkey.key}. Nodes drift on their own — hover any provider to isolate its dependency neighbourhood.`;
 
   /** Currently hovered / focused node id, or null when nothing is active. */
   readonly hoveredId = signal<number | null>(null);

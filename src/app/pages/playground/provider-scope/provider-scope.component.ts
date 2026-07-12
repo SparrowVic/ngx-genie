@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ProviderScope } from '../../../core/models/constellation.model';
+import { HotkeyService } from '../../../core/services/hotkey.service';
 import { GlassPanelComponent } from '../../../shared/ui/glass-panel/glass-panel.component';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { ChipComponent } from '../../../shared/ui/chip/chip.component';
@@ -32,6 +33,8 @@ interface ScopeCard {
   styleUrl: './provider-scope.component.scss',
 })
 export class ProviderScopeComponent {
+  protected readonly hotkey = inject(HotkeyService);
+
   readonly cards: readonly ScopeCard[] = [
     {
       scope: 'platform',

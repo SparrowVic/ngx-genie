@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { GenieFeature } from '../../../../core/models/feature.model';
+import { HotkeyService } from '../../../../core/services/hotkey.service';
 import { IconComponent } from '../../../../shared/ui/icon/icon.component';
 import { StatComponent } from '../../../../shared/ui/stat/stat.component';
 import { CodeBlockComponent } from '../../../../shared/ui/code-block/code-block.component';
@@ -21,6 +22,8 @@ import { ButtonComponent } from '../../../../shared/ui/button/button.component';
   styleUrl: './feature-spotlight.component.scss',
 })
 export class FeatureSpotlightComponent {
+  protected readonly hotkey = inject(HotkeyService);
+
   readonly feature = input.required<GenieFeature>();
 
   /** Synthetic filename for the demo code block, e.g. "constellation.genie.ts". */

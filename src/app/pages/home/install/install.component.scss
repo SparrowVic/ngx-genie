@@ -48,66 +48,6 @@
   }
 }
 
-.pm-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  padding: var(--space-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: var(--bg-glass);
-}
-
-.pm-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex: 1 1 auto;
-  justify-content: center;
-  min-height: 2.75rem;
-  padding: 0.55rem 1rem;
-  border: 1px solid transparent;
-  border-radius: var(--radius-full);
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  transition:
-    color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-out);
-
-  &__icon {
-    color: var(--text-tertiary);
-    transition: color var(--dur-fast) var(--ease-out);
-  }
-
-  &:hover {
-    color: var(--text-primary);
-    border-color: var(--border-strong);
-    background: var(--surface-1);
-  }
-
-  &:active {
-    transform: scale(0.97);
-  }
-
-  &.is-active {
-    color: var(--text-inverse);
-    background: var(--gradient-brand);
-    border-color: transparent;
-    box-shadow: var(--glow-violet);
-  }
-
-  &.is-active .pm-tab__icon {
-    color: currentColor;
-  }
-}
-
 /* ── Steps header ───────────────────────────────────────────────────── */
 .install__steps-head {
   display: flex;

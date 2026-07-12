@@ -99,6 +99,36 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--rose) 16%, transparent);
 }
 
+/* Disabled "coming soon" state — greyed out and inert. */
+.newsletter__form.is-disabled {
+  opacity: 0.55;
+  filter: saturate(0.6);
+}
+.newsletter__form.is-disabled .newsletter__field {
+  background: var(--bg-glass);
+  cursor: not-allowed;
+}
+.newsletter__form.is-disabled .newsletter__field:focus-within {
+  border-color: var(--border);
+  box-shadow: none;
+}
+.newsletter__form.is-disabled .newsletter__input {
+  cursor: not-allowed;
+}
+
+.newsletter__soon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-tertiary);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+.newsletter__soon ui-icon {
+  display: inline-flex;
+  color: var(--text-tertiary);
+}
+
 .newsletter__error {
   display: inline-flex;
   align-items: center;

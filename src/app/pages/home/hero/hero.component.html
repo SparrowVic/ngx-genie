@@ -22,7 +22,7 @@
 
       <p class="hero-lead" [appReveal]="170">
         GenieOS is a zero-cost devtool that reads your running app's injector tree and
-        renders it as a living constellation. Press <kbd>F1</kbd> to inspect every provider,
+        renders it as a living constellation. Press <kbd>{{ hotkey.key }}</kbd> to inspect every provider,
         signal and change-detection hot spot — in real time.
       </p>
 
@@ -37,9 +37,9 @@
           type="button"
           class="keycap-summon"
           (click)="summonOverlay()"
-          aria-label="F1 — Press to summon the live overlay, right here"
+          [attr.aria-label]="hotkey.key + ' — Press to summon the live overlay, right here'"
         >
-          <span class="keycap" aria-hidden="true">F1</span>
+          <span class="keycap" aria-hidden="true">{{ hotkey.key }}</span>
           <span class="keycap-hint" aria-hidden="true">
             <span class="keycap-hint-strong">Press to summon</span>
             <span class="keycap-hint-sub">the live overlay, right here</span>

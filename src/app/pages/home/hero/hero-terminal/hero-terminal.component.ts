@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { IconComponent } from '../../../../shared/ui/icon/icon.component';
 import { APP_BRAND } from '../../../../core/tokens/brand.token';
+import { HotkeyService } from '../../../../core/services/hotkey.service';
 import { prefersReducedMotion } from '../../../../core/directives/reduced-motion';
 
 type LineKind = 'command' | 'muted' | 'comment' | 'keyword' | 'code' | 'blank';
@@ -41,6 +42,7 @@ interface RenderedLine extends TerminalLine {
 })
 export class HeroTerminalComponent {
   private readonly brand = inject(APP_BRAND);
+  protected readonly hotkey = inject(HotkeyService);
   private readonly destroyRef = inject(DestroyRef);
 
   /** Number of characters typed across the whole script so far. */
@@ -56,7 +58,7 @@ export class HeroTerminalComponent {
     { kind: 'blank', text: '' },
     { kind: 'code', text: 'export const appConfig: ApplicationConfig = {' },
     { kind: 'code', text: '  providers: [' },
-    { kind: 'code', text: "    provideGenie({ hotkey: 'F1' })," },
+    { kind: 'code', text: `    provideGenie({ hotkey: '${this.hotkey.key}' }),` },
     { kind: 'code', text: '  ],' },
     { kind: 'code', text: '};' },
   ]);

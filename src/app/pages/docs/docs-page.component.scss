@@ -125,57 +125,6 @@
   white-space: nowrap;
 }
 
-.toc__divider {
-  margin-block: var(--space-1);
-}
-
-.toc__install {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.toc__managers {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.toc__manager {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.65rem;
-  border-radius: var(--radius-full);
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
-  transition:
-    color var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-out);
-}
-.toc__manager:hover {
-  color: var(--text-primary);
-  border-color: var(--border-strong);
-}
-.toc__manager:active {
-  transform: scale(0.97);
-}
-.toc__manager.is-active {
-  color: var(--text-primary);
-  border-color: color-mix(in srgb, var(--cyan) 55%, transparent);
-  background: color-mix(in srgb, var(--cyan) 14%, transparent);
-}
-
-.toc__snippet {
-  display: block;
-}
-
 /* ---- Main reading column ---- */
 .docs-page__main {
   display: flex;
@@ -359,8 +308,7 @@
 
 /* Comfortable hit targets on touch. */
 @media (pointer: coarse) {
-  .toc__link,
-  .toc__manager {
+  .toc__link {
     min-height: 2.5rem;
   }
 }

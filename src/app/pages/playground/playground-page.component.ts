@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NotificationService } from '../../core/services/notification.service';
+import { HotkeyService } from '../../core/services/hotkey.service';
 import { APP_BRAND } from '../../core/tokens/brand.token';
 import { SectionHeaderComponent } from '../../shared/ui/section-header/section-header.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
@@ -43,6 +44,7 @@ interface Pointer {
 })
 export class PlaygroundPageComponent {
   protected readonly brand = inject(APP_BRAND);
+  protected readonly hotkey = inject(HotkeyService);
   private readonly notifications = inject(NotificationService);
 
   /** How many times the "inspect" hint has been fired this session. */
@@ -50,20 +52,20 @@ export class PlaygroundPageComponent {
   readonly prompts = this._prompts.asReadonly();
 
   readonly pointers: readonly Pointer[] = [
-    { icon: 'command', text: 'Press F1 to open the overlay', accent: 'var(--indigo)' },
+    { icon: 'command', text: `Press ${this.hotkey.key} to open the overlay`, accent: 'var(--indigo)' },
     { icon: 'layers', text: 'Element-scoped providers nest here', accent: 'var(--cyan)' },
     { icon: 'eye', text: 'Live Inspector tracks every signal', accent: 'var(--violet)' },
   ];
 
   readonly promptLabel = computed(() =>
-    this._prompts() === 0 ? 'Press F1 to inspect' : 'Remind me again',
+    this._prompts() === 0 ? `Press ${this.hotkey.key} to inspect` : 'Remind me again',
   );
 
   promptInspect(): void {
     this._prompts.update((n) => n + 1);
     this.notifications.push({
       title: 'Open GenieOS',
-      message: 'Press F1 to inspect this page’s dependency graph.',
+      message: `Press ${this.hotkey.key} to inspect this page’s dependency graph.`,
       tone: 'info',
       icon: 'command',
     });

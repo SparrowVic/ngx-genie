@@ -11,6 +11,7 @@ import {
 import { isPlatformBrowser } from '@angular/common';
 import { FeatureCatalogService } from '../../core/services/feature-catalog.service';
 import { FeatureId } from '../../core/models/feature.model';
+import { HotkeyService } from '../../core/services/hotkey.service';
 import { APP_BRAND } from '../../core/tokens/brand.token';
 import { SectionHeaderComponent } from '../../shared/ui/section-header/section-header.component';
 import { StatComponent } from '../../shared/ui/stat/stat.component';
@@ -51,10 +52,14 @@ export class FeaturesPageComponent implements OnDestroy {
 
   readonly catalog = inject(FeatureCatalogService);
   readonly brand = inject(APP_BRAND);
+  readonly hotkey = inject(HotkeyService);
 
   readonly features = this.catalog.features;
   readonly activeId = this.catalog.selectedId;
   readonly viewCount = this.catalog.count;
+
+  /** Hero subtitle — mentions the configured overlay hotkey. */
+  readonly heroSubtitle = `GenieOS reconstructs Angular's hidden injector graph and renders it six different ways — from a familiar tree to a living constellation. Press ${this.hotkey.key}, pick your view.`;
 
   /** Provider/dependency kinds GenieOS classifies (Service, Pipe, Directive, Component, …). */
   readonly providerTypes = 9;

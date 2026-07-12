@@ -16,6 +16,7 @@ import { HighlightPipe } from '../../../core/pipes/highlight.pipe';
 import { CommandPaletteService } from '../../../core/services/command-palette.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { HotkeyService } from '../../../core/services/hotkey.service';
 import { CommandAction } from '../../../core/models/content.model';
 
 /**
@@ -40,6 +41,7 @@ export class CommandPaletteComponent {
   private readonly router = inject(Router);
   private readonly theme = inject(ThemeService);
   private readonly notify = inject(NotificationService);
+  private readonly hotkey = inject(HotkeyService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   protected readonly palette = inject(CommandPaletteService);
@@ -147,7 +149,7 @@ export class CommandPaletteComponent {
     } else {
       this.notify.push({
         title: 'Summon the overlay',
-        message: 'Press F1 anywhere to open the GenieOS dependency graph.',
+        message: `Press ${this.hotkey.key} anywhere to open the GenieOS dependency graph.`,
         tone: 'info',
         icon: 'bolt',
       });

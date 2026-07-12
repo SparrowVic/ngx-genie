@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { StatsService } from '../../../core/services/stats.service';
 import { FeatureCatalogService } from '../../../core/services/feature-catalog.service';
+import { HotkeyService } from '../../../core/services/hotkey.service';
 import { APP_BRAND } from '../../../core/tokens/brand.token';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
 import { StatComponent } from '../../../shared/ui/stat/stat.component';
@@ -36,6 +37,7 @@ export class HeroComponent {
   private readonly stats = inject(StatsService);
   private readonly catalog = inject(FeatureCatalogService);
   readonly brand = inject(APP_BRAND);
+  protected readonly hotkey = inject(HotkeyService);
 
   /** Headline metrics rendered as a row of ui-stat blocks. */
   readonly headline = this.stats.headline;
@@ -49,10 +51,10 @@ export class HeroComponent {
   readonly angularMajor = computed(() => this.brand.version.split('.')[0]);
 
   /**
-   * The F1 keycap affordance: replays the real hotkey so the actual GenieOS
-   * overlay (listening on window) opens — no simulation involved.
+   * The keycap affordance: replays the real, configured hotkey so the actual
+   * GenieOS overlay (listening on window) opens — no simulation involved.
    */
   summonOverlay(): void {
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F1' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: this.hotkey.key }));
   }
 }

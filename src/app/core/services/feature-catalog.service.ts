@@ -1,5 +1,6 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { FeatureId, GenieFeature } from '../models/feature.model';
+import { HotkeyService } from './hotkey.service';
 
 /**
  * Source of truth for the six GenieOS inspector features. Exposes the list plus
@@ -7,8 +8,16 @@ import { FeatureId, GenieFeature } from '../models/feature.model';
  */
 @Injectable({ providedIn: 'root' })
 export class FeatureCatalogService {
-  private readonly _features = signal<GenieFeature[]>(FEATURES);
-  readonly features = this._features.asReadonly();
+  private readonly hotkey = inject(HotkeyService);
+
+  // Feature demo snippets mention the overlay hotkey (e.g. `provideGenie({ hotkey: "F1" })`,
+  // `F1 → Constellation`); rewrite the literal `F1` to the app's configured key.
+  private readonly _features = computed<GenieFeature[]>(() =>
+    FEATURES.map((f) =>
+      f.demo.includes('F1') ? { ...f, demo: f.demo.replace('F1', this.hotkey.key) } : f,
+    ),
+  );
+  readonly features = this._features;
 
   private readonly _selectedId = signal<FeatureId>('constellation');
   readonly selectedId = this._selectedId.asReadonly();

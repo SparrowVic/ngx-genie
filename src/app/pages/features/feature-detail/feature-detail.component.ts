@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { GenieFeature } from '../../../core/models/feature.model';
+import { HotkeyService } from '../../../core/services/hotkey.service';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { ChipComponent } from '../../../shared/ui/chip/chip.component';
 import { StatComponent } from '../../../shared/ui/stat/stat.component';
@@ -34,6 +35,8 @@ import { OrdinalPipe } from '../../../core/pipes/ordinal.pipe';
   ],
 })
 export class FeatureDetailComponent {
+  protected readonly hotkey = inject(HotkeyService);
+
   readonly feature = input.required<GenieFeature>();
   /** Zero-based position in the list — drives the alternating layout. */
   readonly index = input(0);

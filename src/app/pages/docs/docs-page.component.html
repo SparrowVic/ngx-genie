@@ -3,7 +3,7 @@
     <ui-section-header
       eyebrow="Documentation"
       heading="Summon the *observatory*"
-      subtitle="Install GenieOS as a dev dependency, wire up one standalone provider, and press F1. From zero to a live dependency-injection graph in under a minute."
+      [subtitle]="heroSubtitle"
       align="left"
     />
 
@@ -29,44 +29,26 @@
               </li>
             }
           </ul>
-
-          <div class="divider toc__divider"></div>
-
-          <div class="toc__install">
-            <p class="toc__title eyebrow">Quick install</p>
-            <div class="toc__managers" role="group" aria-label="Package manager">
-              @for (cmd of install.commands(); track cmd.manager) {
-                <button
-                  type="button"
-                  class="toc__manager"
-                  [class.is-active]="install.manager() === cmd.manager"
-                  [attr.aria-pressed]="install.manager() === cmd.manager"
-                  (click)="selectManager(cmd.manager)"
-                >
-                  <ui-icon [name]="cmd.icon" [size]="15" />
-                  <span>{{ cmd.label }}</span>
-                </button>
-              }
-            </div>
-            <ui-code-block
-              class="toc__snippet"
-              [code]="install.current().command"
-              lang="bash"
-              filename="terminal"
-              compact
-            />
-          </div>
         </nav>
       </aside>
 
       <!-- ============ Main reading column ============ -->
       <div class="docs-page__main">
         @for (s of content.docs(); track s.id; let i = $index) {
-          <app-docs-section
-            class="docs-page__section"
-            [section]="s"
-            [appReveal]="i * 60"
-          />
+          @if (s.id === 'install') {
+            <!-- Installation renders the interactive package-manager picker -->
+            <app-docs-install
+              class="docs-page__section"
+              [section]="s"
+              [appReveal]="i * 60"
+            />
+          } @else {
+            <app-docs-section
+              class="docs-page__section"
+              [section]="s"
+              [appReveal]="i * 60"
+            />
+          }
         }
 
         <hr class="docs-page__beacon beacon-divider" aria-hidden="true" />

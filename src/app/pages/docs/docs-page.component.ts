@@ -10,15 +10,14 @@ import {
 import { DOCUMENT } from '@angular/common';
 import { ContentService } from '../../core/services/content.service';
 import { ScrollSpyService } from '../../core/services/scroll-spy.service';
-import { InstallService } from '../../core/services/install.service';
-import { PackageManager } from '../../core/models/install.model';
+import { HotkeyService } from '../../core/services/hotkey.service';
 import { SectionHeaderComponent } from '../../shared/ui/section-header/section-header.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { ChipComponent } from '../../shared/ui/chip/chip.component';
-import { CodeBlockComponent } from '../../shared/ui/code-block/code-block.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { RevealOnScrollDirective } from '../../core/directives/reveal-on-scroll.directive';
 import { DocsSectionComponent } from './docs-section/docs-section.component';
+import { DocsInstallComponent } from './docs-install/docs-install.component';
 import { ConfigTableComponent } from './config-table/config-table.component';
 
 interface TocItem {
@@ -41,19 +40,22 @@ interface TocItem {
     SectionHeaderComponent,
     IconComponent,
     ChipComponent,
-    CodeBlockComponent,
     ButtonComponent,
     RevealOnScrollDirective,
     DocsSectionComponent,
+    DocsInstallComponent,
     ConfigTableComponent,
   ],
 })
 export class DocsPageComponent {
   protected readonly content = inject(ContentService);
-  protected readonly install = inject(InstallService);
+  protected readonly hotkey = inject(HotkeyService);
   private readonly scrollSpy = inject(ScrollSpyService);
   private readonly doc = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
+
+  /** Page header subtitle — mentions the configured overlay hotkey. */
+  readonly heroSubtitle = `Install GenieOS as a dev dependency, wire up one standalone provider, and press ${this.hotkey.key}. From zero to a live dependency-injection graph in under a minute.`;
 
   /** Table of contents = every doc section, then the config + compatibility anchors. */
   readonly tocItems = computed<TocItem[]>(() => [
@@ -79,11 +81,6 @@ export class DocsPageComponent {
     this.doc
       .getElementById(id)
       ?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
-  }
-
-  /** Switch the package manager shown in the quick-install snippet. */
-  selectManager(manager: PackageManager): void {
-    this.install.select(manager);
   }
 
   private setActive(id: string): void {
