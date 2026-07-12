@@ -1,0 +1,98 @@
+<footer class="footer">
+  <hr class="footer__beacon beacon-divider" aria-hidden="true" />
+  <div class="footer__bloom" aria-hidden="true"></div>
+
+  <div class="container footer__inner">
+    <div class="footer__top">
+      <!-- Brand column -->
+      <div class="footer__brand stack" appReveal>
+        <a class="footer__logo" routerLink="/" aria-label="{{ brand.name }} home">
+          <ui-logo [size]="34" [showText]="true" />
+        </a>
+        <p class="footer__tagline">{{ brand.tagline }}.</p>
+
+        <div class="footer__chips">
+          @for (chip of brandChips; track chip.label) {
+            <ui-chip [icon]="chip.icon" [accent]="chip.accent">{{ chip.label }}</ui-chip>
+          }
+        </div>
+
+        <p class="footer__meta mono">
+          <ui-icon name="cpu" [size]="14" />
+          {{ brand.codename }} · Angular DI inspector
+        </p>
+      </div>
+
+      <!-- Link columns -->
+      <nav class="footer__nav" aria-label="Footer">
+        @for (col of columns; track col.title; let i = $index) {
+          <div class="footer__col stack" [appReveal]="80 + i * 80">
+            <h4 class="footer__col-title">{{ col.title }}</h4>
+            <ul class="footer__links stack">
+              @for (link of col.links; track link.label) {
+                <li>
+                  @if (link.external) {
+                    <a
+                      class="footer__link"
+                      [href]="link.href"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      @if (link.icon) {
+                        <ui-icon [name]="link.icon" [size]="15" />
+                      }
+                      <span>{{ link.label }}</span>
+                      <ui-icon class="footer__link-out" name="arrow-up-right" [size]="13" />
+                    </a>
+                  } @else {
+                    <a class="footer__link" [routerLink]="link.href">
+                      @if (link.icon) {
+                        <ui-icon [name]="link.icon" [size]="15" />
+                      }
+                      <span>{{ link.label }}</span>
+                    </a>
+                  }
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      </nav>
+
+      <!-- Newsletter -->
+      <div class="footer__newsletter panel" [appReveal]="320">
+        <app-footer-newsletter />
+      </div>
+    </div>
+
+    <hr class="divider footer__divider" />
+
+    <!-- Bottom bar -->
+    <div class="footer__bottom">
+      <div class="footer__legal">
+        <span class="pill footer__version tnum">
+          <ui-icon name="sparkles" [size]="13" />
+          v{{ brand.version }}
+        </span>
+        <span class="footer__copy tnum">© {{ year() }} {{ brand.name }} · MIT + Commons Clause</span>
+      </div>
+
+      <ul class="footer__socials">
+        @for (social of socials; track social.label) {
+          <li>
+            <a
+              class="footer__social"
+              [href]="social.href"
+              target="_blank"
+              rel="noopener noreferrer"
+              [attr.aria-label]="social.label"
+              [attr.title]="social.label"
+            >
+              <ui-icon [name]="social.icon" [size]="18" />
+            </a>
+          </li>
+        }
+      </ul>
+    </div>
+  </div>
+</footer>

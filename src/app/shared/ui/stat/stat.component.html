@@ -1,0 +1,21 @@
+<div class="stat" role="group" [attr.aria-label]="ariaLabel()" [style.--accent]="accent()">
+  @if (icon(); as ic) {
+    <span class="stat__icon" aria-hidden="true">
+      <ui-icon [name]="ic" [size]="18" />
+    </span>
+  }
+
+  @if (isNumeric()) {
+    <span
+      class="stat__value"
+      aria-hidden="true"
+      [appCountUp]="numericValue()"
+      [decimals]="decimals()"
+      [suffix]="suffix()"
+    ></span>
+  } @else {
+    <span class="stat__value" aria-hidden="true">{{ value() }}{{ suffix() }}</span>
+  }
+
+  <span class="stat__label">{{ label() }}</span>
+</div>

@@ -24,7 +24,6 @@ import {GenieFilterState} from '../options-panel/options-panel.models';
 
 @Component({
   selector: 'lib-inspector-panel',
-  standalone: true,
   imports: [
     FormsModule,
     GenieResizableDirective,

@@ -1,0 +1,210 @@
+:host {
+  display: block;
+}
+
+.roadmap__lede {
+  margin-top: var(--space-4);
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  box-shadow: var(--edge-light);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.roadmap__track {
+  position: relative;
+  display: grid;
+  gap: var(--space-6);
+  margin-top: clamp(var(--space-6), 6vw, var(--space-8));
+  padding-left: clamp(var(--space-6), 8vw, var(--space-8));
+}
+
+/* The connecting timeline spine — a hairline dependency edge. */
+.roadmap__spine {
+  position: absolute;
+  top: 0.6rem;
+  bottom: 0.6rem;
+  left: clamp(1.35rem, 4vw, 1.85rem);
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    var(--emerald) 0%,
+    var(--cyan) 45%,
+    var(--violet) 100%
+  );
+  opacity: 0.55;
+  border-radius: var(--radius-full);
+}
+
+/* Terminal node beacon — the trajectory continues past 'planned'. */
+.roadmap__spine::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 7px;
+  height: 7px;
+  transform: translate(-50%, 50%) rotate(45deg);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.5);
+}
+
+.roadmap__phase {
+  position: relative;
+}
+
+/* Hairline connector from the spine node to each phase card — the injector edge.
+   The marker overlaps its left end, so the accent tint sits at the card side. */
+.roadmap__phase::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--space-5) + 1.175rem);
+  left: calc((clamp(1.35rem, 4vw, 1.85rem) + 0.05rem) * -1);
+  width: calc(clamp(1.35rem, 4vw, 1.85rem) + 0.05rem);
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    var(--border-strong),
+    color-mix(in srgb, var(--accent) 55%, transparent)
+  );
+}
+
+.roadmap__marker {
+  position: absolute;
+  top: var(--space-5);
+  left: calc(clamp(1.35rem, 4vw, 1.85rem) * -1 - 0.05rem);
+  transform: translate(-50%, 0);
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: var(--radius-full);
+  color: var(--accent);
+  background: var(--bg-glass-strong);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 0 0 5px var(--bg), 0 0 26px -6px var(--accent);
+  z-index: 1;
+}
+
+.roadmap__card {
+  padding: clamp(var(--space-5), 3vw, var(--space-6));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out);
+}
+
+.roadmap__card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-strong));
+  box-shadow: var(--shadow-panel), 0 0 44px -14px var(--accent);
+}
+
+.roadmap__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.roadmap__quarter {
+  color: color-mix(in srgb, var(--accent) 70%, var(--text-tertiary));
+}
+
+.roadmap__title {
+  font-size: var(--fs-h3);
+  margin-top: var(--space-1);
+}
+
+/* ---------- Progress meter ---------- */
+.roadmap__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.roadmap__bar {
+  position: relative;
+  flex: 1;
+  height: 0.5rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.roadmap__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 60%, var(--indigo)), var(--accent));
+  box-shadow: 0 0 16px -2px var(--accent);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+
+.roadmap__progress-label {
+  flex: none;
+  font-size: var(--fs-micro);
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+/* ---------- Checklist ---------- */
+.roadmap__items {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.roadmap__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--fs-body-sm);
+  transition: color var(--dur) var(--ease-out);
+}
+
+.roadmap__item--done {
+  color: var(--text-primary);
+}
+
+.roadmap__item-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-top: 0.05rem;
+  border-radius: var(--radius-full);
+  color: var(--text-tertiary);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.roadmap__item--done .roadmap__item-icon {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 560px) {
+  .roadmap__head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+  .roadmap__progress {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+  .roadmap__bar {
+    width: 100%;
+  }
+}

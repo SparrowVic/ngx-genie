@@ -1,0 +1,27 @@
+@if (flags.cosmicBackground) {
+  <app-cosmic-background />
+}
+
+<header class="topbar" [class.is-scrolled]="scrollSpy.scrolled()">
+  <div class="topbar__inner container">
+    <app-nav-logo />
+    <app-nav-links />
+    <app-nav-actions />
+  </div>
+
+  <div class="topbar__progress" aria-hidden="true">
+    <span class="topbar__progress-bar" [style.width.%]="scrollSpy.progressPercent()"></span>
+  </div>
+</header>
+
+<main class="shell-main" id="top">
+  <router-outlet />
+</main>
+
+<app-footer />
+
+@if (flags.commandPalette) {
+  <app-command-palette />
+}
+
+<app-toast-host />

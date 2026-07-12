@@ -19,6 +19,7 @@
       (positionChange)="onWindowPositionChange($event)"
       (operationEnd)="onWindowOperationEnd()"
       [stats]="state.stats()"
+      [scanStatus]="state.scanStatus()"
       [searchQuery]="state.searchQuery()"
       [isLiveWatch]="state.isLiveWatch()"
       (searchQueryChange)="updateSearch($event)"
@@ -64,6 +65,8 @@
           [getProvidersForNode]="getProvidersForNode"
           [selectDependency]="selectDependency"
           [selectNode]="selectNode"
+          [selectedNode]="state.selectedNode()"
+          [selectedDependency]="state.selectedService()"
         ></lib-viewport>
       </div>
       @if (showInspectorPanel()) {
@@ -107,5 +110,7 @@
         <path d="M22 22v-20l-20 20h20z" opacity="0.5"/>
       </svg>
     </div>
+
+    <gen-toast></gen-toast>
   </div>
 }

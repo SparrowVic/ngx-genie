@@ -1,0 +1,124 @@
+:host {
+  display: block;
+}
+
+.playground__intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.playground__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+/* ---------- Pointer chips ---------- */
+.playground__pointers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  list-style: none;
+}
+
+.playground__pointer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-full);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
+  background: var(--bg-glass);
+  box-shadow: var(--edge-light);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.playground__pointer-glyph {
+  display: inline-flex;
+  color: var(--accent);
+}
+
+.playground__prompt-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.playground__prompt-note ui-icon {
+  color: var(--emerald);
+}
+
+.playground__prompt-note kbd {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  /* Keycap bottom edge. */
+  box-shadow: inset 0 -1.5px 0 var(--border-strong);
+}
+
+/* ---------- Interactive grid ---------- */
+.playground__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--space-5);
+  margin-top: clamp(var(--space-6), 6vw, var(--space-8));
+  align-items: stretch;
+}
+
+.playground__cell {
+  display: block;
+  min-width: 0;
+}
+
+/* ---------- Section break ---------- */
+.playground__beacon {
+  margin: clamp(var(--space-6), 6vw, var(--space-8)) 0 0;
+}
+
+/* ---------- Scope primer ---------- */
+.playground__scope {
+  margin-top: clamp(var(--space-6), 6vw, var(--space-8));
+}
+
+/* ---------- Footnote ---------- */
+.playground__footnote {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: clamp(var(--space-6), 6vw, var(--space-8));
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+}
+
+.playground__footnote-glyph {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  flex: none;
+  border-radius: var(--radius-md);
+  color: var(--magenta);
+  background: color-mix(in srgb, var(--magenta) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--magenta) 38%, transparent);
+}
+
+.playground__footnote-text {
+  font-size: var(--fs-body-sm);
+  color: var(--text-secondary);
+}
+.playground__footnote-text .mono {
+  font-size: 0.86em;
+  color: var(--text-primary);
+}

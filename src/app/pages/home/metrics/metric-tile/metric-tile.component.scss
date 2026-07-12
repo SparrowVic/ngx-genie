@@ -1,0 +1,107 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.metric-tile {
+  --accent: var(--cyan);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  height: 100%;
+  padding: var(--space-5);
+}
+
+/* Accent light-bar blooming along the top edge on hover — the same signature
+   used by the feature spotlight panel. */
+.metric-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease-out);
+  pointer-events: none;
+}
+
+/* Soft cursor-aware accent wash across the cell. */
+.metric-tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120% 90% at 50% 0%,
+    color-mix(in oklab, var(--accent) 9%, transparent),
+    transparent 65%
+  );
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease-out);
+  pointer-events: none;
+}
+
+.metric-tile:hover::before,
+.metric-tile:hover::after {
+  opacity: 1;
+}
+
+.metric-tile__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.metric-tile__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: var(--radius-md);
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+  transition: box-shadow var(--dur) var(--ease-out);
+}
+
+.metric-tile:hover .metric-tile__icon {
+  box-shadow: 0 0 20px -6px color-mix(in oklab, var(--accent) 70%, transparent);
+}
+
+.metric-tile__label {
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-tile__value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-top: auto;
+}
+
+.metric-tile__number {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(2rem, 3.4vw, 2.6rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+  min-height: 1em;
+}
+
+.metric-tile__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

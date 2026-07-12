@@ -1,0 +1,297 @@
+:host {
+  display: block;
+}
+
+/* ===================== Hero ===================== */
+.features-hero {
+  position: relative;
+  padding-top: calc(var(--nav-h) + clamp(2rem, 6vw, 5rem));
+  background: var(--gradient-cosmic);
+}
+
+.features-hero__inner {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(var(--space-6), 5vw, var(--space-8));
+}
+
+.features-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+  margin-top: var(--space-5);
+}
+
+.features-hero__stats {
+  --stat-gap: clamp(var(--space-4), 3vw, var(--space-6));
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--stat-gap);
+  padding: clamp(var(--space-5), 3vw, var(--space-6));
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  background: var(--bg-glass);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: var(--shadow-1), var(--edge-light);
+}
+
+/* Hairline separators between the band's figures. */
+.features-hero__stats ui-stat {
+  position: relative;
+}
+.features-hero__stats ui-stat:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: calc(var(--stat-gap) / -2);
+  transform: translateY(-50%);
+  width: 1px;
+  height: 72%;
+  background: linear-gradient(180deg, transparent, var(--border-strong), transparent);
+}
+
+/* ===================== Body: nav + spotlights ===================== */
+.features-body {
+  padding-top: 0;
+}
+
+.features-body__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 17rem) minmax(0, 1fr);
+  gap: clamp(var(--space-6), 4vw, var(--space-8));
+  align-items: start;
+}
+
+/* ---------- Sticky mini-nav ---------- */
+.features-nav {
+  position: sticky;
+  top: calc(var(--nav-h) + var(--space-5));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.features-nav__eyebrow {
+  padding-left: var(--space-2);
+}
+
+.features-nav__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.features-nav__item {
+  --accent: var(--violet);
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out),
+    color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+/* Accent hairline indicator — the active view's edge marker. */
+.features-nav__item::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  width: 2px;
+  height: 55%;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  transform: translateY(-50%) scaleY(0);
+  opacity: 0;
+  transition: transform var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out);
+}
+
+.features-nav__item:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border);
+  color: var(--text-primary);
+  transform: translateX(2px);
+}
+
+.features-nav__item:active {
+  transform: scale(0.98);
+}
+
+.features-nav__item.is-active {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 16%, transparent), transparent),
+    var(--bg-glass);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  color: var(--text-primary);
+  box-shadow: 0 0 30px -12px var(--accent);
+}
+
+.features-nav__item.is-active::before {
+  transform: translateY(-50%) scaleY(1);
+  opacity: 1;
+  box-shadow: 0 0 12px var(--accent);
+}
+
+.features-nav__index {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--text-tertiary);
+  transition: color var(--dur) var(--ease-out);
+}
+.features-nav__item.is-active .features-nav__index {
+  color: color-mix(in srgb, var(--accent) 80%, var(--text-primary));
+}
+
+.features-nav__glyph {
+  display: inline-flex;
+  color: var(--text-tertiary);
+  transition: color var(--dur) var(--ease-out);
+}
+.features-nav__item:hover .features-nav__glyph,
+.features-nav__item.is-active .features-nav__glyph {
+  color: var(--accent);
+}
+
+.features-nav__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.features-nav__name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-body-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.features-nav__tagline {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--dur) var(--ease-out);
+}
+/* Tertiary text would dip below AA on the accent-tinted active surface. */
+.features-nav__item.is-active .features-nav__tagline {
+  color: var(--text-secondary);
+}
+
+.features-nav__caret {
+  display: inline-flex;
+  color: var(--text-tertiary);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out),
+    color var(--dur) var(--ease-out);
+}
+.features-nav__item:hover .features-nav__caret,
+.features-nav__item.is-active .features-nav__caret {
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--accent);
+}
+
+.features-nav__foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.features-nav__hint {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ---------- Spotlight stack ---------- */
+.features-body__stack {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.features-body__section {
+  scroll-margin-top: calc(var(--nav-h) + var(--space-5));
+}
+
+.features-body__divider {
+  margin: 0;
+}
+
+/* ===================== Responsive ===================== */
+@media (max-width: 960px) {
+  .features-body__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .features-nav {
+    position: static;
+    top: auto;
+  }
+
+  .features-nav__list {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: var(--space-2);
+    scroll-snap-type: x mandatory;
+  }
+
+  .features-nav__item {
+    flex: 0 0 auto;
+    grid-template-columns: auto auto;
+    scroll-snap-align: start;
+  }
+
+  /* The horizontal rail carries the indicator on its bottom edge instead. */
+  .features-nav__item::before {
+    left: var(--space-3);
+    right: var(--space-3);
+    top: auto;
+    bottom: -1px;
+    width: auto;
+    height: 2px;
+    transform: scaleX(0);
+  }
+
+  .features-nav__item.is-active::before {
+    transform: scaleX(1);
+  }
+
+  .features-nav__text,
+  .features-nav__caret {
+    display: none;
+  }
+
+  .features-nav__foot {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .features-hero__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Only the second column keeps its hairline once the band wraps. */
+  .features-hero__stats ui-stat:nth-child(odd)::before {
+    display: none;
+  }
+}

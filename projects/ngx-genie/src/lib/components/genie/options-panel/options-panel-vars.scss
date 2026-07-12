@@ -1,5 +1,5 @@
 $c-text: #e2e8f0;
-$c-text-dim: #64748b;
+$c-text-dim: #8b98ad;
 $c-primary: #3b82f6;
 $c-accent: #8b5cf6;
 $c-border: rgba(100, 150, 255, 0.15);
@@ -44,9 +44,21 @@ $c-input-bg: rgba(0, 0, 0, 0.4);
   gap: 8px;
   cursor: pointer;
   padding: 4px 0;
+  position: relative;
 
+  // Visually hidden but still focusable (keyboard + screen-reader accessible).
   input {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    margin: 0;
+    pointer-events: none;
+  }
+
+  input:focus-visible + .checkmark {
+    outline: 2px solid $c-primary;
+    outline-offset: 2px;
   }
 
   .checkmark {

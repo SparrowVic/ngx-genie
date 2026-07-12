@@ -1,0 +1,124 @@
+<section class="section constellation">
+  <div class="container stack">
+    <div class="constellation__head" appReveal>
+      <ui-section-header
+        eyebrow="Live demo"
+        heading="A graph that's *alive*"
+        [subtitle]="subtitle"
+      />
+    </div>
+
+    <div class="constellation__body">
+      <div class="constellation__panel panel" [appReveal]="120">
+        <header class="constellation__toolbar">
+          <div class="constellation__readouts">
+            <ui-chip class="tnum" icon="atom" accent="var(--cyan)">{{ field.nodeCount() | pluralize: 'node' }}</ui-chip>
+            <ui-chip class="tnum" icon="hierarchy" accent="var(--indigo)">{{ field.edgeCount() | pluralize: 'link' }}</ui-chip>
+            <ui-chip class="tnum" icon="gauge" accent="var(--magenta)">{{ field.density() }}% density</ui-chip>
+          </div>
+          <ui-button variant="outline" size="sm" icon="recycle" (press)="regenerate()">
+            Regenerate
+          </ui-button>
+        </header>
+
+        <div class="constellation__stage-wrap">
+          <svg
+            class="constellation__stage"
+            viewBox="0 0 160 100"
+            preserveAspectRatio="xMidYMid meet"
+            role="group"
+            aria-label="Interactive dependency-injection constellation"
+            (pointerleave)="clearHover()"
+          >
+            <g class="constellation__edges">
+              @for (e of edgeViews(); track $index) {
+                <line
+                  class="edge"
+                  [class.edge--active]="edgeActive(e.edge)"
+                  [class.edge--dim]="edgeDimmed(e.edge)"
+                  [style.--accent]="e.accent"
+                  [attr.x1]="e.x1"
+                  [attr.y1]="e.y1"
+                  [attr.x2]="e.x2"
+                  [attr.y2]="e.y2"
+                  [attr.stroke-width]="0.14 + e.edge.strength * 0.22"
+                />
+              }
+            </g>
+
+            <g class="constellation__nodes">
+              @for (n of nodeViews(); track n.node.id) {
+                <g
+                  class="node-g"
+                  role="button"
+                  tabindex="0"
+                  [class.is-active]="isActive(n.node.id)"
+                  [class.is-dim]="isDimmed(n.node.id)"
+                  [style.--accent]="n.node.accent"
+                  [attr.aria-label]="n.node.label + ', ' + n.node.kind"
+                  (pointerenter)="hover(n.node.id)"
+                  (click)="hover(n.node.id)"
+                  (focus)="hover(n.node.id)"
+                  (blur)="clearHover()"
+                  (keydown.enter)="hover(n.node.id)"
+                >
+                  <circle class="node-hit" [attr.cx]="n.cx" [attr.cy]="n.cy" [attr.r]="n.r + 3" />
+                  <circle class="node" [attr.cx]="n.cx" [attr.cy]="n.cy" [attr.r]="n.r" />
+                  <title>{{ n.node.label }} · {{ n.node.kind }}</title>
+                </g>
+              }
+            </g>
+          </svg>
+
+          <span class="constellation__scanline" aria-hidden="true"></span>
+        </div>
+      </div>
+
+      <aside class="constellation__aside" [appReveal]="180">
+        <div class="constellation__inspector glass">
+          @if (hoveredNode(); as node) {
+            <span class="inspector__badge" [style.--accent]="node.accent">
+              <ui-icon [name]="'circle'" [size]="12" />
+              Selected node
+            </span>
+            <h3 class="inspector__label" [style.--accent]="node.accent">{{ node.label }}</h3>
+            <dl class="inspector__meta">
+              <div class="inspector__row">
+                <dt>Kind</dt>
+                <dd>{{ node.kind | titlecase }}</dd>
+              </div>
+              <div class="inspector__row">
+                <dt>Scope</dt>
+                <dd>{{ node.scope | titlecase }} injector</dd>
+              </div>
+              <div class="inspector__row">
+                <dt>Links</dt>
+                <dd class="tnum">{{ hoveredDegree() | pluralize: 'dependency' }}</dd>
+              </div>
+            </dl>
+          } @else {
+            <span class="inspector__badge inspector__badge--idle">
+              <ui-icon name="eye" [size]="12" />
+              Idle
+            </span>
+            <h3 class="inspector__label inspector__label--muted">Hover a node</h3>
+            <p class="inspector__hint">
+              Point at any body in the field to isolate it and trace the providers it depends on.
+            </p>
+          }
+        </div>
+
+        <ul class="constellation__legend">
+          @for (item of kindLegend; track item.kind) {
+            <li class="legend-item" [style.--accent]="item.accent">
+              <span class="legend-item__dot" aria-hidden="true"></span>
+              <span class="legend-item__icon"><ui-icon [name]="item.icon" [size]="14" /></span>
+              <span class="legend-item__name">{{ item.kind | titlecase }}</span>
+              <span class="legend-item__count tnum">{{ kindCounts()[item.kind] }}</span>
+            </li>
+          }
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>

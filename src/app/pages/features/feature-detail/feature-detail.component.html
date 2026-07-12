@@ -1,0 +1,94 @@
+<article
+  class="feature-detail"
+  [class.feature-detail--flip]="flip()"
+  [style.--accent]="feature().accent"
+>
+  <!-- Product shot (real capture) — or the accent tile when a feature has no media -->
+  <div class="feature-detail__visual" [appReveal]="60">
+    @if (feature().media; as media) {
+      <figure
+        class="feature-detail__shot"
+        [class.feature-detail__shot--portrait]="portrait()"
+      >
+        <div class="feature-detail__frame">
+          <div class="feature-detail__chrome" aria-hidden="true">
+            <span class="feature-detail__dots">
+              <i class="feature-detail__dot feature-detail__dot--rose"></i>
+              <i class="feature-detail__dot feature-detail__dot--amber"></i>
+              <i class="feature-detail__dot feature-detail__dot--emerald"></i>
+            </span>
+            <span class="feature-detail__address mono">genie://{{ feature().id }}</span>
+            <kbd class="feature-detail__kbd">{{ hotkey.key }}</kbd>
+          </div>
+          <img
+            class="feature-detail__img"
+            [src]="media.src"
+            [alt]="media.alt"
+            [attr.width]="media.width"
+            [attr.height]="media.height"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+        @if (media.caption; as caption) {
+          <figcaption class="feature-detail__caption">{{ caption }}</figcaption>
+        }
+      </figure>
+    } @else {
+      <div class="feature-detail__tile" appGlow>
+        <span class="feature-detail__aura" aria-hidden="true"></span>
+        <span class="feature-detail__counter mono tnum">{{ counter() }}</span>
+        <span class="feature-detail__glyph" aria-hidden="true">
+          <ui-icon [name]="feature().icon" [size]="52" [strokeWidth]="1.5" />
+        </span>
+        <span class="feature-detail__ring feature-detail__ring--a" aria-hidden="true"></span>
+        <span class="feature-detail__ring feature-detail__ring--b" aria-hidden="true"></span>
+      </div>
+    }
+
+    <div class="feature-detail__badges">
+      <ui-chip icon="sparkles" [accent]="feature().accent">Inspector view</ui-chip>
+      <ui-chip icon="layers" accent="var(--cyan)">
+        {{ bulletCount() | pluralize: 'capability' : 'capabilities' }}
+      </ui-chip>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="feature-detail__body" [appReveal]="120">
+    <p class="feature-detail__eyebrow eyebrow">
+      <span class="tnum">{{ counter() }}</span> · {{ feature().tagline }}
+    </p>
+    <h3 class="feature-detail__name">{{ feature().name }}</h3>
+    <p class="feature-detail__desc">{{ feature().description }}</p>
+
+    <ul class="feature-detail__bullets">
+      @for (bullet of feature().bullets; track bullet) {
+        <li class="feature-detail__bullet">
+          <span class="feature-detail__check" aria-hidden="true">
+            <ui-icon name="check" [size]="13" [strokeWidth]="2.4" />
+          </span>
+          <span>{{ bullet }}</span>
+        </li>
+      }
+    </ul>
+
+    <div class="feature-detail__stats">
+      @for (stat of feature().stats; track stat.label) {
+        <ui-stat
+          [value]="stat.value"
+          [label]="stat.label"
+          [suffix]="stat.unit ? ' ' + stat.unit : ''"
+          [accent]="feature().accent"
+        />
+      }
+    </div>
+
+    <div class="feature-detail__code">
+      <p class="feature-detail__code-hint mono">
+        The {{ index() + 1 | ordinal }} view · summon it with
+      </p>
+      <ui-code-block [code]="feature().demo" [filename]="filename()" lang="ts" />
+    </div>
+  </div>
+</article>

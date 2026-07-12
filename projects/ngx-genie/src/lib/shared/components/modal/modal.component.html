@@ -3,12 +3,16 @@
     <div
       class="genie-modal-container"
       #modalContent
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-labelledby]="titleId"
+      tabindex="-1"
       [style.width]="width()"
       [style.height]="height()"
     >
       <div class="genie-modal-header">
-        <h3 class="modal-title">{{ title() }}</h3>
-        <button class="close-btn" (click)="close.emit()">
+        <h3 class="modal-title" [id]="titleId">{{ title() }}</h3>
+        <button type="button" class="close-btn" aria-label="Close dialog" (click)="close.emit()">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>

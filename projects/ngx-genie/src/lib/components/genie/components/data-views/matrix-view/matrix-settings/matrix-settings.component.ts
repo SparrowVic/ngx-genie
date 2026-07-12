@@ -8,7 +8,6 @@ export interface MatrixSettings {
 
 @Component({
   selector: 'lib-matrix-settings',
-  standalone: true,
   imports: [],
   templateUrl: './matrix-settings.component.html',
   styleUrl: './matrix-settings.component.scss',

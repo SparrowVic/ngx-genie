@@ -1,0 +1,54 @@
+:host {
+  display: block;
+}
+
+/* Rhythm: eyebrow → heading → subtitle on a 12px beat, actions one step further. */
+.section-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+  text-align: center;
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+.section-header--left {
+  align-items: flex-start;
+  text-align: left;
+  margin-inline: 0;
+  max-width: 640px;
+}
+
+.section-header__eyebrow {
+  display: inline-block;
+}
+
+.section-header__heading {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-heading);
+  letter-spacing: var(--ls-heading);
+  color: var(--text-primary);
+}
+
+.section-header__subtitle {
+  font-size: var(--fs-body-lg);
+  line-height: var(--lh-body);
+  color: var(--text-secondary);
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+
+.section-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+.section-header--left .section-header__actions {
+  justify-content: flex-start;
+}
+.section-header__actions:empty {
+  display: none;
+}

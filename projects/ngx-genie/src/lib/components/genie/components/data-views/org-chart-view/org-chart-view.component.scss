@@ -19,6 +19,19 @@ $c-line: rgba(100, 116, 139, 0.35);
   background-image: radial-gradient(circle at 50% 0%, $c-bg-gradient-start 0%, transparent 60%),
   linear-gradient(180deg, $c-bg-dark 0%, #000000 100%);
   overflow: hidden;
+
+  &.large-graph {
+    .genie-chart-tree {
+      ul,
+      li {
+        transition: none;
+      }
+    }
+
+    .fade-in-up {
+      animation: none;
+    }
+  }
 }
 
 .genie-grid-bg {

@@ -1,6 +1,6 @@
 # 🧞‍♂️ GenieOS – Angular Dependency Inspector
 
-> **Note:** This project is licensed under the **Apache License 2.0**.
+> **Note:** Source-available under the **MIT License + Commons Clause** — free for private and commercial use, but you may not sell it. See [LICENSE](LICENSE).
 
 
 <div align="center">
@@ -45,15 +45,19 @@ It works as an intelligent overlay on top of your application, allowing you to:
 
 ## ⚙️ Angular version compatibility
 
-GenieOS is currently **implemented against Angular 20**.
+This is the **Angular 20** line of GenieOS — built & tested on `@angular/core` 20.3, TypeScript 5.9, and published as `20.0.0-beta.x` from the `support/20.x` branch.
 
-### Current support
+### Supported versions
 
-* ✅ **Angular 20** – fully supported and recommended
+GenieOS is maintained across **Angular 18 through 22**, each on its own branch and npm `vNN-beta` dist-tag:
 
-### Planned compatibility
+* ✅ **Angular 22** – `main` (latest)
+* ✅ **Angular 21** – `support/21.x`
+* ✅ **Angular 20** – `support/20.x` ← this line
+* ✅ **Angular 19** – `support/19.x`
+* ✅ **Angular 18** – `support/18.x`
 
-Support for **earlier Angular versions** (e.g. Angular 17–19) is **planned**, but not yet available.
+Install the major that matches your app (peer dependency `^20` on this line).
 
 
 ---
@@ -89,10 +93,31 @@ export const appConfig: ApplicationConfig = {
     provideGenie({
       hotkey: 'F1',          // default: F1
       enabled: true,         // default: true
-      visibleOnStart: false  // default: true
+      visibleOnStart: false  // default: false
     })
   ]
 };
+```
+
+### Add the panel component
+
+Configuring the provider is **not enough** to show the overlay — you also need to render the `<ngx-genie/>` component in your root template (usually `AppComponent`):
+
+```ts
+import {Component} from '@angular/core';
+import {GenieComponent} from 'ngx-genie';
+
+@Component({
+  selector: 'app-root',
+  imports: [GenieComponent],
+  templateUrl: './app.component.html'
+})
+export class AppComponent {}
+```
+
+```html
+<!-- app.component.html -->
+<ngx-genie/>
 ```
 
 Run the application and press **F1** (or another configured hotkey).
@@ -101,51 +126,42 @@ Run the application and press **F1** (or another configured hotkey).
 
 ## 📚 Documentation
 
-Detailed documentation is available in the **[`/docs`](./docs)** directory:
+Detailed documentation lives in the **[`docs/`](./docs/README.md)** directory:
 
-* 📥 [Installation and configuration](./docs/installation.md)
-* 🛠️ [Feature overview](./docs/features.md)
-* 🧠 [Technical library overview](./docs/library.md)
+* 🏠 [Documentation home](./docs/README.md)
+* 📥 [Getting started](./docs/getting-started.md)
+* ⚙️ [Configuration](./docs/configuration.md)
+* 🛠️ [Features](./docs/features/README.md)
+* 🏗️ [Architecture](./docs/architecture.md)
+* 🔭 [Runtime scope](./docs/runtime-scope.md)
+* 🩹 [Troubleshooting](./docs/troubleshooting.md)
 
 ---
 
 ## 🧪 Project status
 
-GenieOS is currently in an **experimental / early-stage** phase.
+GenieOS is in active **beta** — a capable, real-world developer tool whose public API and internal behavior may still change between releases as it stabilizes.
 
-This is the **first public version** of the library and should be treated as a **proof of concept and evolving developer tool**, not a production-hardened framework.
+### Notes
 
-### Important notes
-
-* ❗ **No unit tests yet** – the library/plugin does **not currently include unit or integration tests**. Test coverage is planned for future releases.
-* 🧭 APIs and internal behavior may change between versions as the project stabilizes.
-* 🧠 The focus of the current version is **architecture exploration, UX experimentation, and real-world validation**.
-
----
-
-## 🤖 AI disclaimer
-
-This project was developed with the assistance of **Generative AI** tools.
-The code, architecture, and documentation are the result of collaboration between the author and AI assistants.
-
-While best efforts were made to ensure quality and correctness, some patterns characteristic of AI-generated code may be present.
-
-*This project was developed with the assistance of AI tools. While human oversight was applied, some code patterns may reflect AI generation.*
+* 🧪 The core services, utilities and directives are covered by unit tests, and a dedicated spec pins the private Angular internals the inspector depends on. Broader component-level coverage is planned.
+* 🧭 Public APIs and internal behavior may evolve between releases.
+* 🧠 The current focus is architecture exploration, developer experience, and real-world validation.
 
 ---
 
 ## ⚖️ License
 
-This project is licensed under the **Apache License 2.0**.
+GenieOS is **source-available** under the **MIT License with the [Commons Clause](https://commonsclause.com/)** condition.
 
-You are free to use GenieOS in **commercial and non-commercial projects**, including internal tooling, development workflows, and enterprise applications.
+You are free to use GenieOS in **private and commercial projects** — personal use, internal tooling, development workflows, and enterprise applications — and to modify and redistribute it.
 
-The license:
+What the Commons Clause adds: you may **not "Sell" the Software** — you may not provide GenieOS (or a product/service whose value derives, entirely or substantially, from its functionality, including paid hosting, consulting or support around it) to third parties for a fee.
 
-* ✅ allows commercial use
-* ✅ allows modification and redistribution
-* ✅ includes an explicit patent grant
-* ❌ does not grant rights to use the GenieOS name or branding
+* ✅ use in private and commercial projects (internal / enterprise use)
+* ✅ modify and redistribute
+* ❌ sell GenieOS, or monetize a product/service whose value comes substantially from it
+* ❌ use of the **"GenieOS"** / **"ngx-genie"** name, logo, or branding
 
 The software is provided **"AS IS"**, without warranties or conditions of any kind.
 

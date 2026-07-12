@@ -1,27 +1,27 @@
-import {Routes} from '@angular/router';
-import {NavComponent} from './layout/nav.component';
+import { Routes } from '@angular/router';
 
 export const routes: Routes = [
   {
     path: '',
-    component: NavComponent,
+    loadComponent: () => import('./layout/nav/nav.component').then((m) => m.NavComponent),
     children: [
       {
         path: '',
-        loadComponent: () => import('./pages/home-page').then(m => m.HomePage)
+        loadComponent: () => import('./pages/home/home-page.component').then((m) => m.HomePageComponent),
       },
       {
         path: 'features',
-        loadComponent: () => import('./pages/features-page').then(m => m.FeaturesPage)
+        loadComponent: () => import('./pages/features/features-page.component').then((m) => m.FeaturesPageComponent),
       },
       {
         path: 'playground',
-        loadComponent: () => import('./pages/playground-page').then(m => m.PlaygroundPage)
+        loadComponent: () => import('./pages/playground/playground-page.component').then((m) => m.PlaygroundPageComponent),
       },
       {
         path: 'docs',
-        loadComponent: () => import('./pages/docs-page').then(m => m.DocsPage)
-      }
-    ]
-  }
+        loadComponent: () => import('./pages/docs/docs-page.component').then((m) => m.DocsPageComponent),
+      },
+      { path: '**', redirectTo: '' },
+    ],
+  },
 ];

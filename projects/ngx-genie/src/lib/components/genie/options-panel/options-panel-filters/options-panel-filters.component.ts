@@ -6,7 +6,6 @@ import {GenFilterService} from '../../../../services/filter.service';
 
 @Component({
   selector: 'gen-options-panel-filters',
-  standalone: true,
   imports: [
     FormsModule,
     GenModalComponent,

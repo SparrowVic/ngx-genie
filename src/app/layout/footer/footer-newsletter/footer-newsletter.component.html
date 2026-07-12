@@ -1,0 +1,62 @@
+<div class="newsletter">
+  <div class="newsletter__copy">
+    <p class="newsletter__eyebrow eyebrow">Orbit updates</p>
+    <h3 class="newsletter__title">Get release beacons in your inbox</h3>
+    <p class="newsletter__blurb">
+      Occasional dispatches on new inspector features, Angular DI deep-dives and
+      changelog highlights. No noise, unsubscribe anytime.
+    </p>
+  </div>
+
+  <div class="newsletter__action">
+    <div
+      class="newsletter__form"
+      [class.is-invalid]="showError()"
+      [class.is-disabled]="disabled"
+    >
+      <label class="newsletter__field">
+        <ui-icon class="newsletter__lead" name="radar" [size]="18" />
+        <input
+          class="newsletter__input"
+          type="email"
+          name="email"
+          autocomplete="email"
+          placeholder="you@constellation.dev"
+          aria-label="Email address"
+          [disabled]="disabled"
+          [attr.aria-invalid]="showError()"
+          [attr.aria-describedby]="disabled ? 'newsletter-soon' : (showError() ? 'newsletter-error' : null)"
+          [value]="email()"
+          (input)="onInput($event)"
+          (blur)="touched.set(true)"
+          (keydown.enter)="submit()"
+        />
+        @if (valid()) {
+          <ui-icon class="newsletter__ok" name="check" [size]="16" />
+        }
+      </label>
+
+      <ui-button
+        variant="primary"
+        size="md"
+        icon="sparkles"
+        [disabled]="disabled"
+        (press)="submit()"
+      >
+        Subscribe
+      </ui-button>
+    </div>
+
+    @if (disabled) {
+      <p class="newsletter__soon" id="newsletter-soon">
+        <ui-icon name="radar" [size]="14" />
+        Sign-ups aren't live yet — orbit updates land in a future release.
+      </p>
+    } @else if (showError()) {
+      <p class="newsletter__error" id="newsletter-error" role="alert">
+        <ui-icon name="x" [size]="14" />
+        That address looks off — check for a typo.
+      </p>
+    }
+  </div>
+</div>

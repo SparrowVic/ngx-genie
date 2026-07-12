@@ -1,0 +1,27 @@
+<div class="rule-card" [class.is-off]="!rule().enabled" [class.is-flash]="flashed()">
+  <div class="rule-order">
+    <button class="mini" [disabled]="index() === 0" (click)="store.moveRule(rule().id, -1)" title="Move up">▲</button>
+    <button class="mini" [disabled]="index() === total() - 1" (click)="store.moveRule(rule().id, 1)" title="Move down">▼</button>
+  </div>
+
+  <button class="rule-toggle" [class.on]="rule().enabled" (click)="store.toggleRule(rule().id)"
+          [title]="rule().enabled ? 'Disable rule' : 'Enable rule'">
+    <span class="knob"></span>
+  </button>
+
+  <div class="rule-main">
+    <div class="rule-top">
+      <span class="rule-type" [attr.data-type]="rule().type">{{ rule().type }}</span>
+      <span class="rule-value" [title]="rule().value">{{ rule().value }}</span>
+      <span class="rule-action" [attr.data-action]="rule().action">
+        {{ rule().action === 'show' ? 'Keep visible' : 'Hide' }}
+      </span>
+      @if (rule().note) { <span class="rule-note">{{ rule().note }}</span> }
+    </div>
+  </div>
+
+  <span class="rule-count" [class.is-zero]="matchCount() === 0" title="Tokens currently matched">
+    {{ matchCount() }} hit{{ matchCount() === 1 ? '' : 's' }}
+  </span>
+  <button class="rule-remove" (click)="store.removeRule(rule().id)" title="Delete rule">×</button>
+</div>

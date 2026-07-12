@@ -1,0 +1,46 @@
+<section id="install" class="section install" appReveal>
+  <div class="container install__inner">
+    <ui-section-header
+      eyebrow="Quick start"
+      heading="Up and running in *30 seconds*"
+      [subtitle]="subtitle"
+    />
+
+    <div class="install__picker panel" [appReveal]="60">
+      <div class="install__picker-head">
+        <span class="eyebrow">Choose your package manager</span>
+        <span class="install__hint">
+          <ui-icon name="terminal" [size]="14" />
+          one command, any workflow
+        </span>
+      </div>
+
+      <app-install-picker />
+    </div>
+
+    <div class="install__steps-head" [appReveal]="90">
+      <h3 class="install__steps-title">Then three tiny steps</h3>
+      <span class="pill tnum install__steps-count">
+        {{ install.steps().length | pluralize: 'step' }} to full observability
+      </span>
+    </div>
+
+    <ol class="steps">
+      @for (step of install.steps(); track step.index; let i = $index) {
+        <li class="step panel" [appReveal]="120 + i * 90">
+          <div class="step__head">
+            <span class="step__num" aria-hidden="true">{{ step.index }}</span>
+            <div class="step__meta">
+              <h4 class="step__title">{{ step.title }}</h4>
+              <p class="step__desc">{{ step.description }}</p>
+            </div>
+          </div>
+
+          @if (step.code; as code) {
+            <ui-code-block [code]="code" [lang]="step.lang ?? 'bash'" />
+          }
+        </li>
+      }
+    </ol>
+  </div>
+</section>

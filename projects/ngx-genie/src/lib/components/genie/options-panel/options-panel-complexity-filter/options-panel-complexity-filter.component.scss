@@ -1,4 +1,5 @@
-@import '../options-panel-vars';
+@use 'sass:color';
+@use '../options-panel-vars' as *;
 
 :host {
   display: block;
@@ -52,7 +53,7 @@
 
       &:hover {
         transform: scale(1.2);
-        background: lighten($c-primary, 10%);
+        background: color.adjust($c-primary, $lightness: 10%);
       }
     }
   }
