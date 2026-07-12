@@ -153,7 +153,7 @@ export class GenieExplorerStateService {
     showUserTokens: true,
     showUserValues: true,
     showUserObservables: true,
-    showUserSignals: false,
+    showUserSignals: true,
 
     showFrameworkServices: false,
     showFrameworkSystem: false,
