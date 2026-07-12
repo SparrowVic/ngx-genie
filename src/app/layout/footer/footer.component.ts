@@ -63,9 +63,9 @@ export class FooterComponent {
   readonly year = computed(() => new Date(this.clock.now()).getFullYear());
 
   readonly brandChips: readonly BrandChip[] = [
-    { label: 'Angular 21', icon: 'atom', accent: 'var(--rose)' },
+    { label: 'Angular 22', icon: 'atom', accent: 'var(--rose)' },
     { label: 'Zero-config', icon: 'bolt', accent: 'var(--cyan)' },
-    { label: 'Apache-2.0', icon: 'shield', accent: 'var(--emerald)' },
+    { label: 'MIT + Commons Clause', icon: 'shield', accent: 'var(--emerald)' },
   ];
 
   readonly columns: readonly FooterColumn[] = [

@@ -47,7 +47,7 @@ export class HeroComponent {
 
   readonly featureCount = this.catalog.count;
 
-  /** "Angular 21 ready" — the major pulled from the brand version string. */
+  /** "Angular 22 ready" — the major pulled from the brand version string. */
   readonly angularMajor = computed(() => this.brand.version.split('.')[0]);
 
   /**
