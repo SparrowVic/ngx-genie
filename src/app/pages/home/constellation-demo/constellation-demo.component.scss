@@ -1,0 +1,304 @@
+:host {
+  display: block;
+}
+
+.constellation__head {
+  margin-bottom: clamp(2rem, 5vw, 3.5rem);
+}
+
+.constellation__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(220px, 26%, 300px);
+  gap: var(--space-5);
+  align-items: stretch;
+}
+
+@media (max-width: 900px) {
+  .constellation__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---- Panel + toolbar ---- */
+.constellation__panel {
+  overflow: hidden;
+  padding: var(--space-5);
+}
+
+.constellation__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.constellation__readouts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ---- The stage ---- */
+.constellation__stage-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  max-height: 480px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background:
+    radial-gradient(80% 80% at 50% 40%, rgba(99, 102, 241, 0.12), transparent 70%),
+    linear-gradient(180deg, rgba(4, 5, 13, 0.4), rgba(11, 13, 34, 0.65));
+  border: 1px solid var(--border);
+  /* Soft vignette keeps the field's edges dark so glows read against depth. */
+  box-shadow: inset 0 0 60px -18px rgba(4, 5, 13, 0.8), var(--edge-light);
+}
+
+.constellation__stage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: manipulation;
+}
+
+/* Full-height layer carrying a 1px band at its midline: translating it -100%
+   → 100% (global `scan` keyframes) sweeps the band across the whole stage
+   using transform only. Reduced motion snaps it to the final, offscreen state. */
+.constellation__scanline {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent calc(50% - 1px),
+    rgba(34, 211, 238, 0.4) 50%,
+    transparent calc(50% + 1px)
+  );
+  animation: scan 9s linear infinite;
+  pointer-events: none;
+}
+
+/* The sweep is pure decoration — park it entirely when motion is reduced
+   (the global kill-switch alone would leave the band resting mid-stage). */
+@media (prefers-reduced-motion: reduce) {
+  .constellation__scanline {
+    display: none;
+  }
+}
+
+/* ---- Edges: neutral hairlines at rest, accent-lit only when traced ---- */
+.edge {
+  stroke: rgba(148, 163, 255, 0.8);
+  stroke-opacity: 0.16;
+  stroke-linecap: round;
+  transition:
+    stroke var(--dur) var(--ease-out),
+    stroke-opacity var(--dur) var(--ease-out);
+}
+
+.edge--active {
+  stroke: var(--accent, var(--indigo));
+  stroke-opacity: 0.95;
+  stroke-width: 0.45; /* overrides the per-edge presentation attribute */
+}
+
+.edge--dim {
+  stroke-opacity: 0.04;
+}
+
+/* ---- Nodes: an invisible hit ring makes small bodies easy to catch ---- */
+.node-g {
+  cursor: pointer;
+  /* The default rectangular ring reads wrong on an SVG glyph — the focused
+     node's own stroke bloom marks keyboard position instead. */
+  outline: none;
+}
+
+.node-g:focus-visible .node {
+  fill-opacity: 1;
+  stroke-width: 0.7;
+  stroke-opacity: 1;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent, var(--indigo)) 80%, rgba(255, 255, 255, 0.6)));
+}
+
+.node-hit {
+  fill: transparent;
+  stroke: none;
+}
+
+.node {
+  fill: var(--accent, var(--indigo));
+  fill-opacity: 0.92;
+  stroke: var(--accent, var(--indigo));
+  stroke-width: 0.4;
+  stroke-opacity: 0.85;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    transform var(--dur) var(--ease-spring),
+    fill-opacity var(--dur) var(--ease-out),
+    opacity var(--dur) var(--ease-out),
+    filter var(--dur) var(--ease-out);
+  filter: drop-shadow(0 0 1.6px color-mix(in srgb, var(--accent, var(--indigo)) 55%, transparent));
+}
+
+.node-g:hover .node {
+  fill-opacity: 1;
+}
+
+.node-g.is-active .node {
+  fill-opacity: 1;
+  transform: scale(1.5);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent, var(--indigo)) 80%, rgba(255, 255, 255, 0.6)));
+}
+
+.node-g.is-dim .node {
+  opacity: 0.14;
+  filter: none;
+}
+
+/* ---- Aside: inspector + legend ---- */
+.constellation__aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.constellation__inspector {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 11rem;
+}
+
+.inspector__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  padding: 0.28rem 0.7rem;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent, var(--cyan));
+  background: color-mix(in srgb, var(--accent, var(--cyan)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, var(--cyan)) 34%, transparent);
+}
+
+.inspector__badge--idle {
+  color: var(--text-tertiary);
+  background: var(--bg-elevated);
+  border-color: var(--border);
+}
+
+.inspector__label {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  line-height: 1.15;
+  color: var(--accent, var(--text-primary));
+  word-break: break-word;
+}
+
+.inspector__label--muted {
+  color: var(--text-secondary);
+  font-size: 1.15rem;
+}
+
+.inspector__hint {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-body);
+  color: var(--text-tertiary);
+}
+
+.inspector__meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.inspector__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.inspector__row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.inspector__row dt {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.inspector__row dd {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+/* ---- Legend ---- */
+.constellation__legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.legend-item {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.legend-item + .legend-item {
+  border-top: 1px solid var(--border);
+}
+
+.legend-item__dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  box-shadow: 0 0 10px -1px var(--accent);
+}
+
+.legend-item__icon {
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+
+.legend-item__name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.legend-item__count {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}

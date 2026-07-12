@@ -1,0 +1,18 @@
+<div class="fw-card" [class.is-hidden]="store.categoryHidden()[category().id]">
+  <div class="fw-card__head">
+    <span class="fw-ico">{{ category().icon }}</span>
+    <div class="fw-titles">
+      <h4>{{ category().label }}</h4>
+      <span class="fw-count">{{ store.categoryCount(category().id) }} symbols</span>
+    </div>
+    <button class="rule-toggle" [class.on]="store.categoryHidden()[category().id]" (click)="store.toggleCategory(category().id)"
+            [title]="store.categoryHidden()[category().id] ? 'Currently hidden — click to show' : 'Currently shown — click to hide'">
+      <span class="knob"></span>
+    </button>
+  </div>
+  <p class="fw-desc">{{ category().description }}</p>
+  <div class="fw-chips">
+    @for (name of category().names.slice(0, 6); track name) { <span class="fw-chip">{{ name }}</span> }
+    @if (category().names.length > 6) { <span class="fw-chip more">+{{ category().names.length - 6 }}</span> }
+  </div>
+</div>

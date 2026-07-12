@@ -1,0 +1,28 @@
+<article class="doc-section" [id]="section().id">
+  <header class="doc-section__head">
+    <span class="doc-section__icon" aria-hidden="true">
+      <ui-icon [name]="section().icon" [size]="20" />
+    </span>
+
+    <h3 class="doc-section__title">{{ section().title }}</h3>
+
+    <a
+      class="doc-section__anchor"
+      [href]="anchor()"
+      [attr.aria-label]="'Link to ' + section().title"
+    >
+      <ui-icon name="chevron-right" [size]="16" />
+    </a>
+  </header>
+
+  <p class="doc-section__body">{{ section().body }}</p>
+
+  @if (section().code; as code) {
+    <ui-code-block
+      class="doc-section__code"
+      [code]="code"
+      [lang]="lang()"
+      [filename]="filename()"
+    />
+  }
+</article>

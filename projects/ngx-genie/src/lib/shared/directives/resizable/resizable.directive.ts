@@ -1,25 +1,27 @@
-import {Directive, ElementRef, EventEmitter, Input, OnDestroy, Output, Renderer2} from '@angular/core';
+import {Directive, ElementRef, inject, input, OnDestroy, output, Renderer2} from '@angular/core';
 
 @Directive({
   selector: '[genieResizable]',
-  standalone: true
 })
 export class GenieResizableDirective implements OnDestroy {
-  @Input() direction: 'horizontal' | 'vertical' = 'vertical';
+  direction = input<'horizontal' | 'vertical'>('vertical');
 
 
-  @Input() minSize = 0;
-  @Input() maxSize = 9999;
-  @Input() startSize = 0;
+  minSize = input(0);
+  maxSize = input(9999);
+  startSize = input(0);
 
-  @Output() resizing = new EventEmitter<number>();
-  @Output() resizeEnd = new EventEmitter<void>();
+  resizing = output<number>();
+  resizeEnd = output<void>();
+
+  private readonly el = inject(ElementRef);
+  private readonly renderer = inject(Renderer2);
 
   private isResizing = false;
   private prevMouse = 0;
   private listeners: (() => void)[] = [];
 
-  constructor(private el: ElementRef, private renderer: Renderer2) {
+  constructor() {
     this.listeners.push(
       this.renderer.listen(this.el.nativeElement, 'mousedown', (e) => this.onMouseDown(e))
     );
@@ -32,7 +34,7 @@ export class GenieResizableDirective implements OnDestroy {
     this.isResizing = true;
 
 
-    this.prevMouse = this.direction === 'horizontal' ? event.clientX : event.clientY;
+    this.prevMouse = this.direction() === 'horizontal' ? event.clientX : event.clientY;
 
 
     const moveListener = this.renderer.listen('document', 'mousemove', (e) => this.onMouseMove(e));
@@ -43,7 +45,7 @@ export class GenieResizableDirective implements OnDestroy {
     if (!this.isResizing) return;
 
 
-    const currentMouse = this.direction === 'horizontal' ? event.clientX : event.clientY;
+    const currentMouse = this.direction() === 'horizontal' ? event.clientX : event.clientY;
 
 
     const delta = currentMouse - this.prevMouse;

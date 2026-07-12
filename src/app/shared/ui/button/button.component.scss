@@ -1,0 +1,129 @@
+:host {
+  display: inline-flex;
+  vertical-align: middle;
+  max-width: 100%;
+}
+:host(.is-block) {
+  display: flex;
+  width: 100%;
+}
+
+.btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55em;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  white-space: nowrap;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out),
+    background var(--dur) var(--ease-out),
+    background-position var(--dur-slow) var(--ease-out),
+    border-color var(--dur) var(--ease-out),
+    color var(--dur) var(--ease-out);
+}
+
+.btn__label { display: inline-flex; align-items: center; }
+ui-icon { display: inline-flex; line-height: 0; }
+
+/* ---- sizes (min-heights keep hit targets honest) ---- */
+.btn--sm { min-height: 2.25rem; padding: 0.4rem 0.95rem; font-size: 0.82rem; }
+.btn--md { min-height: 2.75rem; padding: 0.7rem 1.35rem; font-size: 0.92rem; }
+.btn--lg { min-height: 3.25rem; padding: 0.95rem 1.9rem; font-size: 1.02rem; }
+
+@media (pointer: coarse) {
+  .btn--sm { min-height: 2.5rem; }
+}
+
+.btn--block { width: 100%; }
+
+/* ---- primary: brand gradient + sheen sweep ---- */
+.btn--primary {
+  color: #fff;
+  background: var(--gradient-brand);
+  background-size: 180% 180%;
+  background-position: 0% 50%;
+  box-shadow: var(--shadow-1), var(--edge-light);
+}
+.btn--primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.22) 50%, transparent 60%);
+  transform: translateX(-130%);
+}
+.btn--primary:hover {
+  background-position: 100% 50%;
+  box-shadow: var(--glow-indigo), var(--shadow-2), var(--edge-light);
+  transform: translateY(-2px);
+}
+/* Sheen sweeps on hover-in only; the return jump is invisible off-hover. */
+.btn--primary:hover::after {
+  transform: translateX(130%);
+  transition: transform var(--dur-slow) var(--ease-out-expo);
+}
+
+/* ---- solid: single-accent fill ---- */
+.btn--solid {
+  color: #fff;
+  background: var(--violet);
+  box-shadow: var(--shadow-0), var(--edge-light);
+}
+.btn--solid:hover {
+  background: color-mix(in srgb, var(--violet) 84%, #fff);
+  box-shadow: var(--glow-violet), var(--shadow-1), var(--edge-light);
+  transform: translateY(-2px);
+}
+
+/* ---- outline: glass border ---- */
+.btn--outline {
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--edge-light);
+}
+.btn--outline:hover {
+  border-color: var(--violet);
+  background: color-mix(in srgb, var(--violet) 12%, transparent);
+  box-shadow: var(--glow-violet), var(--shadow-1), var(--edge-light);
+  transform: translateY(-2px);
+}
+
+/* ---- ghost: text only ---- */
+.btn--ghost {
+  color: var(--text-secondary);
+  background: transparent;
+}
+.btn--ghost:hover {
+  color: var(--text-primary);
+  background: var(--surface-2);
+  box-shadow: var(--edge-light);
+}
+
+/* ---- press & disabled (last: wins ties against variant hovers) ---- */
+.btn:active {
+  transform: scale(0.98);
+  transition-duration: var(--dur-fast);
+}
+
+.btn:disabled,
+.btn.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  box-shadow: none;
+  filter: saturate(0.65);
+}

@@ -1,0 +1,46 @@
+:host {
+  display: inline-block;
+}
+
+.stat {
+  --accent: var(--violet);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.stat__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-bottom: var(--space-1);
+  border-radius: var(--radius-md);
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent) 32%, transparent);
+}
+
+.stat__value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  white-space: nowrap;
+  line-height: 1;
+  letter-spacing: var(--ls-heading);
+  color: var(--accent);
+  /* Tabular digits keep the count-up steady frame to frame. */
+  font-variant-numeric: tabular-nums lining-nums;
+  text-shadow: 0 0 28px color-mix(in oklab, var(--accent) 40%, transparent);
+  min-height: 1em;
+}
+
+.stat__label {
+  font-size: var(--fs-body-sm);
+  font-weight: 500;
+  line-height: var(--lh-tight);
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}

@@ -3,7 +3,6 @@ import {ChangeDetectionStrategy, Component, signal, ViewEncapsulation} from '@an
 
 @Component({
   selector: 'lib-matrix-legend',
-  standalone: true,
   imports: [],
   templateUrl: 'matrix-legend.component.html',
   styleUrl: './matrix-legend.component.scss',

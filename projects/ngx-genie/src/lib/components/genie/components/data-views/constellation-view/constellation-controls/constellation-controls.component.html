@@ -1,6 +1,13 @@
 <div class="controls-wrapper" [class.collapsed]="!isOpen()" (mousedown)="$event.stopPropagation()">
 
-  <div class="header" (click)="_togglePanel()">
+  <div
+    class="header"
+    role="button"
+    tabindex="0"
+    [attr.aria-expanded]="isOpen()"
+    (click)="_togglePanel()"
+    (keydown.enter)="_togglePanel()"
+    (keydown.space)="$event.preventDefault(); _togglePanel()">
     <span class="title">SYSTEM CONTROLS</span>
     <button class="toggle-btn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -10,10 +17,37 @@
   </div>
 
   <div class="content">
+    @if (graphStats(); as stats) {
+      <div class="graph-stats" [class.huge]="stats.isHuge">
+        <div>
+          <span class="stat-val">{{ formatCount(stats.renderedNodes) }}/{{ formatCount(stats.nodes) }}</span>
+          <span class="stat-label">NODES</span>
+        </div>
+        <div>
+          <span class="stat-val">{{ formatCount(stats.renderedLinks) }}/{{ formatCount(stats.links) }}</span>
+          <span class="stat-label">LINKS</span>
+        </div>
+        <div>
+          <span class="stat-val">{{ layoutModeValue(stats) }}</span>
+          <span class="stat-label">{{ stats.layoutMode !== 'force' ? 'MAP' : 'SIM' }}</span>
+        </div>
+      </div>
+    }
+
+    @if (pinnedNodeLabel(); as label) {
+      <div class="pin-row">
+        <span class="pin-label" [title]="label">{{ label }}</span>
+        <button class="mini-btn" type="button" (click)="clearPin.emit()">CLEAR</button>
+      </div>
+    }
+
     <div class="control-row">
       <span class="label">SIMULATION</span>
-      <button class="action-btn" [class.active]="!isPaused()" (click)="togglePause.emit()">
-        {{ isPaused() ? 'PLAY' : 'PAUSE' }}
+      <button class="action-btn" [class.active]="!isPaused()"
+              [disabled]="!isForceLayout()"
+              [attr.title]="isForceLayout() ? null : 'The live simulation runs only when GROUPING is OFF'"
+              (click)="togglePause.emit()">
+        {{ !isForceLayout() ? 'GROUPED' : (isPaused() ? 'PLAY' : 'PAUSE') }}
       </button>
     </div>
 
@@ -30,17 +64,63 @@
           <span class="indicator"></span>
           FOCUS
         </button>
+        <button class="toggle-icon-btn" [class.active]="autoOptimizeEnabled()" (click)="toggleAutoOptimize.emit()"
+                title="Auto LOD">
+          <span class="indicator"></span>
+          LOD
+        </button>
       </div>
     </div>
 
     <div class="control-row vertical">
       <div class="row-top">
+        <span class="label">LINK DETAIL</span>
+        <span class="val">{{ linkRenderMode().toUpperCase() }}</span>
+      </div>
+      <div class="segmented">
+        <button type="button"
+                [class.active]="linkRenderMode() === 'adaptive'"
+                (click)="linkModeChange.emit('adaptive')">AUTO</button>
+        <button type="button"
+                [class.active]="linkRenderMode() === 'focused'"
+                (click)="linkModeChange.emit('focused')">LOCAL</button>
+        <button type="button"
+                [class.active]="linkRenderMode() === 'all'"
+                (click)="linkModeChange.emit('all')">ALL</button>
+      </div>
+    </div>
+
+    <div class="control-row vertical">
+      <div class="row-top">
+        <span class="label">GROUPING</span>
+        <span class="val">{{ groupingStrategyLabel(groupingStrategy()) }}</span>
+      </div>
+      <div class="segmented four">
+        <button type="button"
+                [class.active]="groupingStrategy() === 'node-type' || groupingStrategy() === 'type'"
+                (click)="groupingStrategyChange.emit('node-type')">NODES</button>
+        <button type="button"
+                [class.active]="groupingStrategy() === 'scope'"
+                (click)="groupingStrategyChange.emit('scope')">SCOPE</button>
+        <button type="button"
+                [class.active]="groupingStrategy() === 'tree'"
+                (click)="groupingStrategyChange.emit('tree')">TREE</button>
+        <button type="button"
+                [class.active]="groupingStrategy() === 'none'"
+                (click)="groupingStrategyChange.emit('none')">OFF</button>
+      </div>
+    </div>
+
+    <div class="control-row vertical" [class.disabled]="!isForceLayout()">
+      <div class="row-top">
         <span class="label">GRAVITY / REPULSION</span>
-        <span class="val">{{ repulsionValue() }}</span>
+        <span class="val">{{ isForceLayout() ? repulsionValue() : 'N/A' }}</span>
       </div>
       <input type="range"
              [ngModel]="repulsionValue()"
              (ngModelChange)="repulsionChange.emit($event)"
+             [disabled]="!isForceLayout()"
+             [attr.title]="isForceLayout() ? null : 'Gravity only applies to the live simulation (GROUPING OFF)'"
              min="100" max="5000" step="50">
     </div>
 
@@ -49,10 +129,5 @@
     <button class="reset-btn" (click)="resetLayout.emit()">
       RESET VIEW / ENTROPY
     </button>
-
-    <div class="help-text">
-      If the constellation is messy, try setting <b>Repulsion to MAX</b> and using <b>Reset View</b> to disentangle the
-      nodes.
-    </div>
   </div>
 </div>

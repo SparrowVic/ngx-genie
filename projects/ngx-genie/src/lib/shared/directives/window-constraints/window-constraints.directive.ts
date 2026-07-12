@@ -1,5 +1,5 @@
-import {Directive, ElementRef, inject, input, output, PLATFORM_ID} from '@angular/core';
-import {DOCUMENT, isPlatformBrowser} from '@angular/common';
+import {Directive, DOCUMENT, ElementRef, inject, input, output, PLATFORM_ID} from '@angular/core';
+import {isPlatformBrowser} from '@angular/common';
 
 export type WindowControlMode = 'drag' | 'resize';
 
@@ -37,7 +37,6 @@ export interface WindowSize {
  */
 @Directive({
   selector: '[genieWindowConstraints]',
-  standalone: true
 })
 export class GenieWindowConstraintsDirective {
   private readonly document = inject(DOCUMENT);

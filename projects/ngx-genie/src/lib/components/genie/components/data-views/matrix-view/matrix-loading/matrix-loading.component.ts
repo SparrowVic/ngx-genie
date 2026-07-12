@@ -9,12 +9,11 @@ import {
   signal,
   ViewEncapsulation
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+import {DecimalPipe} from '@angular/common';
 
 @Component({
   selector: 'lib-matrix-loading',
-  standalone: true,
-  imports: [CommonModule],
+  imports: [DecimalPipe],
   templateUrl: './matrix-loading.component.html',
   styleUrl: './matrix-loading.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

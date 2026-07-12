@@ -1,0 +1,57 @@
+:host { display: block; box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; }
+
+/* shared fields */
+.field {
+  display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  transition: border-color .15s ease;
+  &:focus-within { border-color: var(--violet); }
+  &.grow { flex: 1; }
+  &__ico { font-size: 13px; opacity: .8; }
+  &__input { flex: 1; background: transparent; border: 0; outline: 0; color: var(--txt); font-size: 13px; padding: 10px 0; font-family: inherit; }
+  &__input::placeholder { color: var(--txt-3); }
+}
+.select {
+  padding: 10px 12px; border-radius: var(--radius-sm); background: var(--bg);
+  border: 1px solid var(--border); color: var(--txt); font-size: 12.5px; font-weight: 600;
+  cursor: pointer; outline: 0; font-family: inherit;
+  &:focus { border-color: var(--violet); }
+  option { background: var(--panel); color: var(--txt); }
+}
+
+/* ---------------- tokens ---------------- */
+.tok-toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.segment {
+  display: inline-flex; padding: 3px; gap: 2px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  button {
+    padding: 7px 13px; border: 0; background: transparent; color: var(--txt-2); font-size: 12px; font-weight: 600;
+    border-radius: 6px; cursor: pointer; transition: all .15s ease;
+    &:hover { color: var(--txt); }
+    &.on { background: var(--panel-2); color: var(--txt); }
+  }
+}
+.tok-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; padding-right: 4px; }
+
+/* ---------------- empty ---------------- */
+.empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  text-align: center; color: var(--txt-3); padding: 40px;
+  &__ico { font-size: 32px; opacity: .8; }
+  p { margin: 4px 0 0; color: var(--txt-2); font-weight: 600; }
+  small { font-size: 11px; }
+}
+
+/* scrollbars */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(148,163,255,0.2); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(148,163,255,0.35); }
+
+/* ---------------- micro polish + responsiveness ---------------- */
+.field.grow { min-width: 180px; }
+
+:where(button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+  border-radius: 6px;
+}

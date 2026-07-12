@@ -3,7 +3,6 @@ import {FormsModule} from '@angular/forms';
 
 @Component({
   selector: 'lib-options-panel-scope-lifetime',
-  standalone: true,
   imports: [
     FormsModule
   ],

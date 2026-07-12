@@ -7,8 +7,11 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "build:genie": "npm run gen:svg-to-ts --prefix projects/ngx-genie && ng build genie",
-    "build:demo": "ng build ngx-genie-demo --configuration demo"
+    "build:genie": "npm run gen:svg-to-ts --prefix projects/ngx-genie && ng build ngx-genie",
+    "build:demo": "ng build ngx-genie-demo --configuration demo",
+    "preview": "npm run build:genie && npm run build:demo && node tools/preview-demo.js",
+    "preview:serve": "node tools/preview-demo.js",
+    "perf:constellation": "node tools/perf/constellation-harness.js"
   },
   "prettier": {
     "printWidth": 100,
@@ -30,9 +33,6 @@
     "@angular/forms": "^20.0.0",
     "@angular/platform-browser": "^20.0.0",
     "@angular/router": "^20.0.0",
-    "@primeuix/themes": "^2.0.2",
-    "primeicons": "^7.0.0",
-    "primeng": "^20.4.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -41,6 +41,7 @@
     "@angular/cli": "^20.0.0",
     "@angular/compiler-cli": "^20.0.0",
     "@types/jasmine": "~5.1.0",
+    "istanbul-lib-instrument": "^6.0.3",
     "jasmine-core": "~5.9.0",
     "karma": "~6.4.0",
     "karma-chrome-launcher": "~3.2.0",
@@ -48,6 +49,7 @@
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
     "ng-packagr": "^20.0.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "zone.js": "^0.15.1"
   }
 }

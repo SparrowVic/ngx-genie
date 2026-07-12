@@ -1,0 +1,29 @@
+@if (count() > 0) {
+  <div class="toast-host" role="region" aria-label="Notifications" aria-live="polite">
+    @if (count() > 1) {
+      <button type="button" class="toast-host__clear pill" (click)="clearAll()">
+        <ui-icon name="x" [size]="13" />
+        Clear all
+      </button>
+    }
+
+    @for (toast of toasts(); track toast.id) {
+      <article class="toast" [class]="'toast--' + toast.tone" [style.--toast-accent]="accentFor(toast.tone)">
+        <span class="toast__icon">
+          <ui-icon [name]="toast.icon" [size]="18" />
+        </span>
+
+        <div class="toast__body">
+          <p class="toast__title">{{ toast.title }}</p>
+          <p class="toast__message">{{ toast.message }}</p>
+        </div>
+
+        <button type="button" class="toast__dismiss" aria-label="Dismiss notification" (click)="dismiss(toast.id)">
+          <ui-icon name="x" [size]="15" />
+        </button>
+
+        <span class="toast__progress" aria-hidden="true"></span>
+      </article>
+    }
+  </div>
+}

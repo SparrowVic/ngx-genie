@@ -1,0 +1,34 @@
+<section class="section showcase" appReveal>
+  <div class="container">
+    <ui-section-header
+      eyebrow="Inspector views"
+      heading="Six lenses on your *dependency graph*"
+      subtitle="GenieOS renders the same live DI data six ways. Pick a view to see what it surfaces — and exactly how you summon it."
+    >
+      <div class="showcase__meta">
+        <ui-chip icon="layers" accent="var(--indigo)">{{ catalog.count() | pluralize: 'view' }}</ui-chip>
+        <ui-chip icon="eye" accent="var(--cyan)">{{ viewedCount() }} / {{ catalog.count() }} explored</ui-chip>
+        @if (exploredAll()) {
+          <ui-chip icon="check" accent="var(--emerald)">Every view explored</ui-chip>
+        }
+      </div>
+    </ui-section-header>
+
+    <div class="showcase__layout">
+      <div class="showcase__list" role="group" aria-label="GenieOS inspector views">
+        @for (feature of catalog.features(); track feature.id) {
+          <app-feature-card
+            [appReveal]="$index * 60"
+            [feature]="feature"
+            [selected]="feature.id === catalog.selectedId()"
+            (select)="select(feature.id)"
+          />
+        }
+      </div>
+
+      <div class="showcase__spotlight" [appReveal]="120">
+        <app-feature-spotlight [feature]="catalog.selected()" />
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,155 @@
+:host {
+  display: block;
+}
+
+/* Copy on the left, the opt-in field on the right — the panel spans the full
+   footer width, so a single stacked column would leave it half empty. */
+.newsletter {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--space-4) var(--space-6);
+  align-items: center;
+}
+
+.newsletter__copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.newsletter__eyebrow {
+  margin: 0;
+}
+
+.newsletter__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 2.4vw, 1.45rem);
+  color: var(--text-primary);
+}
+
+.newsletter__blurb {
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.6;
+  max-width: 44ch;
+}
+
+.newsletter__action {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.newsletter__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.newsletter__field {
+  --field-accent: var(--indigo);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1 1 15rem;
+  min-width: 0;
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-glass-strong);
+  border: 1px solid var(--border);
+  transition:
+    border-color var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out);
+}
+.newsletter__field:focus-within {
+  border-color: color-mix(in srgb, var(--field-accent) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--field-accent) 18%, transparent);
+}
+
+.newsletter__lead {
+  color: var(--text-tertiary);
+  flex: none;
+}
+
+.newsletter__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-block: 0.7rem;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+}
+.newsletter__input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.newsletter__ok {
+  flex: none;
+  color: var(--emerald);
+}
+
+.newsletter__form.is-invalid .newsletter__field {
+  border-color: color-mix(in srgb, var(--rose) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rose) 16%, transparent);
+}
+
+/* Disabled "coming soon" state — greyed out and inert. */
+.newsletter__form.is-disabled {
+  opacity: 0.55;
+  filter: saturate(0.6);
+}
+.newsletter__form.is-disabled .newsletter__field {
+  background: var(--bg-glass);
+  cursor: not-allowed;
+}
+.newsletter__form.is-disabled .newsletter__field:focus-within {
+  border-color: var(--border);
+  box-shadow: none;
+}
+.newsletter__form.is-disabled .newsletter__input {
+  cursor: not-allowed;
+}
+
+.newsletter__soon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-tertiary);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+.newsletter__soon ui-icon {
+  display: inline-flex;
+  color: var(--text-tertiary);
+}
+
+.newsletter__error {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--rose);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+.newsletter__error ui-icon {
+  display: inline-flex;
+}
+
+@media (max-width: 48rem) {
+  .newsletter {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+@media (max-width: 30rem) {
+  .newsletter__form {
+    flex-direction: column;
+  }
+}

@@ -1,4 +1,5 @@
-@import '../options-panel-vars';
+@use 'sass:color';
+@use '../options-panel-vars' as *;
 
 :host {
   display: block;
@@ -69,13 +70,13 @@
 
       &.component {
         background: rgba($c-primary, 0.15);
-        color: lighten($c-primary, 20%);
+        color: color.adjust($c-primary, $lightness: 20%);
         border-color: rgba($c-primary, 0.3);
       }
 
       &.dependency {
         background: rgba($c-accent, 0.15);
-        color: lighten($c-accent, 20%);
+        color: color.adjust($c-accent, $lightness: 20%);
         border-color: rgba($c-accent, 0.3);
       }
 

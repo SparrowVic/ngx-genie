@@ -37,6 +37,19 @@
       </div>
     </div>
 
+    @if (isDiagnosticsRunning()) {
+      <div class="diagnostics-progress">
+        <div class="progress-copy">
+          <span>{{ diagnosticsProgress().phase | uppercase }}</span>
+          <span>{{ diagnosticsProgress().processed }} / {{ diagnosticsProgress().total }}</span>
+          <span>{{ diagnosticsProgress().anomalies }} detected</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" [style.width.%]="diagnosticsProgressPercent()"></div>
+        </div>
+      </div>
+    }
+
     <div class="metrics-grid">
       <div class="metric-card score-card">
         <div class="integrity-gauge">
@@ -237,7 +250,7 @@
 
       <div class="list-meta-bar">
         <div class="counter-badge" [class.has-hidden]="hiddenCount() > 0">
-          <span class="visible-count">{{ filteredAnomalies().length }} VISIBLE</span>
+          <span class="visible-count">{{ displayedAnomalies().length }} / {{ filteredAnomalies().length }} VISIBLE</span>
           @if (hiddenCount() > 0) {
             <span class="separator">/</span>
             <span class="hidden-count">{{ report().anomalies.length }} DETECTED</span>
@@ -249,7 +262,7 @@
         </div>
       </div>
 
-      @for (item of filteredAnomalies(); track item) {
+      @for (item of displayedAnomalies(); track item.id) {
         <div
           class="anomaly-card"
         [ngClass]="[
@@ -306,6 +319,16 @@
               <span class="info-text">INFO ONLY (NO DIRECT TARGET)</span>
             </div>
           }
+        </div>
+      }
+
+      @if (remainingAnomalies() > 0) {
+        <div class="load-more-panel">
+          <span class="load-more-text">{{ remainingAnomalies() }} more visible issues</span>
+          <div class="load-more-actions">
+            <button class="load-more-btn" type="button" (click)="loadMore()">LOAD 100 MORE</button>
+            <button class="load-more-btn ghost" type="button" (click)="showAll()">SHOW ALL</button>
+          </div>
         </div>
       }
 

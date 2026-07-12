@@ -32,7 +32,6 @@ interface TreeItem {
 
 @Component({
   selector: 'lib-json-tree',
-  standalone: true,
   imports: [],
   templateUrl: './json-tree.component.html',
   styleUrl: './json-tree.component.scss',

@@ -1,6 +1,14 @@
 <div class="legend-bar" [class.expanded]="isExpanded()">
 
-  <div class="legend-header" (click)="toggle()">
+  <div
+    class="legend-header"
+    role="button"
+    tabindex="0"
+    [attr.aria-expanded]="isExpanded()"
+    (click)="toggle()"
+    (keydown.enter)="toggle()"
+    (keydown.space)="$event.preventDefault(); toggle()"
+  >
     <span class="title">LEGEND & GUIDE</span>
     <span class="toggle-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

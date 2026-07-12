@@ -89,6 +89,10 @@
             ],
             "styles": [
               "src/styles.scss"
+            ],
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
             ]
           }
         }
@@ -115,7 +119,11 @@
         "test": {
           "builder": "@angular/build:karma",
           "options": {
-            "tsConfig": "projects/ngx-genie/tsconfig.spec.json"
+            "tsConfig": "projects/ngx-genie/tsconfig.spec.json",
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
+            ]
           }
         }
       }

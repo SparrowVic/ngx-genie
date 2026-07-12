@@ -1,0 +1,43 @@
+<ng-template #body>
+  @if (icon(); as ic) { <ui-icon [name]="ic" [size]="iconSize()" /> }
+  <span class="btn__label"><ng-content /></span>
+  @if (iconRight(); as ir) { <ui-icon [name]="ir" [size]="iconSize()" /> }
+</ng-template>
+
+@switch (mode()) {
+  @case ('route') {
+    <a
+      [class]="classes()"
+      [routerLink]="href()"
+      [appRipple]="rippleColor()"
+      [attr.aria-disabled]="disabled() || null"
+      [attr.tabindex]="disabled() ? -1 : null"
+    >
+      <ng-container [ngTemplateOutlet]="body" />
+    </a>
+  }
+  @case ('external') {
+    <a
+      [class]="classes()"
+      [href]="href()"
+      target="_blank"
+      rel="noreferrer noopener"
+      [appRipple]="rippleColor()"
+      [attr.aria-disabled]="disabled() || null"
+      [attr.tabindex]="disabled() ? -1 : null"
+    >
+      <ng-container [ngTemplateOutlet]="body" />
+    </a>
+  }
+  @default {
+    <button
+      type="button"
+      [class]="classes()"
+      [disabled]="disabled()"
+      [appRipple]="rippleColor()"
+      (click)="press.emit()"
+    >
+      <ng-container [ngTemplateOutlet]="body" />
+    </button>
+  }
+}
