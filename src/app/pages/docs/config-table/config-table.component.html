@@ -1,0 +1,49 @@
+<div class="config-table" role="table" aria-label="GenieOS configuration options">
+  <div class="config-table__head" role="row">
+    @for (col of columns; track col) {
+      <span class="config-table__col" role="columnheader">{{ col }}</span>
+    }
+  </div>
+
+  <div class="config-table__body" role="rowgroup">
+    @for (opt of options(); track opt.name) {
+      <div
+        class="config-row"
+        role="row"
+        [class.is-active]="activeName() === opt.name"
+        (mouseenter)="setActive(opt.name)"
+        (mouseleave)="clear()"
+        (focusin)="setActive(opt.name)"
+        (focusout)="clear()"
+      >
+        <div class="config-row__cell config-row__name" role="cell">
+          <span class="config-row__key">Option</span>
+          <code class="config-row__code" tabindex="0">{{ opt.name }}</code>
+        </div>
+
+        <div class="config-row__cell config-row__type" role="cell">
+          <span class="config-row__key">Type</span>
+          <span class="config-row__mono">{{ opt.type }}</span>
+        </div>
+
+        <div class="config-row__cell config-row__default" role="cell">
+          <span class="config-row__key">Default</span>
+          <code
+            class="config-row__default-val"
+            [style.--accent]="accentForDefault(opt)"
+          >{{ opt.default }}</code>
+        </div>
+
+        <div class="config-row__cell config-row__desc" role="cell">
+          <span class="config-row__key">Description</span>
+          <p>{{ opt.description }}</p>
+        </div>
+      </div>
+    }
+  </div>
+
+  <p class="config-table__foot tnum">
+    {{ count() | pluralize: 'configurable option' }} on the
+    <code>provideGenie()</code> object.
+  </p>
+</div>

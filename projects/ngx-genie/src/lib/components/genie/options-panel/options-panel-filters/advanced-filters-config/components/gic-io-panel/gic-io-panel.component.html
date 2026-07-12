@@ -1,0 +1,13 @@
+<section class="io-panel">
+  <div class="io-col">
+    <label>Export</label>
+    <textarea class="io-area" readonly [value]="store.exportText"></textarea>
+    <button class="pill-btn" (click)="store.copyExport()">📋 Copy configuration</button>
+  </div>
+  <div class="io-col">
+    <label>Import</label>
+    <textarea class="io-area" placeholder="Paste an exported configuration…"
+              [ngModel]="store.importText()" (ngModelChange)="store.importText.set($event)"></textarea>
+    <button class="pill-btn" [disabled]="!store.importText().trim()" (click)="store.doImport()">⬇ Apply configuration</button>
+  </div>
+</section>

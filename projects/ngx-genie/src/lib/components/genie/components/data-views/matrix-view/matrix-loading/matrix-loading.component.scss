@@ -1,3 +1,5 @@
+@use 'sass:color';
+
 $c-primary: #00ff41;
 $c-secondary: #008f11;
 $c-bg: #030403;
@@ -126,7 +128,7 @@ $c-bg: #030403;
     }
 
     .msg {
-      color: lighten($c-primary, 20%);
+      color: color.adjust($c-primary, $lightness: 20%);
     }
 
     .cursor {
@@ -220,5 +222,14 @@ $c-bg: #030403;
   }
   100% {
     clip: rect(50px, 9999px, 70px, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scanlines,
+  .log-line .cursor,
+  .glitch::before,
+  .glitch::after {
+    animation: none;
   }
 }

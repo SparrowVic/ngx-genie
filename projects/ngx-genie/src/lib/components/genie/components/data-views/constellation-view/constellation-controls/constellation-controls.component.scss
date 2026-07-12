@@ -95,6 +95,64 @@ $c-accent: #06b6d4;
   transition: opacity 0.2s;
 }
 
+.graph-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid rgba($c-primary, 0.16);
+  border-radius: 6px;
+  background: rgba(2, 6, 23, 0.5);
+
+  &.huge {
+    border-color: rgba(251, 191, 36, 0.28);
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.08), rgba(2, 6, 23, 0.5));
+  }
+
+  > div {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat-val {
+    color: #f8fafc;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .stat-label {
+    color: $c-text-muted;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+  }
+}
+
+.pin-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+
+  .pin-label {
+    flex: 1;
+    min-width: 0;
+    color: #e0f2fe;
+    font-size: 10px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .control-row {
   display: flex;
   justify-content: space-between;
@@ -153,6 +211,58 @@ $c-accent: #06b6d4;
     border-color: rgba($c-primary, 0.4);
     color: $c-primary;
     box-shadow: 0 0 10px rgba($c-primary, 0.2);
+  }
+}
+
+.mini-btn {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: $c-text-muted;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+
+  &:hover {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.32);
+  }
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  padding: 3px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  button {
+    border: 0;
+    border-radius: 4px;
+    color: $c-text-muted;
+    background: transparent;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 5px 0;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+
+    &:hover {
+      color: $c-text;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    &.active {
+      color: #06111f;
+      background: $c-primary;
+    }
+  }
+
+  &.four {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -263,4 +373,16 @@ input[type=range] {
     font-weight: 600;
     font-style: normal;
   }
+}
+
+/* Physics-only controls (SIMULATION, GRAVITY) are N/A in grouped/static layouts. */
+.control-row.disabled {
+  opacity: 0.42;
+}
+
+button[disabled],
+input[type='range'][disabled] {
+  opacity: 0.42;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
 }

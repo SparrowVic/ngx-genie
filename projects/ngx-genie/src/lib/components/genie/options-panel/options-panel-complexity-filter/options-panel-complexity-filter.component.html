@@ -14,7 +14,15 @@
              [max]="maxDetectedDeps()"
              [ngModel]="minDeps()"
              (ngModelChange)="updateMinDeps.emit($event)"
-             class="cyber-slider">
+             class="cyber-slider"
+             aria-label="Minimum dependencies">
+      <input type="range"
+             min="0"
+             [max]="maxDetectedDeps()"
+             [ngModel]="maxDeps()"
+             (ngModelChange)="updateMaxDeps.emit($event)"
+             class="cyber-slider"
+             aria-label="Maximum dependencies">
     </div>
   </div>
 </div>

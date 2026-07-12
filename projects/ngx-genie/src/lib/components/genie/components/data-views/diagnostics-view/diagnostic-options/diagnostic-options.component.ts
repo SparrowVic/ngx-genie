@@ -4,7 +4,6 @@ import {DiagnosticsConfig} from '../../../../../../services/genie-diagnostics.se
 
 @Component({
   selector: 'lib-diagnostic-options',
-  standalone: true,
   imports: [
     FormsModule
   ],

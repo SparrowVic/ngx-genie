@@ -1,0 +1,85 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  position: relative;
+  isolation: isolate;
+}
+
+/* ---- Sticky glass top bar ---- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid transparent;
+  transition:
+    background var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out);
+
+  &.is-scrolled {
+    background: var(--bg-glass-strong);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border-bottom-color: var(--border);
+    box-shadow: var(--shadow-1);
+  }
+}
+
+.topbar__inner {
+  height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* logo pinned left · links centred · actions pinned right */
+.topbar__inner app-nav-logo {
+  flex: 0 0 auto;
+}
+
+.topbar__inner app-nav-links {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.topbar__inner app-nav-actions {
+  flex: 0 0 auto;
+}
+
+/* ---- Scroll progress hairline ---- */
+.topbar__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.topbar__progress-bar {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--gradient-aurora);
+  background-size: 200% auto;
+  border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.7);
+  transition: width 120ms linear;
+}
+
+/* ---- Routed content ---- */
+.shell-main {
+  flex: 1 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 860px) {
+  .topbar__inner {
+    gap: var(--space-2);
+  }
+}

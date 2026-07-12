@@ -1,0 +1,346 @@
+:host {
+  display: block;
+}
+
+.hero {
+  position: relative;
+  min-height: calc(100svh - var(--nav-h));
+  display: flex;
+  align-items: center;
+  padding-block: clamp(3rem, 8vh, 6rem);
+  overflow: hidden;
+}
+
+/* ---- Cosmic backdrop ---- */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.hero-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-cosmic);
+}
+
+.aurora {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.5;
+  mix-blend-mode: screen;
+}
+.aurora--1 {
+  width: 42vw;
+  height: 42vw;
+  max-width: 620px;
+  max-height: 620px;
+  top: -8%;
+  right: -6%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.55), transparent 70%);
+  animation: float 12s ease-in-out infinite;
+}
+.aurora--2 {
+  width: 38vw;
+  height: 38vw;
+  max-width: 560px;
+  max-height: 560px;
+  bottom: -12%;
+  left: -8%;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.4), transparent 70%);
+  animation: float 15s ease-in-out infinite reverse;
+}
+
+.starfield {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 70% 20%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1.5px 1.5px at 40% 70%, rgba(199, 210, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 85% 60%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1px 1px at 55% 45%, rgba(255, 255, 255, 0.45), transparent),
+    radial-gradient(1.5px 1.5px at 12% 80%, rgba(199, 210, 255, 0.5), transparent);
+  opacity: 0.7;
+  animation: twinkle 6s ease-in-out infinite;
+}
+
+.grid-lines {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(circle at 50% 40%, black, transparent 78%);
+  -webkit-mask-image: radial-gradient(circle at 50% 40%, black, transparent 78%);
+  opacity: 0.35;
+}
+
+/* ---- Layout ---- */
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(2rem, 5vw, 4.5rem);
+  align-items: center;
+}
+
+.hero-copy {
+  gap: var(--space-5);
+}
+
+.hero-eyebrow {
+  align-self: flex-start;
+  color: var(--text-secondary);
+}
+.hero-eyebrow ui-icon {
+  color: var(--cyan);
+}
+.eyebrow-sep {
+  color: var(--text-tertiary);
+}
+
+.hero-title {
+  font-size: var(--fs-display);
+  line-height: var(--lh-heading);
+  letter-spacing: var(--ls-display);
+  max-width: 16ch;
+}
+.hero-title .gradient-text {
+  background-size: 220% auto;
+  animation: aurora-shift 8s ease infinite;
+}
+
+.hero-lead {
+  font-size: var(--fs-body-lg);
+  line-height: var(--lh-body);
+  color: var(--text-secondary);
+  max-width: 46ch;
+}
+.hero-lead kbd {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.hero-actions ui-button {
+  display: inline-flex;
+}
+
+/* ---- F1 keycap: a real, pressable key that replays the overlay hotkey ---- */
+.keycap-summon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 2.75rem;
+  margin-left: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+
+.keycap {
+  /* Travel distance of the key press; the resting "wall" shadows eat it up. */
+  --key-travel: 3px;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.55rem;
+  font-family: var(--font-mono);
+  font-size: var(--fs-body-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  /* The cap face is always dark plastic, so the legend stays light in both themes. */
+  color: #eef0fb;
+  background: linear-gradient(180deg, var(--space-700), var(--space-800) 62%, var(--space-850));
+  border: 1px solid var(--border-strong);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -2px 0 rgba(2, 4, 14, 0.45),
+    0 var(--key-travel) 0 var(--space-950),
+    0 var(--key-travel) 0 1px rgba(148, 163, 255, 0.22),
+    0 calc(var(--key-travel) + 8px) 18px -6px rgba(2, 4, 14, 0.7);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.keycap-summon:hover .keycap {
+  border-color: color-mix(in srgb, var(--violet) 55%, var(--border-strong));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -2px 0 rgba(2, 4, 14, 0.45),
+    0 var(--key-travel) 0 var(--space-950),
+    0 var(--key-travel) 0 1px rgba(148, 163, 255, 0.32),
+    0 calc(var(--key-travel) + 8px) 18px -6px rgba(2, 4, 14, 0.7),
+    0 0 26px -6px rgba(139, 92, 246, 0.55);
+}
+
+/* The key bottoms out: it travels down and its wall collapses to nothing. */
+.keycap-summon:active .keycap {
+  transform: translateY(var(--key-travel));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(2, 4, 14, 0.45),
+    0 0 0 var(--space-950),
+    0 0 0 1px rgba(148, 163, 255, 0.22),
+    0 3px 8px -4px rgba(2, 4, 14, 0.7);
+}
+
+.keycap-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.keycap-hint-strong {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.keycap-hint-sub {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--text-tertiary);
+}
+.keycap-summon:hover .keycap-hint-strong {
+  color: var(--text-primary);
+}
+
+.hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.chips-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-right: 0.25rem;
+}
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.hero-stat {
+  min-width: 0;
+}
+
+/* ---- Visual column ---- */
+.hero-visual {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.hero-terminal-float {
+  position: absolute;
+  right: -2%;
+  bottom: -4%;
+  width: min(340px, 78%);
+  z-index: 2;
+  animation: float 9s ease-in-out infinite;
+}
+
+/* ---- Scroll hint ---- */
+.scroll-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 1.4rem;
+  transform: translateX(-50%);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-tertiary);
+  transition: color var(--dur) var(--ease-out);
+}
+.scroll-hint:hover {
+  color: var(--text-secondary);
+}
+.scroll-hint-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.scroll-hint-mouse {
+  width: 1.4rem;
+  height: 2.2rem;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  display: flex;
+  justify-content: center;
+  padding-top: 0.35rem;
+}
+.wheel {
+  width: 0.28rem;
+  height: 0.55rem;
+  border-radius: var(--radius-full);
+  background: var(--violet);
+  animation: scroll-wheel 1.8s ease-in-out infinite;
+}
+@keyframes scroll-wheel {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  40% {
+    opacity: 1;
+  }
+  80%,
+  100% {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 980px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(3rem, 8vw, 5rem);
+  }
+  .hero-visual {
+    order: -1;
+  }
+  .hero-terminal-float {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: min(360px, 92%);
+    margin-top: -1.5rem;
+  }
+  .scroll-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .hero-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3) var(--space-5);
+  }
+}

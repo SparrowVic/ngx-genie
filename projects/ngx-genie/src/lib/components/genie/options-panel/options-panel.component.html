@@ -68,6 +68,7 @@
     [maxDeps]="_maxDeps()"
     [maxDetectedDeps]="maxDetectedDeps()"
     (updateMinDeps)="_setMinDeps($event)"
+    (updateMaxDeps)="_setMaxDeps($event)"
   ></lib-options-panel-complexity-filter>
 
 
@@ -82,6 +83,9 @@
     [hideUnused]="_hideUnusedDeps()"
     [showServices]="_showUserServices()"
     [showTokens]="_showUserTokens()"
+    [showValues]="_showUserValues()"
+    [showObservables]="_showUserObservables()"
+    [showSignals]="_showUserSignals()"
     [showComponents]="_showUserComponents()"
     [showDirectives]="_showUserDirectives()"
     [showPipes]="_showUserPipes()"

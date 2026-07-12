@@ -1,0 +1,44 @@
+<svg
+  class="sparkline"
+  role="img"
+  [attr.width]="width()"
+  [attr.height]="height()"
+  [attr.viewBox]="'0 0 ' + width() + ' ' + height()"
+  [attr.aria-label]="ariaLabel()"
+  [style.color]="accent()"
+>
+  <defs>
+    <!-- stop-color is set via style: SVG presentation attributes can't resolve var() accents. -->
+    <linearGradient [attr.id]="gradId" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" [style.stop-color]="accent()" stop-opacity="0.34" />
+      <stop offset="1" [style.stop-color]="accent()" stop-opacity="0" />
+    </linearGradient>
+    <!-- Stroke fades up from the history toward the live end of the line. -->
+    <linearGradient [attr.id]="strokeGradId" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" [style.stop-color]="accent()" stop-opacity="0.45" />
+      <stop offset="1" [style.stop-color]="accent()" stop-opacity="1" />
+    </linearGradient>
+  </defs>
+
+  <g class="sparkline__grid" aria-hidden="true">
+    @for (y of gridYs(); track y) {
+      <line [attr.x1]="padX" [attr.x2]="width() - padX" [attr.y1]="y" [attr.y2]="y" />
+    }
+  </g>
+
+  <polygon class="sparkline__area" [attr.points]="geo().area" [attr.fill]="areaFill()" />
+
+  <polyline
+    class="sparkline__line"
+    fill="none"
+    [attr.stroke]="strokePaint()"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    vector-effect="non-scaling-stroke"
+    [attr.points]="geo().points"
+  />
+
+  <circle class="sparkline__halo" fill="currentColor" r="4.5" [attr.cx]="geo().end.x" [attr.cy]="geo().end.y" />
+  <circle class="sparkline__dot" fill="currentColor" r="2.4" [attr.cx]="geo().end.x" [attr.cy]="geo().end.y" />
+</svg>

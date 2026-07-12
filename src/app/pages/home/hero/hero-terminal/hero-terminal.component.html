@@ -1,0 +1,39 @@
+<div class="terminal glass" role="img" [attr.aria-label]="ariaLabel()">
+  <header class="term-bar">
+    <span class="lights" aria-hidden="true">
+      <i class="light light--rose"></i>
+      <i class="light light--amber"></i>
+      <i class="light light--emerald"></i>
+    </span>
+    <span class="term-title">
+      <ui-icon name="terminal" [size]="13" />
+      ngx-genie — setup
+    </span>
+    <span class="term-tag">zsh</span>
+  </header>
+
+  <div class="term-body">
+    @for (line of rendered(); track $index; let last = $last) {
+      <div class="line" [class]="'k-' + line.kind">
+        @if (line.prompt) {
+          <span class="prompt">{{ line.prompt }}</span>
+        }
+        <span class="txt">{{ line.shown }}</span>
+        @if (last && !done()) {
+          <span class="caret" aria-hidden="true"></span>
+        }
+      </div>
+    }
+    @if (done()) {
+      <div class="line k-command">
+        <span class="prompt">$</span>
+        <span class="caret" aria-hidden="true"></span>
+      </div>
+    }
+  </div>
+
+  <footer class="term-foot">
+    <span class="foot-dot" [class.is-live]="done()" aria-hidden="true"></span>
+    <span>Press <kbd>{{ hotkey.key }}</kbd> to summon the observatory</span>
+  </footer>
+</div>

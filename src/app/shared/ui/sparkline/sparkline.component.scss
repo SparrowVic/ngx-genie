@@ -1,0 +1,29 @@
+:host {
+  display: inline-flex;
+  line-height: 0;
+}
+
+.sparkline {
+  display: block;
+  overflow: visible;
+  max-width: 100%;
+}
+
+.sparkline__grid line {
+  stroke: var(--border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.sparkline__line {
+  filter: drop-shadow(0 0 4px color-mix(in oklab, currentColor 55%, transparent));
+}
+
+.sparkline__halo {
+  opacity: 0.26;
+  animation: pulse-glow 2.4s var(--ease-out) infinite;
+}
+
+.sparkline__dot {
+  filter: drop-shadow(0 0 4px currentColor);
+}

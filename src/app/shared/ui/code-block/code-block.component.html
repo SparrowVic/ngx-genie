@@ -1,0 +1,30 @@
+<figure class="code-block" [class.code-block--compact]="compact()">
+  <figcaption class="code-block__bar">
+    @if (!compact()) {
+      <span class="code-block__dots" aria-hidden="true">
+        <i class="code-block__dot code-block__dot--rose"></i>
+        <i class="code-block__dot code-block__dot--amber"></i>
+        <i class="code-block__dot code-block__dot--emerald"></i>
+      </span>
+    }
+
+    @if (filename(); as name) {
+      <span class="code-block__name">{{ name }}</span>
+    }
+
+    @if (!compact()) {
+      <span class="code-block__lang">{{ languageLabel() }}</span>
+    }
+
+    <ui-copy-button class="code-block__copy" [value]="code()" />
+  </figcaption>
+
+  <!-- tabindex lets keyboard users scroll wide snippets; region names the landmark -->
+  <pre
+    class="code-block__body"
+    role="region"
+    tabindex="0"
+    [attr.aria-label]="bodyLabel()"
+    [attr.data-lang]="lang()"
+  ><code>{{ code() }}</code></pre>
+</figure>

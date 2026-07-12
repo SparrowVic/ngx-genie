@@ -17,9 +17,7 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "index": "src/index.html",
             "browser": "src/main.ts",
-            "outputPath": "dist/ngx-genie-playground",
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
@@ -31,11 +29,17 @@
             "styles": [
               "src/styles.scss"
             ],
-            "polyfills": [
-              "zone.js"
-            ]
+            "outputPath": "dist/ngx-genie-demo",
+            "index": "src/index.html"
           },
           "configurations": {
+            "demo": {
+              "optimization": false,
+              "sourceMap": true,
+              "extractLicenses": false,
+              "namedChunks": true,
+              "outputHashing": "none"
+            },
             "production": {
               "budgets": [
                 {
@@ -45,7 +49,7 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
+                  "maximumWarning": "32kB",
                   "maximumError": "32kB"
                 }
               ],
@@ -87,6 +91,10 @@
             ],
             "styles": [
               "src/styles.scss"
+            ],
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
             ]
           }
         }
@@ -99,9 +107,6 @@
       "prefix": "lib",
       "architect": {
         "build": {
-          "options": {
-            "project": "projects/ngx-genie/ng-package.json"
-          },
           "builder": "@angular/build:ng-packagr",
           "configurations": {
             "production": {
@@ -111,12 +116,19 @@
               "tsConfig": "projects/ngx-genie/tsconfig.lib.json"
             }
           },
-          "defaultConfiguration": "production"
+          "defaultConfiguration": "production",
+          "options": {
+            "project": "projects/ngx-genie/ng-package.json"
+          }
         },
         "test": {
           "builder": "@angular/build:karma",
           "options": {
-            "tsConfig": "projects/ngx-genie/tsconfig.spec.json"
+            "tsConfig": "projects/ngx-genie/tsconfig.spec.json",
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
+            ]
           }
         }
       }

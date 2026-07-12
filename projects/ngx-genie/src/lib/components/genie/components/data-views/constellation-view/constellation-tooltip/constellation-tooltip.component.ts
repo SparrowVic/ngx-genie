@@ -1,9 +1,8 @@
 import {ChangeDetectionStrategy, Component, input, ViewEncapsulation} from '@angular/core';
-import {RenderNode} from '../constellation.models';
+import {RenderNode} from '../models/constellation.models';
 
 @Component({
   selector: 'lib-constellation-tooltip',
-  standalone: true,
   imports: [],
   templateUrl: './constellation-tooltip.component.html',
   styleUrl: './constellation-tooltip.component.scss',

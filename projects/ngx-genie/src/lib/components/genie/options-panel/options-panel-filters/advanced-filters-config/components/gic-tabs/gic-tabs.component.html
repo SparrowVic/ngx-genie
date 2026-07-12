@@ -1,0 +1,29 @@
+<!-- ============================ TAB BAR ============================ -->
+<nav class="gic__tabs">
+  <div class="tabs__group">
+    <button class="tab" [class.is-active]="store.tab() === 'rules'" (click)="store.setTab('rules')">
+      <span class="tab__ico">✨</span> Rules <span class="tab__badge">{{ store.stats().rules }}</span>
+    </button>
+    <button class="tab" [class.is-active]="store.tab() === 'tokens'" (click)="store.setTab('tokens')">
+      <span class="tab__ico">🔎</span> Tokens <span class="tab__badge">{{ store.stats().total }}</span>
+    </button>
+    <button class="tab" [class.is-active]="store.tab() === 'framework'" (click)="store.setTab('framework')">
+      <span class="tab__ico">🅰️</span> Framework <span class="tab__badge">{{ store.stats().categoriesOn }}/{{ store.categories.length }}</span>
+    </button>
+  </div>
+
+  <div class="tabs__tools">
+    <button class="ghost-btn" [class.is-active]="store.showIo()" (click)="store.toggleIo()" title="Import / Export">
+      ⇅ Backup
+    </button>
+    @if (!store.confirmReset()) {
+      <button class="ghost-btn danger" (click)="store.requestReset()" title="Reset all filters">↺ Reset</button>
+    } @else {
+      <span class="confirm-inline">
+        Reset everything?
+        <button class="ghost-btn" (click)="store.cancelReset()">Cancel</button>
+        <button class="ghost-btn danger solid" (click)="store.confirmResetNow()">Reset</button>
+      </span>
+    }
+  </div>
+</nav>

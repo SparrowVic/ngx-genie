@@ -1,0 +1,166 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  height: 100%;
+  text-align: center;
+}
+
+/* ---- Numbered node + connector rail ---- */
+.step__rail {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.step__node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: var(--radius-full);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  background:
+    radial-gradient(120% 120% at 30% 20%, color-mix(in srgb, var(--step-accent) 34%, transparent), transparent 70%),
+    var(--bg-glass-strong);
+  border: 1px solid color-mix(in srgb, var(--step-accent) 55%, var(--border-strong));
+  box-shadow:
+    0 0 26px -6px color-mix(in srgb, var(--step-accent) 70%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.step__node-num {
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(180deg, var(--text-primary), color-mix(in srgb, var(--step-accent) 60%, var(--text-primary)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.step__node-ring {
+  position: absolute;
+  inset: -5px;
+  border-radius: inherit;
+  border: 1px solid color-mix(in srgb, var(--step-accent) 40%, transparent);
+  opacity: 0.6;
+  animation: pulse-glow 3.6s var(--ease-out) infinite;
+}
+
+/* Dependency edge toward the next stage: a 1px hairline with a mid-edge
+   beacon diamond (the injector-graph motif) and a small travelling pulse. */
+.step__connector {
+  position: absolute;
+  z-index: 0;
+  top: 1.75rem;
+  left: 50%;
+  transform: translateY(-50%);
+  height: 1px;
+  width: calc(100% + var(--flow-gap, 2rem));
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--step-accent) 60%, transparent) 0%,
+    var(--border-strong) 72%,
+    transparent 100%
+  );
+}
+
+.step__connector::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--step-accent) 55%, var(--border-strong));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--step-accent) 45%, transparent);
+}
+
+.step__connector::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 6%;
+  width: 3px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  transform: translateY(-50%);
+  background: var(--step-accent);
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--step-accent) 70%, transparent);
+  animation: connector-travel 3.2s var(--ease-out) infinite;
+}
+
+@keyframes connector-travel {
+  0% { left: 4%; opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { left: 96%; opacity: 0; }
+}
+
+/* ---- Body ---- */
+.step__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.step__icon {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  color: var(--step-accent);
+  background: color-mix(in srgb, var(--step-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--step-accent) 30%, transparent);
+}
+
+.step__title {
+  font-size: var(--fs-h4);
+  color: var(--text-primary);
+}
+
+.step__desc {
+  max-width: 22rem;
+  font-size: var(--fs-body-sm);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+/* ---- Vertical timeline on narrow screens ---- */
+@media (max-width: 860px) {
+  .step__connector {
+    top: 3.5rem;
+    left: 50%;
+    height: calc(100% + var(--flow-gap, 2.5rem));
+    width: 1px;
+    transform: translateX(-50%);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--step-accent) 60%, transparent) 0%,
+      var(--border-strong) 72%,
+      transparent 100%
+    );
+  }
+
+  .step__connector::after {
+    display: none;
+  }
+}

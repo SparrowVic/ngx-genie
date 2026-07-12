@@ -8,7 +8,7 @@ import {
   output,
   signal, ViewEncapsulation,
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {FormsModule} from '@angular/forms';
 import {GenieResizableDirective} from '../../../shared/directives/resizable/resizable.directive';
 import {
@@ -24,15 +24,13 @@ import {GenieFilterState} from '../options-panel/options-panel.models';
 
 @Component({
   selector: 'lib-inspector-panel',
-  standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     GenieResizableDirective,
     InspectorToolbarComponent,
     InspectorProvidersListComponent,
     InspectorProviderDetailsComponent
-  ],
+],
   providers: [InspectorStateService],
   templateUrl: './inspector-panel.component.html',
   styleUrl: './inspector-panel.component.scss',
@@ -61,7 +59,6 @@ export class InspectorPanelComponent {
 
   readonly closeSelection = output<void>();
   readonly selectService = output<GenieServiceRegistration>();
-  readonly toggleLiveWatch = output<void>();
   readonly consoleLog = output<void>();
 
 
@@ -70,10 +67,10 @@ export class InspectorPanelComponent {
 
   constructor() {
 
-    effect(() => this.state.nodeServices.set(this.nodeServices()), {allowSignalWrites: true});
-    effect(() => this.state.dependencies.set(this.dependencies()), {allowSignalWrites: true});
-    effect(() => this.state.selectedService.set(this.selectedService()), {allowSignalWrites: true});
-    effect(() => this.state.filterState.set(this.filterState()), {allowSignalWrites: true});
+    effect(() => this.state.nodeServices.set(this.nodeServices()));
+    effect(() => this.state.dependencies.set(this.dependencies()));
+    effect(() => this.state.selectedService.set(this.selectedService()));
+    effect(() => this.state.filterState.set(this.filterState()));
   }
 
 
