@@ -1,0 +1,65 @@
+<section id="faq" class="section faq" appReveal>
+  <div class="container faq__inner">
+    <ui-section-header
+      eyebrow="Answers"
+      heading="Frequently asked *questions*"
+      subtitle="Everything you might wonder before pointing GenieOS at your dependency graph. Filter by topic or search across every answer."
+    />
+
+    <div class="faq__controls" [appReveal]="60">
+      <div class="faq__tags" role="group" aria-label="Filter questions by topic">
+        @for (tag of tags(); track tag) {
+          <button
+            type="button"
+            class="faq__tag"
+            [class.is-active]="tag === selectedTag()"
+            [attr.aria-pressed]="tag === selectedTag()"
+            (click)="selectTag(tag)"
+          >
+            <ui-chip [accent]="accentFor(tag)">{{ tag }}</ui-chip>
+          </button>
+        }
+      </div>
+
+      <label class="faq__search">
+        <ui-icon class="faq__search-icon" name="search" [size]="16" />
+        <input
+          class="faq__search-input"
+          type="search"
+          placeholder="Search the FAQ…"
+          autocomplete="off"
+          spellcheck="false"
+          [value]="query()"
+          (input)="onSearch($any($event.target).value)"
+          aria-label="Search questions"
+        />
+      </label>
+    </div>
+
+    <div class="faq__meta" [appReveal]="90">
+      <span class="pill tnum" role="status">{{ resultCount() | pluralize: 'question' }}</span>
+      @if (isFiltered()) {
+        <button type="button" class="faq__reset" (click)="reset()">
+          <ui-icon name="x" [size]="14" />
+          Clear filters
+        </button>
+      }
+    </div>
+
+    <div class="faq__list">
+      @for (faq of filtered(); track faq.id) {
+        <app-faq-item [item]="faq" [query]="query()" />
+      } @empty {
+        <div class="faq__empty panel">
+          <ui-icon name="search" [size]="26" />
+          <p class="faq__empty-title">No matching questions</p>
+          <p class="faq__empty-hint">Try a different keyword or clear the filters to see all {{ tags().length - 1 }} topics.</p>
+          <button type="button" class="faq__reset" (click)="reset()">
+            <ui-icon name="recycle" [size]="14" />
+            Reset
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+</section>

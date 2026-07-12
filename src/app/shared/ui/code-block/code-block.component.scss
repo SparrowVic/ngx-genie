@@ -1,0 +1,113 @@
+:host {
+  display: block;
+}
+
+.code-block {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-glass-strong);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: var(--shadow-1), var(--edge-light);
+  font-family: var(--font-mono);
+}
+
+.code-block__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--surface-2), transparent);
+}
+
+.code-block__dots {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 0.4rem;
+}
+
+.code-block__dot {
+  display: block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: var(--radius-full);
+  /* Slight inner shading keeps the traffic lights from reading flat. */
+  box-shadow: inset 0 -1px 1px rgba(2, 4, 14, 0.28);
+}
+
+.code-block__dot--rose {
+  background: var(--rose);
+}
+
+.code-block__dot--amber {
+  background: var(--amber);
+}
+
+.code-block__dot--emerald {
+  background: var(--emerald);
+}
+
+/* Filename rendered as the active editor tab. */
+.code-block__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  box-shadow: var(--edge-light);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.code-block__lang {
+  flex-shrink: 0;
+  padding: 0.18rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-tertiary);
+}
+
+.code-block__copy {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.code-block__body {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  overflow-x: auto;
+  font-size: var(--fs-caption);
+  line-height: 1.7;
+  color: var(--text-primary);
+  tab-size: 2;
+}
+.code-block__body:focus-visible {
+  outline-offset: -2px;
+}
+
+.code-block__body code {
+  font-family: var(--font-mono);
+  color: inherit;
+  white-space: pre;
+}
+
+/* Narrow-rail variant: no dots or language badge, tighter chrome. */
+.code-block--compact .code-block__bar {
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+}
+
+.code-block--compact .code-block__body {
+  padding: var(--space-3) var(--space-4);
+}

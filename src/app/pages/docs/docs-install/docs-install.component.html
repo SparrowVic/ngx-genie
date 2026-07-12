@@ -1,0 +1,21 @@
+<article class="doc-install" [id]="section().id">
+  <header class="doc-install__head">
+    <span class="doc-install__icon" aria-hidden="true">
+      <ui-icon [name]="section().icon" [size]="20" />
+    </span>
+
+    <h3 class="doc-install__title">{{ section().title }}</h3>
+
+    <a
+      class="doc-install__anchor"
+      [href]="anchor()"
+      [attr.aria-label]="'Link to ' + section().title"
+    >
+      <ui-icon name="chevron-right" [size]="16" />
+    </a>
+  </header>
+
+  <p class="doc-install__body">{{ section().body }}</p>
+
+  <app-install-picker class="doc-install__picker" filename="Terminal" />
+</article>

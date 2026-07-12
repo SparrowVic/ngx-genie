@@ -1,0 +1,23 @@
+<button
+  type="button"
+  class="feature-card"
+  [class.is-active]="selected()"
+  [style.--accent]="feature().accent"
+  [attr.aria-pressed]="selected()"
+  [appTilt]="selected() ? 0 : 5"
+  [appRipple]="rippleColor()"
+  (click)="activate()"
+>
+  <span class="feature-card__icon" aria-hidden="true">
+    <ui-icon [name]="feature().icon" [size]="20" />
+  </span>
+
+  <span class="feature-card__text">
+    <span class="feature-card__name">{{ feature().name }}</span>
+    <span class="feature-card__tagline">{{ feature().tagline }}</span>
+  </span>
+
+  <span class="feature-card__marker" aria-hidden="true">
+    <ui-icon [name]="selected() ? 'check' : 'chevron-right'" [size]="16" />
+  </span>
+</button>

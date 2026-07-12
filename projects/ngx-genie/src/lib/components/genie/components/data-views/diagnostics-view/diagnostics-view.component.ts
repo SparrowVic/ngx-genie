@@ -3,18 +3,22 @@ import {
   Component,
   computed,
   ElementRef,
+  effect,
   inject,
-  Input,
+  input,
+  OnDestroy,
   signal,
-  ViewChild, ViewEncapsulation
+  viewChild, ViewEncapsulation
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+import {NgClass, UpperCasePipe} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {
   GenieDiagnosticsService,
   Anomaly,
   DiagnosticsConfig,
-  DEFAULT_DIAGNOSTICS_CONFIG
+  DEFAULT_DIAGNOSTICS_CONFIG,
+  DiagnosticsProgress,
+  DiagnosticsReport
 } from '../../../../../services/genie-diagnostics.service';
 import {GenieServiceRegistration} from '../../../../../models/genie-node.model';
 import {GenieRegistryService} from '../../../../../services/genie-registry.service';
@@ -24,23 +28,32 @@ import {GenieResizableDirective} from '../../../../../shared/directives/resizabl
 
 type ViewMode = 'list' | 'grid';
 type CategoryFilter = 'ALL' | 'memory' | 'architecture' | 'performance' | 'best-practice';
+type SourceFilters = {
+  components: boolean;
+  services: boolean;
+  directives: boolean;
+  pipes: boolean;
+  tokens: boolean;
+};
+
+const INITIAL_RENDER_LIMIT = 100;
+const RENDER_LIMIT_STEP = 100;
 
 @Component({
   selector: 'lib-diagnostics-view',
-  standalone: true,
-  imports: [CommonModule, FormsModule, DiagnosticOptionsComponent, GenieResizableDirective],
+  imports: [NgClass, UpperCasePipe, FormsModule, DiagnosticOptionsComponent, GenieResizableDirective],
   templateUrl: './diagnostics-view.component.html',
   styleUrl: './diagnostics-view.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.ShadowDom
 })
-export class DiagnosticsViewComponent {
+export class DiagnosticsViewComponent implements OnDestroy {
   private diagnostics = inject(GenieDiagnosticsService);
   private registry = inject(GenieRegistryService);
   private state = inject(GenieExplorerStateService);
 
-  @Input() selectService!: (svc: GenieServiceRegistration) => void;
-  @ViewChild('searchInput') searchInput!: ElementRef<HTMLInputElement>;
+  readonly selectService = input.required<(svc: GenieServiceRegistration) => void>();
+  readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
   readonly config = signal<DiagnosticsConfig>(DEFAULT_DIAGNOSTICS_CONFIG);
   readonly optionsWidth = signal(280);
@@ -52,6 +65,7 @@ export class DiagnosticsViewComponent {
   readonly showSystemIssues = signal(false);
   readonly viewMode = signal<ViewMode>('list');
   readonly categoryFilter = signal<CategoryFilter>('ALL');
+  readonly renderLimit = signal(INITIAL_RENDER_LIMIT);
 
   readonly filterSeverity = signal<{ critical: boolean; warning: boolean; info: boolean }>({
     critical: true,
@@ -75,16 +89,31 @@ export class DiagnosticsViewComponent {
     tokens: false
   });
 
-  readonly report = computed(() => {
-    this.registry.services();
-    const currentConfig = this.config();
-    return this.diagnostics.runDiagnostics(currentConfig);
+  readonly report = signal<DiagnosticsReport>({score: 100, anomalies: []});
+  readonly diagnosticsProgress = signal<DiagnosticsProgress>({
+    phase: 'grouping',
+    processed: 0,
+    total: 0,
+    anomalies: 0
+  });
+  readonly isDiagnosticsRunning = signal(false);
+  readonly diagnosticsProgressPercent = computed(() => {
+    const progress = this.diagnosticsProgress();
+    if (!progress.total) return this.isDiagnosticsRunning() ? 5 : 100;
+    return Math.max(5, Math.min(100, (progress.processed / progress.total) * 100));
+  });
+
+  private diagnosticsRunId = 0;
+  private cancelDiagnosticsRun: (() => void) | null = null;
+  private diagnosticsTimer: ReturnType<typeof setTimeout> | null = null;
+
+  readonly serviceById = computed(() => {
+    return new Map(this.registry.services().map(s => [s.id, s]));
   });
 
   readonly availableTags = computed(() => {
     const anomalies = this.report().anomalies;
-    const services = this.registry.services();
-    const serviceMap = new Map(services.map(s => [s.id, s]));
+    const serviceMap = this.serviceById();
     const names = new Set<string>();
 
     anomalies.forEach(a => {
@@ -106,11 +135,20 @@ export class DiagnosticsViewComponent {
 
   readonly stats = computed(() => {
     const pool = this.filteredAnomalies();
+    let critical = 0;
+    let warning = 0;
+    let info = 0;
+    for (const item of pool) {
+      if (item.severity === 'critical') critical++;
+      else if (item.severity === 'warning') warning++;
+      else info++;
+    }
+
     return {
       total: pool.length,
-      critical: pool.filter(a => a.severity === 'critical').length,
-      warning: pool.filter(a => a.severity === 'warning').length,
-      info: pool.filter(a => a.severity === 'info').length
+      critical,
+      warning,
+      info
     };
   });
 
@@ -123,44 +161,18 @@ export class DiagnosticsViewComponent {
     const cat = this.categoryFilter();
 
     const tags = this.selectedTags();
-    const textQuery = this.inputValue().toLowerCase();
+    const textQuery = this.inputValue().trim().toLowerCase();
 
-    const servicesMap = new Map(this.registry.services().map(s => [s.id, s]));
+    const servicesMap = this.serviceById();
 
     return all.filter(item => {
       if (item.isFramework) {
         if (!showSystem) return false;
 
-        let typeMatch = false;
-        if (item.relatedServiceIds.length === 0) typeMatch = true;
-        else {
-          const svc = servicesMap.get(item.relatedServiceIds[0]);
-          if (svc) {
-            const type = svc.dependencyType;
-            if (type === 'Component' && sysFilters.components) typeMatch = true;
-            else if (type === 'Service' && sysFilters.services) typeMatch = true;
-            else if (type === 'Directive' && sysFilters.directives) typeMatch = true;
-            else if (type === 'Pipe' && sysFilters.pipes) typeMatch = true;
-            else if ((type === 'Token' || type === 'Value' || type === 'Observable') && sysFilters.tokens) typeMatch = true;
-          } else typeMatch = true;
-        }
-        if (!typeMatch) return false;
+        if (!this.matchesSourceFilter(item, sysFilters, servicesMap)) return false;
 
       } else {
-        let typeMatch = false;
-        if (item.relatedServiceIds.length === 0) typeMatch = true;
-        else {
-          const svc = servicesMap.get(item.relatedServiceIds[0]);
-          if (svc) {
-            const type = svc.dependencyType;
-            if (type === 'Component' && userFilters.components) typeMatch = true;
-            else if (type === 'Service' && userFilters.services) typeMatch = true;
-            else if (type === 'Directive' && userFilters.directives) typeMatch = true;
-            else if (type === 'Pipe' && userFilters.pipes) typeMatch = true;
-            else if ((type === 'Token' || type === 'Value' || type === 'Observable') && userFilters.tokens) typeMatch = true;
-          } else typeMatch = true;
-        }
-        if (!typeMatch) return false;
+        if (!this.matchesSourceFilter(item, userFilters, servicesMap)) return false;
       }
 
       if (item.severity === 'critical' && !sevFilters.critical) return false;
@@ -189,6 +201,14 @@ export class DiagnosticsViewComponent {
     });
   });
 
+  readonly displayedAnomalies = computed(() => {
+    return this.filteredAnomalies().slice(0, this.renderLimit());
+  });
+
+  readonly remainingAnomalies = computed(() => {
+    return Math.max(0, this.filteredAnomalies().length - this.displayedAnomalies().length);
+  });
+
   readonly hiddenCount = computed(() => {
     return this.report().anomalies.length - this.filteredAnomalies().length;
   });
@@ -199,6 +219,21 @@ export class DiagnosticsViewComponent {
     if (score >= 60) return '#f59e0b';
     return '#ef4444';
   });
+
+  constructor() {
+    effect(() => {
+      this.registry.nodes();
+      this.registry.services();
+      this.registry.dependencies();
+      const currentConfig = this.config();
+      this.scheduleDiagnosticsRun(currentConfig);
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.diagnosticsTimer) clearTimeout(this.diagnosticsTimer);
+    this.cancelDiagnosticsRun?.();
+  }
 
   onOptionsResize(delta: number) {
     this.optionsWidth.update(w => Math.max(200, Math.min(600, w + delta)));
@@ -211,7 +246,8 @@ export class DiagnosticsViewComponent {
       return newSet;
     });
     this.inputValue.set('');
-    this.searchInput.nativeElement.focus();
+    this.resetRenderLimit();
+    this.searchInput()?.nativeElement.focus();
   }
 
   removeTag(tag: string) {
@@ -220,11 +256,13 @@ export class DiagnosticsViewComponent {
       newSet.delete(tag);
       return newSet;
     });
+    this.resetRenderLimit();
   }
 
   onInputChange(val: string) {
     this.inputValue.set(val);
     this.isDropdownOpen.set(true);
+    this.resetRenderLimit();
   }
 
   onInputKeydown(event: KeyboardEvent) {
@@ -243,7 +281,7 @@ export class DiagnosticsViewComponent {
       }
     } else if (event.key === 'Escape') {
       this.isDropdownOpen.set(false);
-      this.searchInput.nativeElement.blur();
+      this.searchInput()?.nativeElement.blur();
     }
   }
 
@@ -261,18 +299,22 @@ export class DiagnosticsViewComponent {
 
   toggleFilter(type: 'critical' | 'warning' | 'info') {
     this.filterSeverity.update(s => ({...s, [type]: !s[type]}));
+    this.resetRenderLimit();
   }
 
   toggleUserSource(type: 'components' | 'services' | 'directives' | 'pipes' | 'tokens') {
     this.filterSourceUser.update(s => ({...s, [type]: !s[type]}));
+    this.resetRenderLimit();
   }
 
   toggleSystemSource(type: 'components' | 'services' | 'directives' | 'pipes' | 'tokens') {
     this.filterSourceSystem.update(s => ({...s, [type]: !s[type]}));
+    this.resetRenderLimit();
   }
 
   toggleSystemIssues() {
     this.showSystemIssues.update(v => !v);
+    this.resetRenderLimit();
   }
 
   toggleViewMode() {
@@ -281,6 +323,15 @@ export class DiagnosticsViewComponent {
 
   setCategoryFilter(cat: CategoryFilter) {
     this.categoryFilter.set(cat);
+    this.resetRenderLimit();
+  }
+
+  loadMore() {
+    this.renderLimit.update(limit => limit + RENDER_LIMIT_STEP);
+  }
+
+  showAll() {
+    this.renderLimit.set(this.filteredAnomalies().length);
   }
 
   isNodeLevelIssue(type: string): boolean {
@@ -290,9 +341,9 @@ export class DiagnosticsViewComponent {
   resolveAndSelect(anomaly: Anomaly) {
     if (anomaly.relatedServiceIds.length > 0) {
       const svcId = anomaly.relatedServiceIds[0];
-      const svc = this.registry.services().find(s => s.id === svcId);
+      const svc = this.registry.getServiceById(svcId);
       if (svc) {
-        this.selectService(svc);
+        this.selectService()(svc);
       }
     }
   }
@@ -326,13 +377,72 @@ export class DiagnosticsViewComponent {
     this.copyToClipboard(text);
   }
 
+  private scheduleDiagnosticsRun(config: DiagnosticsConfig): void {
+    if (this.diagnosticsTimer) clearTimeout(this.diagnosticsTimer);
+    this.cancelDiagnosticsRun?.();
+    this.isDiagnosticsRunning.set(true);
+
+    this.diagnosticsTimer = setTimeout(() => {
+      this.startDiagnosticsRun(config);
+    }, 180);
+  }
+
+  private startDiagnosticsRun(config: DiagnosticsConfig): void {
+    const runId = ++this.diagnosticsRunId;
+    this.cancelDiagnosticsRun?.();
+
+    this.cancelDiagnosticsRun = this.diagnostics.runDiagnosticsChunked(
+      config,
+      progress => {
+        if (runId !== this.diagnosticsRunId) return;
+        this.diagnosticsProgress.set(progress);
+      },
+      report => {
+        if (runId !== this.diagnosticsRunId) return;
+        this.report.set(report);
+        this.isDiagnosticsRunning.set(false);
+        this.resetRenderLimit();
+      }
+    );
+  }
+
   private copyToClipboard(text: string) {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      return;
+    }
     const textarea = document.createElement('textarea');
     textarea.value = text;
     document.body.appendChild(textarea);
     textarea.select();
     document.execCommand('copy');
     document.body.removeChild(textarea);
+  }
+
+  private resetRenderLimit(): void {
+    this.renderLimit.set(INITIAL_RENDER_LIMIT);
+  }
+
+  private matchesSourceFilter(
+    item: Anomaly,
+    filters: SourceFilters,
+    servicesMap: Map<number, GenieServiceRegistration>
+  ): boolean {
+    if (item.relatedServiceIds.length === 0) return true;
+
+    const svc = servicesMap.get(item.relatedServiceIds[0]);
+    if (!svc) return true;
+
+    const type = svc.dependencyType;
+    if (type === 'Component') return filters.components;
+    if (type === 'Service') return filters.services;
+    if (type === 'Directive') return filters.directives;
+    if (type === 'Pipe') return filters.pipes;
+    if (type === 'Token' || type === 'Value' || type === 'Observable' || type === 'Signal') {
+      return filters.tokens;
+    }
+
+    return true;
   }
 
   getIconForType(type: string): string {

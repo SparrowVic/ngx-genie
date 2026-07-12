@@ -1,0 +1,86 @@
+<article class="spotlight panel" [style.--accent]="feature().accent">
+  @for (f of [feature()]; track f.id) {
+    <div class="spotlight__inner">
+      <header class="spotlight__head">
+        <span class="spotlight__icon" aria-hidden="true">
+          <ui-icon [name]="f.icon" [size]="30" />
+        </span>
+
+        <div class="spotlight__titles">
+          <div class="spotlight__tags">
+            <ui-chip icon="sparkles" [accent]="f.accent">Inspector view</ui-chip>
+          </div>
+          <h3 class="spotlight__name">{{ f.name }}</h3>
+          <p class="spotlight__tagline">{{ f.tagline }}</p>
+        </div>
+      </header>
+
+      @if (shot(); as s) {
+        <figure class="spotlight__shot" [class.spotlight__shot--portrait]="shotPortrait()">
+          <span class="shot-bar" aria-hidden="true">
+            <span class="shot-dots">
+              <i class="shot-dot shot-dot--rose"></i>
+              <i class="shot-dot shot-dot--amber"></i>
+              <i class="shot-dot shot-dot--emerald"></i>
+            </span>
+            <span class="shot-title">{{ f.name }} · real capture</span>
+            <kbd class="shot-key">{{ hotkey.key }}</kbd>
+          </span>
+          <span class="shot-stage">
+            <img
+              [src]="s.src"
+              [alt]="s.alt"
+              [width]="s.width"
+              [height]="s.height"
+              loading="lazy"
+              decoding="async"
+            />
+          </span>
+          @if (s.caption; as caption) {
+            <figcaption class="shot-caption">{{ caption }}</figcaption>
+          }
+        </figure>
+      }
+
+      <p class="spotlight__desc">{{ f.description }}</p>
+
+      <ul class="spotlight__bullets">
+        @for (bullet of f.bullets; track bullet) {
+          <li class="spotlight__bullet">
+            <span class="spotlight__check" aria-hidden="true">
+              <ui-icon name="check" [size]="14" />
+            </span>
+            {{ bullet }}
+          </li>
+        }
+      </ul>
+
+      <div class="spotlight__stats">
+        @for (stat of f.stats; track stat.label) {
+          <ui-stat
+            [value]="stat.value"
+            [label]="stat.label"
+            [suffix]="stat.unit ?? ''"
+            [accent]="f.accent"
+          />
+        }
+      </div>
+
+      <ui-code-block
+        class="spotlight__code"
+        [code]="f.demo"
+        lang="ts"
+        [filename]="demoFilename()"
+      />
+
+      <div class="spotlight__actions">
+        <ui-button variant="primary" href="/features" iconRight="arrow-right">
+          Open in overlay
+        </ui-button>
+        <ui-button variant="ghost" href="/docs" icon="book">
+          Read the docs
+        </ui-button>
+      </div>
+    </div>
+  }
+</article>

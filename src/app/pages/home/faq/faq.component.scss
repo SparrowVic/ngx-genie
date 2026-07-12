@@ -1,0 +1,187 @@
+:host {
+  display: block;
+}
+
+.faq__inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* ── Controls: tag filter + search ──────────────────────────────────── */
+.faq__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.faq__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.faq__tag {
+  /* The padding is invisible hit area around the chip, not visual chrome. */
+  padding: 0.2rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  opacity: 0.62;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out),
+    filter var(--dur-fast) var(--ease-out);
+
+  &:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  &.is-active {
+    opacity: 1;
+    filter: saturate(1.15);
+  }
+
+  &.is-active ui-chip {
+    box-shadow: var(--glow-violet);
+    border-radius: var(--radius-full);
+  }
+}
+
+@media (pointer: coarse) {
+  .faq__tag {
+    padding-block: 0.45rem;
+  }
+}
+
+.faq__search {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-glass);
+  min-width: min(100%, 16rem);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+
+  &:focus-within {
+    border-color: var(--border-strong);
+    box-shadow: var(--glow-cyan);
+  }
+
+  &-icon {
+    color: var(--text-tertiary);
+    flex: 0 0 auto;
+  }
+}
+
+.faq__search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  /* 16px minimum so iOS Safari doesn't zoom the page on focus. */
+  font-size: var(--fs-body);
+
+  &::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  &::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+}
+
+/* ── Result meta ────────────────────────────────────────────────────── */
+.faq__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.faq__reset {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.25rem;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+
+  &:hover {
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+    background: var(--surface-1);
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+@media (pointer: coarse) {
+  .faq__reset {
+    min-height: 2.5rem;
+  }
+}
+
+/* ── List ───────────────────────────────────────────────────────────── */
+.faq__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ── Empty state ────────────────────────────────────────────────────── */
+.faq__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
+  padding: clamp(var(--space-6), 6vw, var(--space-8));
+  color: var(--text-tertiary);
+
+  ui-icon {
+    color: var(--violet);
+  }
+}
+
+.faq__empty-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-h4);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.faq__empty-hint {
+  color: var(--text-secondary);
+  font-size: var(--fs-body-sm);
+  max-width: 40ch;
+}

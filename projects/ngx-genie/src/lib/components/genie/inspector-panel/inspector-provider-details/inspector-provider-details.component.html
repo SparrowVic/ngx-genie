@@ -1,5 +1,4 @@
 <div class="service-details-panel">
-
   <div class="snapshot-section" [style.height.px]="snapshotHeight()">
     <div class="details-header">
       <div class="left-group">
@@ -8,13 +7,15 @@
       </div>
       <div class="power-actions">
         <button class="tool-btn console-btn" (click)="consoleLog.emit()">>_</button>
-
-
       </div>
     </div>
 
     <div class="meta-info-bar">
       <span class="scope-badge" [ngClass]="_scopeInfo().cls">{{ _scopeInfo().label }}</span>
+      <div class="live-indicator" [class.active]="isLiveWatch()">
+        <span class="pulse"></span>
+        <span>{{ isLiveWatch() ? 'Live refresh' : 'Snapshot' }}</span>
+      </div>
     </div>
 
     <div class="data-card prop-card custom-scrollbar">
@@ -22,19 +23,30 @@
     </div>
   </div>
 
-
-  <div class="section-resizer"
-       genieResizable direction="vertical"
-       (resizing)="onSnapshotResize($event)">
-
-
-    <button class="resize-action-btn" (click)="$event.stopPropagation(); snapToTop()" title="Collapse Top">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-           stroke-linecap="round" stroke-linejoin="round">
-        <path d="M18 15l-6-6-6 6"/>
+  <div
+    class="section-resizer"
+    genieResizable
+    direction="vertical"
+    (resizing)="onSnapshotResize($event)"
+  >
+    <button
+      class="resize-action-btn"
+      (click)="$event.stopPropagation(); snapToTop()"
+      title="Collapse Top"
+    >
+      <svg
+        width="10"
+        height="10"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="3"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M18 15l-6-6-6 6" />
       </svg>
     </button>
-
 
     <div class="handle-grip">
       <div class="dot"></div>
@@ -42,25 +54,34 @@
       <div class="dot"></div>
     </div>
 
-
-    <button class="resize-action-btn" (click)="$event.stopPropagation(); snapToBottom()" title="Collapse Bottom">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-           stroke-linecap="round" stroke-linejoin="round">
-        <path d="M6 9l6 6 6-6"/>
+    <button
+      class="resize-action-btn"
+      (click)="$event.stopPropagation(); snapToBottom()"
+      title="Collapse Bottom"
+    >
+      <svg
+        width="10"
+        height="10"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="3"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M6 9l6 6 6-6" />
       </svg>
     </button>
-
   </div>
-
 
   <div class="path-section">
     <div class="details-header"><span>INJECTION PATH</span></div>
     <div class="path-list custom-scrollbar">
       @for (pNode of path(); track pNode.id; let last = $last) {
-        <div class="path-item" [class.active]="last">
-          <span class="dot"></span>
-          <span class="text">{{ pNode.label }}</span>
-        </div>
+      <div class="path-item" [class.active]="last">
+        <span class="dot"></span>
+        <span class="text">{{ pNode.label }}</span>
+      </div>
       }
     </div>
   </div>

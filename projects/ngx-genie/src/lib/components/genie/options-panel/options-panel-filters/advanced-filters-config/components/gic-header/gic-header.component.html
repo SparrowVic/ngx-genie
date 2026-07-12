@@ -1,0 +1,15 @@
+<header class="gic__head">
+  <div class="gic__intro">
+    <h2>Internals Control Center</h2>
+    <p>Decide what counts as an <em>internal</em> dependency (hidden from the graph) and how tokens are
+      classified. Everything here is saved to your browser and applied live.</p>
+  </div>
+
+  <div class="gic__stats">
+    <div class="stat"><span class="stat__num">{{ store.stats().total }}</span><span class="stat__lbl">tokens</span></div>
+    <div class="stat stat--ok"><span class="stat__num">{{ store.stats().visible }}</span><span class="stat__lbl">visible</span></div>
+    <div class="stat stat--muted"><span class="stat__num">{{ store.stats().hidden }}</span><span class="stat__lbl">hidden</span></div>
+    <div class="stat stat--rule"><span class="stat__num">{{ store.stats().activeRules }}</span><span class="stat__lbl">rules</span></div>
+    <div class="stat stat--type"><span class="stat__num">{{ store.stats().overrides }}</span><span class="stat__lbl">overrides</span></div>
+  </div>
+</header>

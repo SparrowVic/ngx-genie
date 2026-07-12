@@ -1,0 +1,225 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.spotlight {
+  --accent: var(--violet);
+  height: 100%;
+  padding: clamp(var(--space-5), 4vw, var(--space-7));
+  overflow: hidden;
+}
+
+/* Accent light-bar along the top edge. */
+.spotlight::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.7;
+}
+
+.spotlight__inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  animation: rise var(--dur-slow) var(--ease-out) both;
+}
+
+.spotlight__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.spotlight__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: var(--radius-lg);
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent) 32%, transparent);
+  box-shadow: 0 0 30px -8px color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+.spotlight__titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.spotlight__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.spotlight__name {
+  font-size: var(--fs-h3);
+}
+
+.spotlight__tagline {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+}
+
+/* ---- Product shot: a real capture inside browser-style chrome ---- */
+.spotlight__shot {
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+  background: var(--space-900);
+  box-shadow: var(--shadow-2), var(--edge-light);
+}
+
+.shot-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent);
+}
+
+.shot-dots {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+.shot-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: var(--radius-full);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.25),
+    inset 0 1px 1px rgba(255, 255, 255, 0.35);
+}
+.shot-dot--rose {
+  background: var(--rose);
+}
+.shot-dot--amber {
+  background: var(--amber);
+}
+.shot-dot--emerald {
+  background: var(--emerald);
+}
+
+.shot-title {
+  margin-inline: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shot-key {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+.shot-stage {
+  display: block;
+}
+.shot-stage img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Tall panel captures sit contained on a cosmic backdrop instead of cropping. */
+.spotlight__shot--portrait .shot-stage {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4);
+  background: radial-gradient(
+    90% 120% at 50% 0%,
+    color-mix(in oklab, var(--accent) 12%, transparent),
+    transparent 70%
+  );
+}
+.spotlight__shot--portrait .shot-stage img {
+  width: auto;
+  max-height: 24rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-1);
+}
+
+.shot-caption {
+  padding: 0.45rem 0.75rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--text-secondary);
+}
+
+.spotlight__desc {
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  max-width: 62ch;
+}
+
+.spotlight__bullets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.spotlight__bullet {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-primary);
+  font-size: var(--fs-body-sm);
+}
+
+.spotlight__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: var(--radius-full);
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+}
+
+.spotlight__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  padding-block: var(--space-5);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.spotlight__code {
+  display: block;
+}
+
+.spotlight__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}

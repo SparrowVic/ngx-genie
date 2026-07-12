@@ -1,0 +1,13 @@
+@if (toast(); as t) {
+  <div
+    class="gen-toast"
+    [class.gen-toast--error]="t.kind === 'error'"
+    [class.gen-toast--info]="t.kind === 'info'"
+    role="status"
+    aria-live="polite"
+  >
+    <span class="gen-toast__icon" aria-hidden="true">{{ t.kind === 'error' ? '⚠' : t.kind === 'info' ? 'ℹ' : '✓' }}</span>
+    <span class="gen-toast__message">{{ t.message }}</span>
+    <button type="button" class="gen-toast__close" aria-label="Dismiss notification" (click)="dismiss()">×</button>
+  </div>
+}

@@ -1,0 +1,84 @@
+:host {
+  display: block;
+}
+
+.doc-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* The TOC scrolls to this element (it carries the anchor id), so the
+     sticky-nav offset must live here for scrollIntoView to respect it. */
+  scroll-margin-top: calc(var(--nav-h) + var(--space-4));
+}
+
+.doc-section__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.doc-section__icon {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  color: var(--violet);
+  background: color-mix(in srgb, var(--violet) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--violet) 30%, transparent);
+  box-shadow: inset 0 0 18px -6px color-mix(in srgb, var(--violet) 60%, transparent);
+}
+
+.doc-section__title {
+  font-size: var(--fs-h3);
+  font-weight: 600;
+}
+
+.doc-section__anchor {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-full);
+  color: var(--text-tertiary);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.doc-section__head:hover .doc-section__anchor,
+.doc-section__anchor:focus-visible {
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--cyan);
+}
+.doc-section__anchor:hover {
+  background: color-mix(in srgb, var(--cyan) 12%, transparent);
+}
+.doc-section__anchor:active {
+  transform: scale(0.94);
+}
+
+/* Touch has no hover — keep the deep-link affordance discoverable. */
+@media (hover: none) {
+  .doc-section__anchor {
+    opacity: 0.55;
+    transform: none;
+  }
+}
+
+.doc-section__body {
+  font-size: var(--fs-body-lg);
+  line-height: var(--lh-body);
+  color: var(--text-secondary);
+  max-width: 62ch;
+}
+
+.doc-section__code {
+  display: block;
+  margin-top: var(--space-1);
+}
