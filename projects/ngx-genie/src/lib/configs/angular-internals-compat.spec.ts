@@ -49,6 +49,7 @@ class OnPushProbeComponent {
 
 @Component({
   selector: 'genie-default-probe',
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: '<span>default</span>',
 })
 class DefaultProbeComponent {
@@ -73,6 +74,7 @@ class ProbeDirective {
 @Component({
   selector: 'genie-pipe-dir-host',
   imports: [ProbePipe, ProbeDirective],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: '<span genieProbeDir>{{ "x" | genieProbePipe }}</span>',
 })
 class PipeDirHostComponent {

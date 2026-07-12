@@ -1,4 +1,4 @@
-import {Component, PLATFORM_ID, signal} from '@angular/core';
+import {Component, PLATFORM_ID, signal, ChangeDetectionStrategy} from '@angular/core';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {By} from '@angular/platform-browser';
 
@@ -57,6 +57,7 @@ import {
       <span class="plain">plain</span>
     </div>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [GenieWindowConstraintsDirective],
 })
 class HostComponent {

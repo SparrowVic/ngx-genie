@@ -1,4 +1,4 @@
-import {Component, signal} from '@angular/core';
+import {Component, signal, ChangeDetectionStrategy} from '@angular/core';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {By} from '@angular/platform-browser';
 
@@ -51,6 +51,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 @Component({
   selector: 'genie-svg-host',
   template: `<div class="host-target" [genieSvgIcon]="content()"></div>`,
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [SvgIconDirective],
 })
 class HostComponent {

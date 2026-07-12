@@ -58,7 +58,7 @@
     <div class="providers-list-container custom-scrollbar" [style.height.px]="listHeight()">
       <lib-inspector-providers-list
         [services]="state.filteredServices()"
-        [selectedId]="selectedService()?.id"
+        [selectedId]="$safeNavigationMigration(selectedService()?.id)"
         [syncEnabled]="state.syncEnabled()"
         (select)="selectService.emit($event)">
       </lib-inspector-providers-list>
