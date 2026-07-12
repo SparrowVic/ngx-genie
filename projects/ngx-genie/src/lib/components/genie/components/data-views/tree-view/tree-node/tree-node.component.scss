@@ -1,3 +1,5 @@
+@use 'sass:color';
+
 $c-text-main: #e2e8f0;
 $c-text-muted: #64748b;
 $c-primary: #3b82f6;
@@ -42,7 +44,7 @@ ul {
     }
 
     .icon-folder {
-      color: lighten($c-folder, 10%);
+      color: color.adjust($c-folder, $lightness: 10%);
     }
   }
 
@@ -123,12 +125,12 @@ ul {
 
   &[data-type="Environment"] {
     background: rgba($c-comp, 0.2);
-    color: lighten($c-comp, 20%);
+    color: color.adjust($c-comp, $lightness: 20%);
   }
 
   &[data-type="Element"] {
     background: rgba($c-svc, 0.2);
-    color: lighten($c-svc, 20%);
+    color: color.adjust($c-svc, $lightness: 20%);
   }
 }
 

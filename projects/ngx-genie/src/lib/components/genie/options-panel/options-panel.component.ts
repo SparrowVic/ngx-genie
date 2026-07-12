@@ -72,7 +72,7 @@ export class OptionsPanelComponent {
   protected readonly _showUserTokens = signal(true);
   protected readonly _showUserValues = signal(true);
   protected readonly _showUserObservables = signal(true);
-  protected readonly _showUserSignals = signal(false);
+  protected readonly _showUserSignals = signal(true);
 
   protected readonly _showFrameworkServices = signal(false);
   protected readonly _showFrameworkSystem = signal(false);

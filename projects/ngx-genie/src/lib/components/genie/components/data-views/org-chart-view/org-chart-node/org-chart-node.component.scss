@@ -1,3 +1,5 @@
+@use 'sass:color';
+
 $c-bg-dark: #09090b;
 $c-text-main: #f8fafc;
 $c-text-muted: #94a3b8;
@@ -114,12 +116,12 @@ $c-framework: #f59e0b;
 
       &[data-type="Environment"] {
         background: rgba($c-cmp, 0.2);
-        color: lighten($c-cmp, 20%);
+        color: color.adjust($c-cmp, $lightness: 20%);
       }
 
       &[data-type="Element"] {
         background: rgba($c-svc, 0.2);
-        color: lighten($c-svc, 20%);
+        color: color.adjust($c-svc, $lightness: 20%);
       }
     }
 

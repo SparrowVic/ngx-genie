@@ -1,4 +1,4 @@
-@import '../../../components/genie/options-panel/options-panel-vars';
+@use '../../../components/genie/options-panel/options-panel-vars' as *;
 
 .genie-modal-backdrop {
   position: fixed;

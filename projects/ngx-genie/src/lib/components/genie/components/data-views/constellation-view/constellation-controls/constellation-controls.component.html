@@ -95,10 +95,7 @@
         <span class="label">GROUPING</span>
         <span class="val">{{ groupingStrategyLabel(groupingStrategy()) }}</span>
       </div>
-      <div class="segmented five">
-        <button type="button"
-                [class.active]="groupingStrategy() === 'auto'"
-                (click)="groupingStrategyChange.emit('auto')">AUTO</button>
+      <div class="segmented four">
         <button type="button"
                 [class.active]="groupingStrategy() === 'node-type' || groupingStrategy() === 'type'"
                 (click)="groupingStrategyChange.emit('node-type')">NODES</button>

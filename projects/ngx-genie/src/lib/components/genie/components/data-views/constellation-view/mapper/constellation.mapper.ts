@@ -40,7 +40,7 @@ export class ConstellationMapper {
     showComponentTree: boolean,
     currentPositions: Map<string, { x: number, y: number }>,
     layoutStrategy: ConstellationLayoutStrategy = 'auto',
-    groupingStrategy: ConstellationGroupingStrategy = 'auto',
+    groupingStrategy: ConstellationGroupingStrategy = 'none',
     forceShown: (label: string) => boolean = () => false
   ): MappedGraphData {
 
@@ -98,24 +98,19 @@ export class ConstellationMapper {
     const shouldUseStaticLayout = estimatedNodeCount > ATLAS_LAYOUT_NODE_THRESHOLD
       || estimatedLinkCount > ATLAS_LAYOUT_LINK_THRESHOLD
       || maxServicesPerNode > 250;
-    // An explicit grouping choice (node-type / scope / tree) always produces the clustered organic
-    // layout, so grouping is visible on a graph of ANY size. 'auto' only clusters when the graph is
-    // already big or tree-shaped (otherwise the default view stays the live force simulation), and
-    // 'none' never clusters.
+    // A grouping choice (node-type / scope / tree) always produces the clustered organic layout, so
+    // grouping is visible on a graph of ANY size. 'none' (OFF) never clusters: small graphs stay the
+    // live force simulation and large ones fall back to the atlas grid.
     const isExplicitGrouping = groupingStrategy === 'node-type'
       || groupingStrategy === 'type'
       || groupingStrategy === 'scope'
       || groupingStrategy === 'tree';
-    const shouldUseGroupedOrganicLayout = layoutStrategy === 'auto'
-      && (
-        isExplicitGrouping
-        || (groupingStrategy === 'auto' && (shouldUseStaticLayout || showComponentTree || estimatedNodeCount > 900))
-      );
+    const shouldUseGroupedOrganicLayout = layoutStrategy === 'auto' && isExplicitGrouping;
     const useOrganicLayout = layoutStrategy === 'organic' || shouldUseGroupedOrganicLayout;
     const useAtlasLayout = layoutStrategy === 'atlas'
       || (layoutStrategy === 'auto' && shouldUseStaticLayout && !useOrganicLayout);
     const useStaticLayout = useAtlasLayout || useOrganicLayout;
-    const effectiveGroupingStrategy = ConstellationGrouping._resolveGroupingStrategy(groupingStrategy, useOrganicLayout);
+    const effectiveGroupingStrategy = ConstellationGrouping._resolveGroupingStrategy(groupingStrategy);
     const renderServicesByNodeId = new Map<number, GenieServiceRegistration[]>();
     let remainingServiceRenderBudget = useStaticLayout ? ATLAS_MAX_RENDERED_SERVICE_NODES : Number.POSITIVE_INFINITY;
     for (const node of visibleTreeNodes) {

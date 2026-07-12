@@ -22,7 +22,7 @@ export class ConstellationControlsComponent {
   focusModeEnabled = input<boolean>(true);
   repulsionValue = input<number>(400);
   linkRenderMode = input<ConstellationLinkRenderMode>('adaptive');
-  groupingStrategy = input<ConstellationGroupingStrategy>('auto');
+  groupingStrategy = input<ConstellationGroupingStrategy>('none');
   autoOptimizeEnabled = input<boolean>(true);
   graphStats = input<ConstellationGraphStats | null>(null);
   pinnedNodeLabel = input<string | null>(null);
@@ -53,8 +53,7 @@ export class ConstellationControlsComponent {
     if (strategy === 'node-type' || strategy === 'type') return 'NODE TYPES';
     if (strategy === 'scope') return 'SCOPE';
     if (strategy === 'tree') return 'TREE';
-    if (strategy === 'none') return 'OFF';
-    return 'AUTO';
+    return 'OFF';
   }
 
   protected layoutModeValue(stats: ConstellationGraphStats): string {
